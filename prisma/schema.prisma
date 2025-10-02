@@ -1,0 +1,184 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+}
+
+model Supplier {
+  id            Int             @id @default(autoincrement())
+  name          String
+  contactName   String?
+  phone         String?
+  email         String?
+  address       String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  products      Product[]
+  PurchaseOrder PurchaseOrder[]
+}
+
+model Product {
+  id                Int      @id @default(autoincrement())
+  name              String
+  sku               String   @unique
+  barcode           String?  @unique
+  description       String?
+  categoryId        Int
+  supplierId        Int?
+  purchasePrice     Float
+  sellingPrice      Float
+  stockQuantity     Float    @default(0)
+  lowStockThreshold Int      @default(10)
+  isWeighted        Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  taxRate           Float    @default(0)
+  image             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  category          Category            @relation(fields: [categoryId], references: [id])
+  supplier          Supplier?           @relation(fields: [supplierId], references: [id])
+  saleItems         SaleItem[]
+  stockMovements    StockMovement[]
+  PurchaseOrderItem PurchaseOrderItem[]
+}
+
+model Customer {
+  id            Int      @id @default(autoincrement())
+  name          String
+  phoneNumber   String?  @unique
+  email         String?  @unique
+  loyaltyPoints Int      @default(0)
+  address       String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sales Sale[]
+}
+
+model Employee {
+  id        Int      @id @default(autoincrement())
+  name      String
+  username  String   @unique
+  pinCode   String // Hashed PIN for POS login
+  role      String   @default("CASHIER") // ADMIN, MANAGER, CASHIER
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sales      Sale[]
+  CashDrawer CashDrawer[]
+}
+
+model Sale {
+  id             Int      @id @default(autoincrement())
+  receiptId      String   @unique
+  employeeId     Int
+  customerId     Int?
+  subtotal       Float
+  taxAmount      Float    @default(0)
+  discountAmount Float    @default(0)
+  finalAmount    Float
+  paymentMethod  String // CASH, CARD, MOBILE_PAYMENT, STORE_CREDIT, MIXED
+  paymentStatus  String   @default("COMPLETED") // PENDING, COMPLETED, FAILED, REFUNDED
+  cashReceived   Float?
+  changeGiven    Float?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  employee  Employee   @relation(fields: [employeeId], references: [id])
+  customer  Customer?  @relation(fields: [customerId], references: [id])
+  saleItems SaleItem[]
+}
+
+model SaleItem {
+  id          Int   @id @default(autoincrement())
+  saleId      Int
+  productId   Int
+  quantity    Float // Decimal for weighted items
+  priceAtSale Float // Store price at time of sale
+  discount    Float @default(0)
+  subtotal    Float
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model StockMovement {
+  id           Int      @id @default(autoincrement())
+  productId    Int
+  movementType String // SALE, PURCHASE, ADJUSTMENT, RETURN, DAMAGED, EXPIRED
+  quantity     Float
+  reason       String?
+  reference    String? // PO number, sale ID, etc.
+  createdBy    Int? // Employee ID
+  createdAt    DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model PurchaseOrder {
+  id           Int       @id @default(autoincrement())
+  poNumber     String    @unique
+  supplierId   Int
+  status       String    @default("PENDING") // PENDING, ORDERED, PARTIALLY_RECEIVED, RECEIVED, CANCELLED
+  orderDate    DateTime  @default(now())
+  expectedDate DateTime?
+  receivedDate DateTime?
+  totalAmount  Float     @default(0)
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  items    PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id               Int   @id @default(autoincrement())
+  purchaseOrderId  Int
+  productId        Int
+  quantity         Float
+  unitCost         Float
+  totalCost        Float
+  receivedQuantity Float @default(0)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+}
+
+model CashDrawer {
+  id              Int       @id @default(autoincrement())
+  employeeId      Int
+  openingBalance  Float
+  closingBalance  Float?
+  expectedBalance Float?
+  difference      Float?
+  status          String    @default("OPEN") // OPEN, CLOSED
+  openedAt        DateTime  @default(now())
+  closedAt        DateTime?
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+}
+
+model SystemSetting {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String
+}
