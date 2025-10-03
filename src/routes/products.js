@@ -2,9 +2,14 @@ const express = require("express");
 const { body, query, validationResult } = require("express-validator");
 const { PrismaClient } = require("@prisma/client");
 const { authenticateToken, authorizeRoles } = require("../middleware/auth");
+const { upload, deleteImage } = require("../utils/upload");
+const { parseCSV, jsonToCSV, validateProductImport } = require("../utils/csvHandler");
+const { generateBarcode, generateBarcodeImage } = require("../utils/barcodeGenerator");
+const multer = require("multer");
 
 const router = express.Router();
 const prisma = new PrismaClient();
+const csvUpload = multer({ storage: multer.memoryStorage() });
 
 // Get all products with pagination and filtering
 router.get(
@@ -151,6 +156,16 @@ router.post(
           supplier: true,
         },
       });
+
+      // Generate barcode if not provided
+      if (!product.barcode) {
+        const barcode = generateBarcode(product.sku, product.id);
+        await prisma.product.update({
+          where: { id: product.id },
+          data: { barcode },
+        });
+        product.barcode = barcode;
+      }
 
       // Create stock movement record
       if (req.body.stockQuantity > 0) {
@@ -316,6 +331,355 @@ router.get("/alerts/low-stock", [authenticateToken, authorizeRoles("ADMIN", "MAN
   } catch (error) {
     console.error("Low stock error:", error);
     res.status(500).json({ error: "Failed to fetch low stock products" });
+  }
+});
+
+// Upload product image
+router.post(
+  "/:id/image",
+  authenticateToken,
+  authorizeRoles("ADMIN", "MANAGER"),
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      // Check if product exists
+      const product = await prisma.product.findUnique({
+        where: { id: productId },
+      });
+
+      if (!product) {
+        // Delete uploaded file if product doesn't exist
+        deleteImage(req.file.filename);
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Delete old image if exists
+      if (product.image) {
+        deleteImage(product.image);
+      }
+
+      // Update product with new image path
+      const imagePath = `/uploads/products/${req.file.filename}`;
+      const updatedProduct = await prisma.product.update({
+        where: { id: productId },
+        data: { image: imagePath },
+        include: {
+          category: true,
+          supplier: true,
+        },
+      });
+
+      res.json(updatedProduct);
+    } catch (error) {
+      console.error("Upload image error:", error);
+      // Delete uploaded file on error
+      if (req.file) {
+        deleteImage(req.file.filename);
+      }
+      res.status(500).json({ error: "Failed to upload image" });
+    }
+  }
+);
+
+// Delete product image
+router.delete("/:id/image", authenticateToken, authorizeRoles("ADMIN", "MANAGER"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const productId = parseInt(id);
+
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    if (!product.image) {
+      return res.status(400).json({ error: "Product has no image" });
+    }
+
+    // Delete image file
+    deleteImage(product.image);
+
+    // Update product to remove image reference
+    const updatedProduct = await prisma.product.update({
+      where: { id: productId },
+      data: { image: null },
+      include: {
+        category: true,
+        supplier: true,
+      },
+    });
+
+    res.json(updatedProduct);
+  } catch (error) {
+    console.error("Delete image error:", error);
+    res.status(500).json({ error: "Failed to delete image" });
+  }
+});
+
+// Export products to CSV
+router.get("/export", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      include: {
+        category: true,
+        supplier: true,
+      },
+      orderBy: { id: "asc" },
+    });
+
+    // Format data for CSV export
+    const exportData = products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      barcode: product.barcode || "",
+      categoryId: product.categoryId,
+      categoryName: product.category.name,
+      supplierId: product.supplierId || "",
+      supplierName: product.supplier ? product.supplier.name : "",
+      purchasePrice: product.purchasePrice,
+      sellingPrice: product.sellingPrice,
+      stockQuantity: product.stockQuantity,
+      lowStockThreshold: product.lowStockThreshold,
+      isActive: product.isActive,
+      isWeighted: product.isWeighted,
+      taxRate: product.taxRate,
+      image: product.image || "",
+    }));
+
+    const csv = jsonToCSV(exportData);
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="products_export_${Date.now()}.csv"`);
+    res.send(csv);
+  } catch (error) {
+    console.error("Export error:", error);
+    res.status(500).json({ error: "Failed to export products" });
+  }
+});
+
+// Get CSV template for import
+router.get("/import/template", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], async (req, res) => {
+  try {
+    const template = [
+      {
+        name: "Example Product",
+        sku: "EX001",
+        categoryId: 1,
+        supplierId: "",
+        purchasePrice: 10.0,
+        sellingPrice: 15.0,
+        stockQuantity: 100,
+        lowStockThreshold: 10,
+        isActive: true,
+        isWeighted: false,
+        taxRate: 0,
+      },
+    ];
+
+    const csv = jsonToCSV(template);
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", 'attachment; filename="products_import_template.csv"');
+    res.send(csv);
+  } catch (error) {
+    console.error("Template error:", error);
+    res.status(500).json({ error: "Failed to generate template" });
+  }
+});
+
+// Import products from CSV
+router.post(
+  "/import",
+  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), csvUpload.single("file")],
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const csvData = req.file.buffer.toString("utf-8");
+      const parseResult = parseCSV(csvData);
+
+      if (parseResult.errors.length > 0) {
+        return res.status(400).json({
+          error: "Failed to parse CSV",
+          details: parseResult.errors,
+        });
+      }
+
+      const { valid, invalid } = validateProductImport(parseResult.data);
+
+      if (invalid.length > 0 && valid.length === 0) {
+        return res.status(400).json({
+          error: "All rows have validation errors",
+          invalid,
+        });
+      }
+
+      // Check for duplicate SKUs in the import
+      const skus = valid.map((p) => p.sku);
+      const duplicateSkus = skus.filter((sku, index) => skus.indexOf(sku) !== index);
+      if (duplicateSkus.length > 0) {
+        return res.status(400).json({
+          error: "Duplicate SKUs found in import file",
+          duplicates: [...new Set(duplicateSkus)],
+        });
+      }
+
+      // Check for existing SKUs in database
+      const existingProducts = await prisma.product.findMany({
+        where: { sku: { in: skus } },
+        select: { sku: true },
+      });
+
+      if (existingProducts.length > 0) {
+        const existingSkus = existingProducts.map((p) => p.sku);
+        return res.status(400).json({
+          error: "Some SKUs already exist in the database",
+          existingSkus,
+        });
+      }
+
+      // Verify all category IDs exist
+      const categoryIds = [...new Set(valid.map((p) => p.categoryId))];
+      const categories = await prisma.category.findMany({
+        where: { id: { in: categoryIds } },
+        select: { id: true },
+      });
+
+      const validCategoryIds = categories.map((c) => c.id);
+      const invalidCategoryIds = categoryIds.filter((id) => !validCategoryIds.includes(id));
+
+      if (invalidCategoryIds.length > 0) {
+        return res.status(400).json({
+          error: "Some category IDs do not exist",
+          invalidCategoryIds,
+        });
+      }
+
+      // Verify supplier IDs if provided
+      const supplierIds = [...new Set(valid.filter((p) => p.supplierId).map((p) => p.supplierId))];
+      if (supplierIds.length > 0) {
+        const suppliers = await prisma.supplier.findMany({
+          where: { id: { in: supplierIds } },
+          select: { id: true },
+        });
+
+        const validSupplierIds = suppliers.map((s) => s.id);
+        const invalidSupplierIds = supplierIds.filter((id) => !validSupplierIds.includes(id));
+
+        if (invalidSupplierIds.length > 0) {
+          return res.status(400).json({
+            error: "Some supplier IDs do not exist",
+            invalidSupplierIds,
+          });
+        }
+      }
+
+      // Import valid products
+      const imported = await prisma.product.createMany({
+        data: valid,
+      });
+
+      // Generate barcodes for imported products
+      const importedProducts = await prisma.product.findMany({
+        orderBy: { id: "desc" },
+        take: imported.count,
+      });
+
+      for (const product of importedProducts) {
+        if (!product.barcode) {
+          const barcode = generateBarcode(product.sku, product.id);
+          await prisma.product.update({
+            where: { id: product.id },
+            data: { barcode },
+          });
+        }
+      }
+
+      res.json({
+        message: "Products imported successfully",
+        imported: imported.count,
+        skipped: invalid.length,
+        invalid: invalid.length > 0 ? invalid : undefined,
+      });
+    } catch (error) {
+      console.error("Import error:", error);
+      res.status(500).json({ error: "Failed to import products", details: error.message });
+    }
+  }
+);
+
+// Generate barcode image for a product (public endpoint - no auth required for img tags)
+router.get("/:id/barcode", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    if (!product.barcode) {
+      return res.status(400).json({ error: "Product has no barcode" });
+    }
+
+    const barcodeImage = await generateBarcodeImage(product.barcode);
+
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Content-Disposition", `inline; filename="barcode_${product.sku}.png"`);
+    res.setHeader("Cache-Control", "public, max-age=86400"); // Cache for 24 hours
+    res.send(barcodeImage);
+  } catch (error) {
+    console.error("Barcode generation error:", error);
+    res.status(500).json({ error: "Failed to generate barcode image", details: error.message });
+  }
+});
+
+// Regenerate barcode for a product
+router.post("/:id/barcode/regenerate", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await prisma.product.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        category: true,
+        supplier: true,
+      },
+    });
+
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const barcode = generateBarcode(product.sku, product.id);
+    const updatedProduct = await prisma.product.update({
+      where: { id: product.id },
+      data: { barcode },
+      include: {
+        category: true,
+        supplier: true,
+      },
+    });
+
+    res.json(updatedProduct);
+  } catch (error) {
+    console.error("Regenerate barcode error:", error);
+    res.status(500).json({ error: "Failed to regenerate barcode" });
   }
 });
 
