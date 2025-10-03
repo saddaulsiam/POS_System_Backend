@@ -247,14 +247,19 @@ router.post(
         return sale;
       });
 
-      // Log audit event for refund
+      // Log audit event for sale creation
       const { logAudit } = require("../utils/helpers");
       logAudit({
         userId: req.user.id,
-        action: "REFUND",
+        action: "CREATE",
         entity: "Sale",
-        entityId: saleId,
-        details: JSON.stringify({ items, reason, refundAmount: result.finalAmount }),
+        entityId: result.id,
+        details: JSON.stringify({
+          receiptId: result.receiptId,
+          itemCount: items.length,
+          finalAmount: result.finalAmount,
+          paymentMethod,
+        }),
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"] || "",
       });
