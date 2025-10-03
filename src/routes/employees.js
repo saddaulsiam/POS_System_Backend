@@ -116,7 +116,7 @@ router.post(
     body("name").notEmpty().trim().withMessage("Employee name is required"),
     body("username").notEmpty().trim().withMessage("Username is required"),
     body("pinCode").isLength({ min: 4, max: 6 }).withMessage("PIN must be 4-6 digits"),
-    body("role").isIn(["ADMIN", "MANAGER", "CASHIER"]).withMessage("Invalid role"),
+    body("role").isIn(["ADMIN", "MANAGER", "CASHIER", "STAFF"]).withMessage("Invalid role"),
   ],
   async (req, res) => {
     try {
@@ -171,7 +171,7 @@ router.put(
     authorizeRoles("ADMIN"),
     body("name").optional().notEmpty().trim().withMessage("Name cannot be empty"),
     body("username").optional().notEmpty().trim().withMessage("Username cannot be empty"),
-    body("role").optional().isIn(["ADMIN", "MANAGER", "CASHIER"]).withMessage("Invalid role"),
+    body("role").optional().isIn(["ADMIN", "MANAGER", "CASHIER", "STAFF"]).withMessage("Invalid role"),
     body("isActive").optional().isBoolean().withMessage("isActive must be a boolean"),
   ],
   async (req, res) => {

@@ -31,10 +31,18 @@ router.get(
 
       if (search) {
         where.OR = [
-          { name: { contains: search, mode: "insensitive" } },
-          { phoneNumber: { contains: search, mode: "insensitive" } },
-          { email: { contains: search, mode: "insensitive" } },
+          { name: { contains: search } },
+          { phoneNumber: { contains: search } },
+          { email: { contains: search } },
         ];
+      }
+
+      let countWhere = { ...where };
+      if (search) {
+        countWhere = {
+          ...countWhere,
+          OR: [{ name: { contains: search } }, { phoneNumber: { contains: search } }, { email: { contains: search } }],
+        };
       }
 
       const [customers, total] = await Promise.all([
@@ -49,7 +57,7 @@ router.get(
           skip,
           take: limit,
         }),
-        prisma.customer.count({ where }),
+        prisma.customer.count({ where: countWhere }),
       ]);
 
       res.json({
@@ -63,7 +71,7 @@ router.get(
       });
     } catch (error) {
       console.error("Get customers error:", error);
-      res.status(500).json({ error: "Failed to fetch customers" });
+      res.status(500).json({ error: "Failed to fetch customers", data: error });
     }
   }
 );

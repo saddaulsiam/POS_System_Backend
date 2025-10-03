@@ -63,7 +63,7 @@ router.get(
       ]);
 
       res.json({
-        sales,
+        data: sales,
         pagination: {
           page,
           limit,
