@@ -13,7 +13,9 @@ const customerRoutes = require("./routes/customers");
 const salesRoutes = require("./routes/sales");
 const inventoryRoutes = require("./routes/inventory");
 const reportRoutes = require("./routes/reports");
+
 const employeeRoutes = require("./routes/employees");
+const profileRoutes = require("./routes/profile");
 
 const app = express();
 const prisma = new PrismaClient();
@@ -37,6 +39,17 @@ const limiter = rateLimit({
   message: "Too many requests from this IP, please try again later.",
 });
 app.use("/api/", limiter);
+
+// API routes
+app.use("/api/auth", authRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/customers", customerRoutes);
+app.use("/api/sales", salesRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/reports", reportRoutes);
+app.use("/api/employees", employeeRoutes);
+app.use("/api/profile", profileRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
