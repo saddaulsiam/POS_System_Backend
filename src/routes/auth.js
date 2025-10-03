@@ -1,7 +1,7 @@
 const express = require("express");
 const { body, validationResult } = require("express-validator");
 const { PrismaClient } = require("@prisma/client");
-const { hashPassword, comparePassword, generateToken } = require("../utils/helpers");
+const { hashPassword, comparePassword, generateToken, logAudit } = require("../utils/helpers");
 const { authenticateToken } = require("../middleware/auth");
 
 const router = express.Router();
@@ -37,6 +37,16 @@ router.post(
       }
 
       const token = generateToken(employee.id, employee.role);
+
+      // Log audit event for login
+      await logAudit({
+        userId: employee.id,
+        action: "LOGIN",
+        entity: "Employee",
+        entityId: employee.id,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"] || "",
+      });
 
       res.json({
         token,

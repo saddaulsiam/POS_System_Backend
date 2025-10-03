@@ -235,6 +235,18 @@ router.put(
         },
       });
 
+      // Log audit event for product update
+      const { logAudit } = require("../utils/helpers");
+      logAudit({
+        userId: req.user.id,
+        action: "UPDATE_PRODUCT",
+        entity: "Product",
+        entityId: productId,
+        details: JSON.stringify(req.body),
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"] || "",
+      });
+
       res.json(product);
     } catch (error) {
       console.error("Update product error:", error);
@@ -260,6 +272,17 @@ router.delete("/:id", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], a
     await prisma.product.update({
       where: { id: productId },
       data: { isActive: false },
+    });
+
+    // Log audit event for product delete
+    const { logAudit } = require("../utils/helpers");
+    logAudit({
+      userId: req.user.id,
+      action: "DELETE_PRODUCT",
+      entity: "Product",
+      entityId: productId,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"] || "",
     });
 
     res.json({ message: "Product deleted successfully" });

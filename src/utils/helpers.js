@@ -1,3 +1,35 @@
+// Audit log helper
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
+
+/**
+ * Log an audit event
+ * @param {Object} params
+ * @param {number} params.userId
+ * @param {string} params.action
+ * @param {string} [params.entity]
+ * @param {number} [params.entityId]
+ * @param {string} [params.details]
+ * @param {string} [params.ipAddress]
+ * @param {string} [params.userAgent]
+ */
+const logAudit = async ({ userId, action, entity, entityId, details, ipAddress, userAgent }) => {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        action,
+        entity,
+        entityId,
+        details,
+        ipAddress,
+        userAgent,
+      },
+    });
+  } catch (err) {
+    console.error("Audit log error:", err);
+  }
+};
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -42,6 +74,7 @@ const generatePONumber = () => {
 };
 
 module.exports = {
+  logAudit,
   hashPassword,
   comparePassword,
   generateToken,

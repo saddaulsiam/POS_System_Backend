@@ -247,6 +247,18 @@ router.post(
         return sale;
       });
 
+      // Log audit event for refund
+      const { logAudit } = require("../utils/helpers");
+      logAudit({
+        userId: req.user.id,
+        action: "REFUND",
+        entity: "Sale",
+        entityId: saleId,
+        details: JSON.stringify({ items, reason, refundAmount: result.finalAmount }),
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"] || "",
+      });
+
       res.status(201).json(result);
     } catch (error) {
       console.error("Create sale error:", error);

@@ -39,6 +39,19 @@ router.put(
         data: updateData,
         select: { id: true, name: true, username: true, role: true, isActive: true, updatedAt: true },
       });
+
+      // Log audit event for profile update
+      const { logAudit } = require("../utils/helpers");
+      logAudit({
+        userId,
+        action: "UPDATE_PROFILE",
+        entity: "Employee",
+        entityId: userId,
+        details: JSON.stringify(updateData),
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"] || "",
+      });
+
       res.json(updated);
     } catch (error) {
       console.error("Update profile error:", error);

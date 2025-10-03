@@ -16,6 +16,7 @@ const reportRoutes = require("./routes/reports");
 
 const employeeRoutes = require("./routes/employees");
 const profileRoutes = require("./routes/profile");
+const auditLogsRoutes = require("./routes/auditLogs");
 
 const app = express();
 const prisma = new PrismaClient();
@@ -50,6 +51,7 @@ app.use("/api/inventory", inventoryRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/audit-logs", auditLogsRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
