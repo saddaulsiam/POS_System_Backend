@@ -134,6 +134,13 @@ router.post(
       .withMessage("Invalid payment method"),
     body("cashReceived").optional().isFloat({ min: 0 }).withMessage("Cash received must be non-negative"),
     body("discountAmount").optional().isFloat({ min: 0 }).withMessage("Discount amount must be non-negative"),
+    body("discountReason").optional().isString().withMessage("Discount reason must be a string"),
+    body("paymentSplits").optional().isArray().withMessage("Payment splits must be an array"),
+    body("paymentSplits.*.paymentMethod")
+      .optional()
+      .isIn(["CASH", "CARD", "MOBILE_PAYMENT", "STORE_CREDIT"])
+      .withMessage("Invalid split payment method"),
+    body("paymentSplits.*.amount").optional().isFloat({ min: 0.01 }).withMessage("Split amount must be > 0"),
     body("notes").optional().isString().withMessage("Notes must be a string"),
   ],
   async (req, res) => {
@@ -143,8 +150,24 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { items, customerId, paymentMethod, cashReceived, discountAmount = 0, notes } = req.body;
+      const {
+        items,
+        customerId,
+        paymentMethod,
+        cashReceived,
+        discountAmount = 0,
+        discountReason,
+        paymentSplits,
+        notes,
+      } = req.body;
       const employeeId = req.user.id;
+
+      // Validate payment splits for MIXED payment
+      if (paymentMethod === "MIXED") {
+        if (!paymentSplits || paymentSplits.length < 2) {
+          return res.status(400).json({ error: "MIXED payment requires at least 2 payment splits" });
+        }
+      }
 
       // Start transaction
       const result = await prisma.$transaction(async (tx) => {
@@ -206,6 +229,14 @@ router.post(
         const finalAmount = subtotal + totalTax - discountAmount;
         const receiptId = generateReceiptId();
 
+        // Validate split payment amounts
+        if (paymentMethod === "MIXED") {
+          const totalSplitAmount = paymentSplits.reduce((sum, split) => sum + split.amount, 0);
+          if (Math.abs(totalSplitAmount - finalAmount) > 0.01) {
+            throw new Error(`Payment splits total (${totalSplitAmount}) must equal final amount (${finalAmount})`);
+          }
+        }
+
         // Create sale
         const sale = await tx.sale.create({
           data: {
@@ -215,6 +246,7 @@ router.post(
             subtotal,
             taxAmount: totalTax,
             discountAmount,
+            discountReason,
             finalAmount,
             paymentMethod,
             cashReceived,
@@ -223,6 +255,12 @@ router.post(
             saleItems: {
               create: saleItemsData,
             },
+            paymentSplits:
+              paymentMethod === "MIXED"
+                ? {
+                    create: paymentSplits,
+                  }
+                : undefined,
           },
           include: {
             employee: { select: { id: true, name: true, username: true } },
@@ -232,6 +270,7 @@ router.post(
                 product: { select: { id: true, name: true, sku: true, isWeighted: true } },
               },
             },
+            paymentSplits: paymentMethod === "MIXED",
           },
         });
 
@@ -259,6 +298,7 @@ router.post(
           itemCount: items.length,
           finalAmount: result.finalAmount,
           paymentMethod,
+          splitPayments: paymentMethod === "MIXED" ? paymentSplits.length : 0,
         }),
         ipAddress: req.ip,
         userAgent: req.headers["user-agent"] || "",
@@ -272,7 +312,7 @@ router.post(
   }
 );
 
-// Process return/refund
+// Process return/refund (Enhanced with Option 7 features)
 router.post(
   "/:id/return",
   [
@@ -281,7 +321,16 @@ router.post(
     body("items").isArray({ min: 1 }).withMessage("Items array is required"),
     body("items.*.saleItemId").isInt().withMessage("Sale item ID is required"),
     body("items.*.quantity").isFloat({ min: 0.001 }).withMessage("Return quantity must be greater than 0"),
-    body("reason").optional().isString().withMessage("Reason must be a string"),
+    body("items.*.condition")
+      .optional()
+      .isIn(["NEW", "OPENED", "DAMAGED", "DEFECTIVE"])
+      .withMessage("Invalid condition"),
+    body("reason").isString().notEmpty().withMessage("Return reason is required"),
+    body("refundMethod")
+      .isIn(["CASH", "ORIGINAL_PAYMENT", "STORE_CREDIT", "EXCHANGE"])
+      .withMessage("Invalid refund method"),
+    body("restockingFee").optional().isFloat({ min: 0 }).withMessage("Restocking fee must be a positive number"),
+    body("exchangeProductId").optional().isInt().withMessage("Exchange product ID must be an integer"),
   ],
   async (req, res) => {
     try {
@@ -291,69 +340,171 @@ router.post(
       }
 
       const { id } = req.params;
-      const { items, reason } = req.body;
+      const { items, reason, refundMethod, restockingFee = 0, exchangeProductId, notes } = req.body;
       const saleId = parseInt(id);
 
       const result = await prisma.$transaction(async (tx) => {
-        // Get original sale
+        // Get original sale with all details
         const originalSale = await tx.sale.findUnique({
           where: { id: saleId },
-          include: { saleItems: true },
+          include: {
+            items: {
+              include: {
+                product: true,
+                productVariant: true,
+              },
+            },
+            customer: true,
+          },
         });
 
         if (!originalSale) {
           throw new Error("Original sale not found");
         }
 
+        // Check if sale is within return period (e.g., 30 days)
+        const saleDate = new Date(originalSale.createdAt);
+        const daysSinceSale = Math.floor((Date.now() - saleDate.getTime()) / (1000 * 60 * 60 * 24));
+        const returnPolicyDays = parseInt(process.env.RETURN_POLICY_DAYS || "30");
+
+        if (daysSinceSale > returnPolicyDays) {
+          throw new Error(`Return period expired. Items can only be returned within ${returnPolicyDays} days`);
+        }
+
+        // Check if sale already has partial returns
+        const existingReturns = await tx.sale.findMany({
+          where: {
+            notes: {
+              contains: `Return for sale ${originalSale.receiptId}`,
+            },
+          },
+          include: {
+            items: true,
+          },
+        });
+
         let refundAmount = 0;
         const returnItems = [];
 
         // Process each return item
         for (const returnItem of items) {
-          const originalSaleItem = originalSale.saleItems.find((item) => item.id === returnItem.saleItemId);
+          const originalSaleItem = originalSale.items.find((item) => item.id === returnItem.saleItemId);
 
           if (!originalSaleItem) {
             throw new Error(`Sale item ${returnItem.saleItemId} not found in original sale`);
           }
 
-          if (returnItem.quantity > originalSaleItem.quantity) {
-            throw new Error(`Cannot return more than originally purchased`);
+          // Calculate already returned quantity
+          let alreadyReturned = 0;
+          for (const existingReturn of existingReturns) {
+            const returnedItem = existingReturn.items.find((item) => item.productId === originalSaleItem.productId);
+            if (returnedItem) {
+              alreadyReturned += Math.abs(returnedItem.quantity);
+            }
           }
 
+          const remainingQuantity = originalSaleItem.quantity - alreadyReturned;
+
+          if (returnItem.quantity > remainingQuantity) {
+            throw new Error(
+              `Cannot return ${returnItem.quantity} of "${originalSaleItem.product.name}". ` +
+                `Original: ${originalSaleItem.quantity}, Already returned: ${alreadyReturned}, ` +
+                `Remaining: ${remainingQuantity}`
+            );
+          }
+
+          // Calculate refund amount for this item
           const itemRefundAmount =
-            originalSaleItem.priceAtSale * returnItem.quantity -
-            originalSaleItem.discount * (returnItem.quantity / originalSaleItem.quantity);
+            originalSaleItem.unitPrice * returnItem.quantity -
+            (originalSaleItem.discount || 0) * (returnItem.quantity / originalSaleItem.quantity);
 
           refundAmount += itemRefundAmount;
 
           returnItems.push({
             productId: originalSaleItem.productId,
-            quantity: returnItem.quantity,
-            priceAtSale: originalSaleItem.priceAtSale,
-            discount: originalSaleItem.discount * (returnItem.quantity / originalSaleItem.quantity),
-            subtotal: -itemRefundAmount,
+            productVariantId: originalSaleItem.productVariantId,
+            quantity: -returnItem.quantity, // Negative for return
+            unitPrice: originalSaleItem.unitPrice,
+            discount: (originalSaleItem.discount || 0) * (returnItem.quantity / originalSaleItem.quantity),
+            total: -itemRefundAmount,
           });
 
-          // Return stock
-          await tx.product.update({
-            where: { id: originalSaleItem.productId },
-            data: { stockQuantity: { increment: returnItem.quantity } },
-          });
+          // Return stock based on item condition
+          const condition = returnItem.condition || "NEW";
+          const shouldRestock = ["NEW", "OPENED"].includes(condition);
 
-          // Create stock movement
-          await tx.stockMovement.create({
+          if (shouldRestock) {
+            // Return to stock
+            if (originalSaleItem.productVariantId) {
+              await tx.productVariant.update({
+                where: { id: originalSaleItem.productVariantId },
+                data: { stockQuantity: { increment: returnItem.quantity } },
+              });
+            } else {
+              await tx.product.update({
+                where: { id: originalSaleItem.productId },
+                data: { stockQuantity: { increment: returnItem.quantity } },
+              });
+            }
+
+            // Create stock movement
+            await tx.stockMovement.create({
+              data: {
+                productId: originalSaleItem.productId,
+                productVariantId: originalSaleItem.productVariantId,
+                movementType: "RETURN",
+                quantity: returnItem.quantity,
+                reason: `Return - ${condition} - ${reason}`,
+                reference: originalSale.receiptId,
+                createdBy: req.user.id,
+              },
+            });
+          } else {
+            // Damaged/Defective - don't restock, create adjustment
+            await tx.stockMovement.create({
+              data: {
+                productId: originalSaleItem.productId,
+                productVariantId: originalSaleItem.productVariantId,
+                movementType: "ADJUSTMENT",
+                quantity: -returnItem.quantity,
+                reason: `Returned as ${condition} - ${reason}`,
+                reference: originalSale.receiptId,
+                createdBy: req.user.id,
+              },
+            });
+          }
+        }
+
+        // Apply restocking fee if applicable
+        const finalRefundAmount = Math.max(0, refundAmount - restockingFee);
+
+        // Deduct returned points if loyalty program used
+        if (originalSale.pointsEarned && originalSale.pointsEarned > 0 && originalSale.customerId) {
+          const pointsToDeduct = Math.floor(originalSale.pointsEarned * (refundAmount / originalSale.finalAmount));
+
+          await tx.pointsTransaction.create({
             data: {
-              productId: originalSaleItem.productId,
-              movementType: "RETURN",
-              quantity: returnItem.quantity,
-              reason: `Return from sale ${originalSale.receiptId}: ${reason || "No reason provided"}`,
-              reference: originalSale.receiptId,
-              createdBy: req.user.id,
+              customerId: originalSale.customerId,
+              type: "ADJUSTED",
+              points: -pointsToDeduct,
+              description: `Points deducted for return of sale ${originalSale.receiptId}`,
+              saleId: originalSale.id,
             },
+          });
+
+          await tx.customer.update({
+            where: { id: originalSale.customerId },
+            data: { loyaltyPoints: { decrement: pointsToDeduct } },
           });
         }
 
-        // Create return sale (negative amounts)
+        // Determine payment method for refund
+        let refundPaymentMethod = refundMethod;
+        if (refundMethod === "ORIGINAL_PAYMENT") {
+          refundPaymentMethod = originalSale.paymentMethod;
+        }
+
+        // Create return sale
         const returnSale = await tx.sale.create({
           data: {
             receiptId: `RET-${generateReceiptId()}`,
@@ -361,33 +512,193 @@ router.post(
             customerId: originalSale.customerId,
             subtotal: -refundAmount,
             taxAmount: 0,
-            discountAmount: 0,
-            finalAmount: -refundAmount,
-            paymentMethod: "CASH", // Assuming cash refund
-            paymentStatus: "COMPLETED",
-            notes: `Return for sale ${originalSale.receiptId}. Reason: ${reason || "No reason provided"}`,
-            saleItems: {
+            discountAmount: restockingFee,
+            finalAmount: -finalRefundAmount,
+            paymentMethod: refundPaymentMethod,
+            paymentStatus: refundMethod === "STORE_CREDIT" ? "PENDING" : "COMPLETED",
+            notes: `Return for sale ${originalSale.receiptId}. Reason: ${reason}${notes ? ` | ${notes}` : ""}${
+              restockingFee > 0 ? ` | Restocking fee: $${restockingFee.toFixed(2)}` : ""
+            }`,
+            items: {
               create: returnItems,
             },
           },
           include: {
-            employee: { select: { id: true, name: true } },
-            customer: { select: { id: true, name: true } },
-            saleItems: {
+            employee: { select: { id: true, firstName: true, lastName: true } },
+            customer: true,
+            items: {
               include: {
-                product: { select: { id: true, name: true, sku: true } },
+                product: true,
+                productVariant: true,
               },
             },
           },
         });
 
-        return returnSale;
+        // If store credit, create a loyalty reward
+        if (refundMethod === "STORE_CREDIT" && originalSale.customerId) {
+          const expiresAt = new Date();
+          expiresAt.setMonth(expiresAt.getMonth() + 6); // 6 months validity
+
+          await tx.loyaltyReward.create({
+            data: {
+              customerId: originalSale.customerId,
+              rewardType: "STORE_CREDIT",
+              rewardValue: finalRefundAmount,
+              pointsCost: 0,
+              description: `Store credit from return ${returnSale.receiptId}`,
+              expiresAt: expiresAt,
+            },
+          });
+        }
+
+        // Mark original sale with return status (update notes)
+        await tx.sale.update({
+          where: { id: originalSale.id },
+          data: {
+            paymentStatus: "REFUNDED",
+            notes: originalSale.notes
+              ? `${originalSale.notes} | Partial return processed: ${returnSale.receiptId}`
+              : `Partial return processed: ${returnSale.receiptId}`,
+          },
+        });
+
+        return {
+          returnSale,
+          refundAmount: finalRefundAmount,
+          restockingFee,
+          refundMethod,
+          originalSaleId: originalSale.id,
+          message:
+            refundMethod === "STORE_CREDIT"
+              ? "Return processed. Store credit has been added to customer account."
+              : "Return processed successfully.",
+        };
       });
 
       res.status(201).json(result);
     } catch (error) {
       console.error("Process return error:", error);
       res.status(500).json({ error: error.message || "Failed to process return" });
+    }
+  }
+);
+
+// Get return history for a specific sale
+router.get("/:id/returns", [authenticateToken], async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const originalSale = await prisma.sale.findUnique({
+      where: { id: parseInt(id) },
+      select: { receiptId: true },
+    });
+
+    if (!originalSale) {
+      return res.status(404).json({ error: "Sale not found" });
+    }
+
+    // Find all returns for this sale
+    const returns = await prisma.sale.findMany({
+      where: {
+        notes: {
+          contains: `Return for sale ${originalSale.receiptId}`,
+        },
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: { id: true, name: true, sku: true },
+            },
+            productVariant: {
+              select: { id: true, name: true, sku: true },
+            },
+          },
+        },
+        employee: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    const summary = {
+      totalReturns: returns.length,
+      totalRefunded: returns.reduce((sum, ret) => sum + Math.abs(ret.finalAmount), 0),
+      returns: returns,
+    };
+
+    res.json(summary);
+  } catch (error) {
+    console.error("Get returns error:", error);
+    res.status(500).json({ error: "Failed to get return history" });
+  }
+});
+
+// Get all returns (for reports)
+router.get(
+  "/returns/all",
+  [
+    authenticateToken,
+    authorizeRoles("ADMIN", "MANAGER"),
+    query("startDate").optional().isISO8601(),
+    query("endDate").optional().isISO8601(),
+    query("page").optional().isInt({ min: 1 }),
+    query("limit").optional().isInt({ min: 1, max: 100 }),
+  ],
+  async (req, res) => {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const skip = (page - 1) * limit;
+
+      const where = {
+        receiptId: {
+          startsWith: "RET-",
+        },
+      };
+
+      if (req.query.startDate || req.query.endDate) {
+        where.createdAt = {};
+        if (req.query.startDate) where.createdAt.gte = new Date(req.query.startDate);
+        if (req.query.endDate) where.createdAt.lte = new Date(req.query.endDate);
+      }
+
+      const [returns, total] = await Promise.all([
+        prisma.sale.findMany({
+          where,
+          include: {
+            items: {
+              include: {
+                product: { select: { id: true, name: true, sku: true } },
+                productVariant: { select: { id: true, name: true } },
+              },
+            },
+            employee: { select: { id: true, firstName: true, lastName: true } },
+            customer: { select: { id: true, firstName: true, lastName: true, email: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit,
+        }),
+        prisma.sale.count({ where }),
+      ]);
+
+      res.json({
+        returns,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      console.error("Get all returns error:", error);
+      res.status(500).json({ error: "Failed to get returns" });
     }
   }
 );

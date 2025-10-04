@@ -61,6 +61,8 @@ model Product {
   isActive          Boolean  @default(true)
   taxRate           Float    @default(0)
   image             String?
+  unit              String?  @default("pcs") // pcs, kg, ltr, box, etc.
+  hasVariants       Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -69,20 +71,99 @@ model Product {
   saleItems         SaleItem[]
   stockMovements    StockMovement[]
   PurchaseOrderItem PurchaseOrderItem[]
+  variants          ProductVariant[]
+  quickSaleItems    QuickSaleItem[]
+  stockAlerts       StockAlert[]
 }
 
-model Customer {
+model ProductVariant {
   id            Int      @id @default(autoincrement())
-  name          String
-  phoneNumber   String?  @unique
-  email         String?  @unique
-  loyaltyPoints Int      @default(0)
-  address       String?
+  productId     Int
+  name          String // e.g., "500ml", "1L", "Small", "Medium"
+  sku           String   @unique
+  barcode       String?  @unique
+  purchasePrice Float
+  sellingPrice  Float
+  stockQuantity Float    @default(0)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  sales Sale[]
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  saleItems      SaleItem[]
+  stockMovements StockMovement[]
+}
+
+model Customer {
+  id            Int       @id @default(autoincrement())
+  name          String
+  phoneNumber   String?   @unique
+  email         String?   @unique
+  loyaltyPoints Int       @default(0)
+  loyaltyTier   String    @default("BRONZE") // BRONZE, SILVER, GOLD, PLATINUM
+  dateOfBirth   DateTime?
+  address       String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sales              Sale[]
+  parkedSales        ParkedSale[]
+  pointsTransactions PointsTransaction[]
+  loyaltyRewards     LoyaltyReward[]
+}
+
+model PointsTransaction {
+  id          Int      @id @default(autoincrement())
+  customerId  Int
+  saleId      Int?
+  type        String // EARNED, REDEEMED, EXPIRED, ADJUSTED, BIRTHDAY_BONUS
+  points      Int // Positive for earned, negative for redeemed
+  description String?
+  createdAt   DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  sale     Sale?    @relation(fields: [saleId], references: [id])
+}
+
+model LoyaltyReward {
+  id          Int       @id @default(autoincrement())
+  customerId  Int
+  rewardType  String // DISCOUNT_PERCENTAGE, DISCOUNT_FIXED, FREE_PRODUCT, POINTS_MULTIPLIER, BIRTHDAY_BONUS
+  rewardValue Float // Percentage, fixed amount, or product ID
+  pointsCost  Int // Points required to redeem
+  description String
+  isActive    Boolean   @default(true)
+  expiresAt   DateTime?
+  redeemedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model LoyaltyOffer {
+  id              Int      @id @default(autoincrement())
+  title           String
+  description     String
+  offerType       String // DISCOUNT_PERCENTAGE, DISCOUNT_FIXED, BUY_X_GET_Y, POINTS_MULTIPLIER
+  discountValue   Float?
+  minimumPurchase Float    @default(0)
+  requiredTier    String   @default("BRONZE") // BRONZE, SILVER, GOLD, PLATINUM
+  startDate       DateTime
+  endDate         DateTime
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model LoyaltyTierConfig {
+  id                 Int     @id @default(autoincrement())
+  tier               String  @unique // BRONZE, SILVER, GOLD, PLATINUM
+  minimumPoints      Int     @default(0)
+  pointsMultiplier   Float   @default(1.0) // 1.0 = 1x, 1.5 = 1.5x points
+  discountPercentage Float   @default(0) // % discount on all purchases
+  birthdayBonus      Int     @default(0) // Bonus points on birthday
+  description        String?
 }
 
 model Employee {
@@ -95,9 +176,10 @@ model Employee {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sales      Sale[]
-  CashDrawer CashDrawer[]
-  auditLogs  AuditLog[]
+  sales       Sale[]
+  CashDrawer  CashDrawer[]
+  auditLogs   AuditLog[]
+  parkedSales ParkedSale[]
 }
 
 model Sale {
@@ -108,44 +190,103 @@ model Sale {
   subtotal       Float
   taxAmount      Float    @default(0)
   discountAmount Float    @default(0)
+  discountReason String? // Reason for discount
   finalAmount    Float
   paymentMethod  String // CASH, CARD, MOBILE_PAYMENT, STORE_CREDIT, MIXED
-  paymentStatus  String   @default("COMPLETED") // PENDING, COMPLETED, FAILED, REFUNDED
+  paymentStatus  String   @default("COMPLETED") // PENDING, COMPLETED, FAILED, REFUNDED, PARKED
   cashReceived   Float?
   changeGiven    Float?
   notes          String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  employee  Employee   @relation(fields: [employeeId], references: [id])
-  customer  Customer?  @relation(fields: [customerId], references: [id])
-  saleItems SaleItem[]
+  employee           Employee            @relation(fields: [employeeId], references: [id])
+  customer           Customer?           @relation(fields: [customerId], references: [id])
+  saleItems          SaleItem[]
+  paymentSplits      PaymentSplit[] // For MIXED payment method
+  pointsTransactions PointsTransaction[]
+}
+
+model PaymentSplit {
+  id            Int      @id @default(autoincrement())
+  saleId        Int
+  paymentMethod String // CASH, CARD, MOBILE_PAYMENT, STORE_CREDIT
+  amount        Float
+  createdAt     DateTime @default(now())
+
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+}
+
+model ParkedSale {
+  id             Int       @id @default(autoincrement())
+  employeeId     Int
+  customerId     Int?
+  items          String // JSON string of cart items
+  subtotal       Float
+  taxAmount      Float     @default(0)
+  discountAmount Float     @default(0)
+  notes          String?
+  parkedAt       DateTime  @default(now())
+  expiresAt      DateTime? // Optional expiry
+
+  employee Employee  @relation(fields: [employeeId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+}
+
+model QuickSaleItem {
+  id          Int     @id @default(autoincrement())
+  productId   Int
+  displayName String // Custom display name (e.g., "Coffee", "Water")
+  color       String  @default("#3B82F6") // Hex color for button
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model SaleItem {
-  id          Int   @id @default(autoincrement())
-  saleId      Int
-  productId   Int
-  quantity    Float // Decimal for weighted items
-  priceAtSale Float // Store price at time of sale
-  discount    Float @default(0)
-  subtotal    Float
+  id               Int   @id @default(autoincrement())
+  saleId           Int
+  productId        Int
+  productVariantId Int? // Optional: if product has variants
+  quantity         Float // Decimal for weighted items
+  priceAtSale      Float // Store price at time of sale
+  discount         Float @default(0)
+  subtotal         Float
 
-  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  sale           Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product        Product         @relation(fields: [productId], references: [id])
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id])
 }
 
 model StockMovement {
-  id           Int      @id @default(autoincrement())
-  productId    Int
-  movementType String // SALE, PURCHASE, ADJUSTMENT, RETURN, DAMAGED, EXPIRED
-  quantity     Float
-  reason       String?
-  reference    String? // PO number, sale ID, etc.
-  createdBy    Int? // Employee ID
-  createdAt    DateTime @default(now())
+  id               Int      @id @default(autoincrement())
+  productId        Int
+  productVariantId Int? // Optional: if product has variants
+  movementType     String // SALE, PURCHASE, ADJUSTMENT, RETURN, DAMAGED, EXPIRED, TRANSFER
+  quantity         Float
+  reason           String?
+  reference        String? // PO number, sale ID, transfer ID, etc.
+  fromLocation     String? // For transfers
+  toLocation       String? // For transfers
+  createdBy        Int? // Employee ID
+  createdAt        DateTime @default(now())
 
-  product Product @relation(fields: [productId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id])
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id])
+}
+
+model StockAlert {
+  id         Int       @id @default(autoincrement())
+  productId  Int
+  alertType  String // LOW_STOCK, OUT_OF_STOCK, EXPIRING_SOON, DAMAGED
+  message    String
+  isResolved Boolean   @default(false)
+  resolvedAt DateTime?
+  resolvedBy Int? // Employee ID
+  createdAt  DateTime  @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model PurchaseOrder {

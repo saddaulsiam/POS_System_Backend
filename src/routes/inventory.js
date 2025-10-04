@@ -280,4 +280,332 @@ router.post(
   }
 );
 
+// Stock adjustment (damage, expiry, loss, found)
+router.post(
+  "/adjust",
+  [
+    authenticateToken,
+    authorizeRoles("ADMIN", "MANAGER"),
+    body("productId").isInt().withMessage("Product ID is required"),
+    body("productVariantId").optional().isInt(),
+    body("quantity").isFloat().withMessage("Quantity is required"),
+    body("reason").isIn(["DAMAGED", "EXPIRED", "LOST", "FOUND", "COUNT_ADJUSTMENT"]).withMessage("Invalid reason"),
+    body("notes").optional().isString(),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { productId, productVariantId, quantity, reason, notes } = req.body;
+      const employeeId = req.user.id;
+
+      const result = await prisma.$transaction(async (tx) => {
+        // Update stock
+        if (productVariantId) {
+          await tx.productVariant.update({
+            where: { id: productVariantId },
+            data: { stockQuantity: { increment: quantity } },
+          });
+        } else {
+          await tx.product.update({
+            where: { id: productId },
+            data: { stockQuantity: { increment: quantity } },
+          });
+        }
+
+        // Create stock movement
+        const movement = await tx.stockMovement.create({
+          data: {
+            productId,
+            productVariantId,
+            movementType: "ADJUSTMENT",
+            quantity,
+            reason,
+            reference: notes || `Adjustment: ${reason}`,
+            createdBy: employeeId,
+          },
+          include: {
+            product: {
+              select: { id: true, name: true, sku: true, stockQuantity: true },
+            },
+            productVariant: {
+              select: { id: true, name: true, stockQuantity: true },
+            },
+          },
+        });
+
+        // Create alert if stock is now low
+        if (!productVariantId) {
+          const product = await tx.product.findUnique({ where: { id: productId } });
+          if (product.stockQuantity <= product.lowStockThreshold) {
+            await tx.stockAlert.create({
+              data: {
+                productId,
+                alertType: product.stockQuantity === 0 ? "OUT_OF_STOCK" : "LOW_STOCK",
+                message: `${product.name} stock is ${product.stockQuantity === 0 ? "out of stock" : "low"}`,
+              },
+            });
+          }
+        }
+
+        return movement;
+      });
+
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Stock adjustment error:", error);
+      res.status(500).json({ error: error.message || "Failed to adjust stock" });
+    }
+  }
+);
+
+// Stock transfer between locations
+router.post(
+  "/transfer",
+  [
+    authenticateToken,
+    authorizeRoles("ADMIN", "MANAGER"),
+    body("productId").isInt().withMessage("Product ID is required"),
+    body("productVariantId").optional().isInt(),
+    body("quantity").isFloat({ min: 0.01 }).withMessage("Quantity must be positive"),
+    body("fromLocation").notEmpty().withMessage("From location is required"),
+    body("toLocation").notEmpty().withMessage("To location is required"),
+    body("notes").optional().isString(),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { productId, productVariantId, quantity, fromLocation, toLocation, notes } = req.body;
+      const employeeId = req.user.id;
+
+      // Create transfer reference ID
+      const transferId = `TR-${Date.now()}`;
+
+      const result = await prisma.$transaction(async (tx) => {
+        // Deduct from source location
+        const outMovement = await tx.stockMovement.create({
+          data: {
+            productId,
+            productVariantId,
+            movementType: "TRANSFER",
+            quantity: -quantity,
+            reason: `Transfer to ${toLocation}`,
+            reference: transferId,
+            fromLocation,
+            toLocation,
+            createdBy: employeeId,
+          },
+        });
+
+        // Add to destination location
+        const inMovement = await tx.stockMovement.create({
+          data: {
+            productId,
+            productVariantId,
+            movementType: "TRANSFER",
+            quantity: quantity,
+            reason: `Transfer from ${fromLocation}`,
+            reference: transferId,
+            fromLocation,
+            toLocation,
+            createdBy: employeeId,
+          },
+          include: {
+            product: {
+              select: { id: true, name: true, sku: true },
+            },
+            productVariant: {
+              select: { id: true, name: true },
+            },
+          },
+        });
+
+        return {
+          transferId,
+          outMovement,
+          inMovement,
+        };
+      });
+
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Stock transfer error:", error);
+      res.status(500).json({ error: error.message || "Failed to transfer stock" });
+    }
+  }
+);
+
+// Get stock alerts
+router.get(
+  "/alerts",
+  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), query("isResolved").optional().isBoolean()],
+  async (req, res) => {
+    try {
+      const where = {};
+      if (req.query.isResolved !== undefined) {
+        where.isResolved = req.query.isResolved === "true";
+      }
+
+      const alerts = await prisma.stockAlert.findMany({
+        where,
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              sku: true,
+              stockQuantity: true,
+              lowStockThreshold: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      res.json(alerts);
+    } catch (error) {
+      console.error("Get alerts error:", error);
+      res.status(500).json({ error: "Failed to fetch stock alerts" });
+    }
+  }
+);
+
+// Resolve stock alert
+router.put("/alerts/:id/resolve", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const employeeId = req.user.id;
+
+    const alert = await prisma.stockAlert.update({
+      where: { id },
+      data: {
+        isResolved: true,
+        resolvedAt: new Date(),
+        resolvedBy: employeeId,
+      },
+      include: {
+        product: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    res.json(alert);
+  } catch (error) {
+    console.error("Resolve alert error:", error);
+    res.status(500).json({ error: "Failed to resolve alert" });
+  }
+});
+
+// Receive purchase order
+router.post(
+  "/receive-purchase-order",
+  [
+    authenticateToken,
+    authorizeRoles("ADMIN", "MANAGER"),
+    body("purchaseOrderId").isInt().withMessage("Purchase order ID is required"),
+    body("items").isArray({ min: 1 }).withMessage("Items array required"),
+    body("items.*.productId").isInt(),
+    body("items.*.receivedQuantity").isFloat({ min: 0 }),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { purchaseOrderId, items } = req.body;
+      const employeeId = req.user.id;
+
+      const result = await prisma.$transaction(async (tx) => {
+        const po = await tx.purchaseOrder.findUnique({
+          where: { id: purchaseOrderId },
+          include: { items: true },
+        });
+
+        if (!po) {
+          throw new Error("Purchase order not found");
+        }
+
+        // Update each item
+        for (const receivedItem of items) {
+          const poItem = po.items.find((i) => i.productId === receivedItem.productId);
+          if (!poItem) continue;
+
+          // Update PO item
+          await tx.purchaseOrderItem.update({
+            where: { id: poItem.id },
+            data: {
+              receivedQuantity: { increment: receivedItem.receivedQuantity },
+            },
+          });
+
+          // Update product stock
+          await tx.product.update({
+            where: { id: receivedItem.productId },
+            data: {
+              stockQuantity: { increment: receivedItem.receivedQuantity },
+            },
+          });
+
+          // Create stock movement
+          await tx.stockMovement.create({
+            data: {
+              productId: receivedItem.productId,
+              movementType: "PURCHASE",
+              quantity: receivedItem.receivedQuantity,
+              reason: "Purchase order received",
+              reference: po.poNumber,
+              createdBy: employeeId,
+            },
+          });
+        }
+
+        // Check if PO is fully received
+        const updatedPO = await tx.purchaseOrder.findUnique({
+          where: { id: purchaseOrderId },
+          include: { items: true },
+        });
+
+        const allReceived = updatedPO.items.every((item) => item.receivedQuantity >= item.quantity);
+        const partiallyReceived = updatedPO.items.some((item) => item.receivedQuantity > 0);
+
+        const newStatus = allReceived ? "RECEIVED" : partiallyReceived ? "PARTIALLY_RECEIVED" : "ORDERED";
+
+        // Update PO status
+        const finalPO = await tx.purchaseOrder.update({
+          where: { id: purchaseOrderId },
+          data: {
+            status: newStatus,
+            receivedDate: allReceived ? new Date() : null,
+          },
+          include: {
+            supplier: true,
+            items: {
+              include: {
+                product: true,
+              },
+            },
+          },
+        });
+
+        return finalPO;
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Receive PO error:", error);
+      res.status(500).json({ error: error.message || "Failed to receive purchase order" });
+    }
+  }
+);
+
 module.exports = router;

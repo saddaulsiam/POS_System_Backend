@@ -4,6 +4,12 @@ const { PrismaClient } = require("@prisma/client");
 const { authenticateToken, authorizeRoles } = require("../middleware/auth");
 const { upload, deleteImage } = require("../utils/upload");
 const { parseCSV, jsonToCSV, validateProductImport } = require("../utils/csvHandler");
+const {
+  parseExcel,
+  jsonToExcel,
+  generateProductImportTemplate,
+  validateProductExcelData,
+} = require("../utils/excelHandler");
 const { generateBarcode, generateBarcodeImage } = require("../utils/barcodeGenerator");
 const multer = require("multer");
 
@@ -617,6 +623,142 @@ router.post(
     } catch (error) {
       console.error("Import error:", error);
       res.status(500).json({ error: "Failed to import products", details: error.message });
+    }
+  }
+);
+
+// Export products to Excel
+router.get("/export/excel", [authenticateToken, authorizeRoles(["ADMIN", "MANAGER"])], async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      include: {
+        category: true,
+        supplier: true,
+      },
+      orderBy: { name: "asc" },
+    });
+
+    const exportData = products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      sku: p.sku,
+      barcode: p.barcode || "",
+      description: p.description || "",
+      categoryId: p.categoryId,
+      categoryName: p.category.name,
+      supplierId: p.supplierId || "",
+      supplierName: p.supplier?.name || "",
+      purchasePrice: p.purchasePrice,
+      sellingPrice: p.sellingPrice,
+      stockQuantity: p.stockQuantity,
+      lowStockThreshold: p.lowStockThreshold,
+      isWeighted: p.isWeighted,
+      isActive: p.isActive,
+      taxRate: p.taxRate,
+      unit: p.unit || "pcs",
+      hasVariants: p.hasVariants,
+      createdAt: p.createdAt.toISOString(),
+      updatedAt: p.updatedAt.toISOString(),
+    }));
+
+    const buffer = jsonToExcel(exportData, "Products");
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="products_${Date.now()}.xlsx"`);
+    res.send(buffer);
+  } catch (error) {
+    console.error("Export Excel error:", error);
+    res.status(500).json({ error: "Failed to export products to Excel" });
+  }
+});
+
+// Download Excel import template
+router.get("/import/excel/template", [authenticateToken], async (req, res) => {
+  try {
+    const buffer = generateProductImportTemplate();
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", "attachment; filename=product_import_template.xlsx");
+    res.send(buffer);
+  } catch (error) {
+    console.error("Template generation error:", error);
+    res.status(500).json({ error: "Failed to generate template" });
+  }
+});
+
+// Import products from Excel
+router.post(
+  "/import/excel",
+  [authenticateToken, authorizeRoles(["ADMIN", "MANAGER"]), csvUpload.single("file")],
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const result = parseExcel(req.file.buffer);
+      if (result.errors.length > 0) {
+        return res.status(400).json({ error: "Invalid Excel file", details: result.errors });
+      }
+
+      const { valid, invalid } = validateProductExcelData(result.data);
+
+      if (valid.length === 0) {
+        return res.status(400).json({
+          error: "No valid products found",
+          invalid,
+        });
+      }
+
+      // Check for duplicate SKUs in database
+      const skus = valid.map((p) => p.sku);
+      const existingProducts = await prisma.product.findMany({
+        where: { sku: { in: skus } },
+        select: { sku: true },
+      });
+
+      const existingSKUs = new Set(existingProducts.map((p) => p.sku));
+      const productsToImport = valid.filter((p) => !existingSKUs.has(p.sku));
+      const duplicates = valid.filter((p) => existingSKUs.has(p.sku));
+
+      if (productsToImport.length === 0) {
+        return res.status(400).json({
+          error: "All products already exist (duplicate SKUs)",
+          duplicates: duplicates.length,
+        });
+      }
+
+      // Import products
+      const imported = await prisma.product.createMany({
+        data: productsToImport,
+        skipDuplicates: true,
+      });
+
+      // Generate barcodes for products without them
+      const importedProducts = await prisma.product.findMany({
+        where: { sku: { in: productsToImport.map((p) => p.sku) } },
+      });
+
+      for (const product of importedProducts) {
+        if (!product.barcode) {
+          const barcode = generateBarcode(product.sku, product.id);
+          await prisma.product.update({
+            where: { id: product.id },
+            data: { barcode },
+          });
+        }
+      }
+
+      res.json({
+        message: "Products imported successfully from Excel",
+        imported: imported.count,
+        duplicates: duplicates.length,
+        invalid: invalid.length,
+        invalidDetails: invalid.length > 0 ? invalid : undefined,
+      });
+    } catch (error) {
+      console.error("Excel import error:", error);
+      res.status(500).json({ error: "Failed to import Excel file", details: error.message });
     }
   }
 );

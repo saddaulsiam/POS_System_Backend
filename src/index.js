@@ -9,6 +9,7 @@ require("dotenv").config();
 const { PrismaClient } = require("@prisma/client");
 const authRoutes = require("./routes/auth");
 const productRoutes = require("./routes/products");
+const productVariantRoutes = require("./routes/productVariants");
 const categoryRoutes = require("./routes/categories");
 const customerRoutes = require("./routes/customers");
 const salesRoutes = require("./routes/sales");
@@ -19,6 +20,11 @@ const suppliersRoutes = require("./routes/suppliers");
 const employeeRoutes = require("./routes/employees");
 const profileRoutes = require("./routes/profile");
 const auditLogsRoutes = require("./routes/auditLogs");
+const parkedSalesRoutes = require("./routes/parkedSales");
+const quickSaleItemsRoutes = require("./routes/quickSaleItems");
+const loyaltyRoutes = require("./routes/loyalty");
+const receiptsRoutes = require("./routes/receipts");
+const emailService = require("./utils/emailService");
 
 const app = express();
 const prisma = new PrismaClient();
@@ -53,6 +59,7 @@ app.use("/api/", limiter);
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/product-variants", productVariantRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/sales", salesRoutes);
@@ -62,6 +69,10 @@ app.use("/api/suppliers", suppliersRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/audit-logs", auditLogsRoutes);
+app.use("/api/parked-sales", parkedSalesRoutes);
+app.use("/api/quick-sale-items", quickSaleItemsRoutes);
+app.use("/api/loyalty", loyaltyRoutes);
+app.use("/api/receipts", receiptsRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
@@ -91,7 +102,10 @@ process.on("SIGINT", async () => {
   process.exit(0);
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+
+  // Initialize email service
+  await emailService.initialize();
 });

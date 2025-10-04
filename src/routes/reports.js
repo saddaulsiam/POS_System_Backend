@@ -434,4 +434,313 @@ router.get(
   }
 );
 
+// Profit margin analysis
+router.get(
+  "/profit-margin",
+  [
+    authenticateToken,
+    authorizeRoles("ADMIN", "MANAGER"),
+    query("startDate").optional().isISO8601(),
+    query("endDate").optional().isISO8601(),
+  ],
+  async (req, res) => {
+    try {
+      const startDate = req.query.startDate ? new Date(req.query.startDate) : moment().subtract(30, "days").toDate();
+      const endDate = req.query.endDate ? new Date(req.query.endDate) : new Date();
+
+      const salesData = await prisma.saleItem.findMany({
+        where: {
+          sale: {
+            createdAt: { gte: startDate, lte: endDate },
+            paymentStatus: "COMPLETED",
+          },
+        },
+        include: {
+          product: {
+            select: { id: true, name: true, purchasePrice: true, category: { select: { name: true } } },
+          },
+          sale: { select: { finalAmount: true } },
+        },
+      });
+
+      let totalRevenue = 0;
+      let totalCost = 0;
+      const categoryProfits = {};
+
+      salesData.forEach((item) => {
+        const revenue = item.subtotal;
+        const cost = item.product.purchasePrice * item.quantity;
+        const profit = revenue - cost;
+
+        totalRevenue += revenue;
+        totalCost += cost;
+
+        const categoryName = item.product.category.name;
+        if (!categoryProfits[categoryName]) {
+          categoryProfits[categoryName] = {
+            category: categoryName,
+            revenue: 0,
+            cost: 0,
+            profit: 0,
+            margin: 0,
+          };
+        }
+
+        categoryProfits[categoryName].revenue += revenue;
+        categoryProfits[categoryName].cost += cost;
+        categoryProfits[categoryName].profit += profit;
+      });
+
+      // Calculate margins
+      const totalProfit = totalRevenue - totalCost;
+      const totalMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(2) : 0;
+
+      Object.values(categoryProfits).forEach((cat) => {
+        cat.margin = cat.revenue > 0 ? ((cat.profit / cat.revenue) * 100).toFixed(2) : 0;
+      });
+
+      res.json({
+        period: { startDate, endDate },
+        overall: {
+          revenue: parseFloat(totalRevenue.toFixed(2)),
+          cost: parseFloat(totalCost.toFixed(2)),
+          profit: parseFloat(totalProfit.toFixed(2)),
+          margin: parseFloat(totalMargin),
+        },
+        byCategory: Object.values(categoryProfits),
+      });
+    } catch (error) {
+      console.error("Profit margin analysis error:", error);
+      res.status(500).json({ error: "Failed to generate profit margin analysis" });
+    }
+  }
+);
+
+// Stock turnover report
+router.get("/stock-turnover", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const startDate = moment().subtract(days, "days").toDate();
+
+    // Get products with sales and stock data
+    const products = await prisma.product.findMany({
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        stockQuantity: true,
+        purchasePrice: true,
+        category: { select: { name: true } },
+        saleItems: {
+          where: {
+            sale: {
+              createdAt: { gte: startDate },
+              paymentStatus: "COMPLETED",
+            },
+          },
+          select: { quantity: true },
+        },
+      },
+    });
+
+    const turnoverData = products.map((product) => {
+      const totalSold = product.saleItems.reduce((sum, item) => sum + item.quantity, 0);
+      const averageStock = product.stockQuantity + totalSold / 2; // Simplified average
+      const turnoverRate = averageStock > 0 ? parseFloat((totalSold / averageStock).toFixed(2)) : 0;
+      const daysToSellOut =
+        totalSold > 0 ? parseFloat(((product.stockQuantity / (totalSold / days)) * days).toFixed(1)) : 0;
+
+      return {
+        productId: product.id,
+        name: product.name,
+        sku: product.sku,
+        category: product.category.name,
+        currentStock: product.stockQuantity,
+        soldInPeriod: totalSold,
+        turnoverRate,
+        daysToSellOut: daysToSellOut > 365 ? "365+" : daysToSellOut,
+        status:
+          turnoverRate > 2
+            ? "FAST_MOVING"
+            : turnoverRate > 1
+            ? "MODERATE"
+            : turnoverRate > 0.5
+            ? "SLOW_MOVING"
+            : "STAGNANT",
+      };
+    });
+
+    // Sort by turnover rate
+    turnoverData.sort((a, b) => b.turnoverRate - a.turnoverRate);
+
+    res.json({
+      period: { days, startDate },
+      products: turnoverData,
+      summary: {
+        totalProducts: turnoverData.length,
+        fastMoving: turnoverData.filter((p) => p.status === "FAST_MOVING").length,
+        moderate: turnoverData.filter((p) => p.status === "MODERATE").length,
+        slowMoving: turnoverData.filter((p) => p.status === "SLOW_MOVING").length,
+        stagnant: turnoverData.filter((p) => p.status === "STAGNANT").length,
+      },
+    });
+  } catch (error) {
+    console.error("Stock turnover error:", error);
+    res.status(500).json({ error: "Failed to generate stock turnover report" });
+  }
+});
+
+// Sales trends (for charts)
+router.get(
+  "/sales-trends",
+  [
+    authenticateToken,
+    authorizeRoles("ADMIN", "MANAGER"),
+    query("startDate").optional().isISO8601(),
+    query("endDate").optional().isISO8601(),
+    query("groupBy").optional().isIn(["hour", "day", "week", "month"]),
+  ],
+  async (req, res) => {
+    try {
+      const startDate = req.query.startDate ? new Date(req.query.startDate) : moment().subtract(30, "days").toDate();
+      const endDate = req.query.endDate ? new Date(req.query.endDate) : new Date();
+      const groupBy = req.query.groupBy || "day";
+
+      const sales = await prisma.sale.findMany({
+        where: {
+          createdAt: { gte: startDate, lte: endDate },
+          paymentStatus: "COMPLETED",
+        },
+        select: {
+          id: true,
+          finalAmount: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      // Group sales by time period
+      const grouped = {};
+
+      sales.forEach((sale) => {
+        const date = moment(sale.createdAt);
+        let key;
+
+        switch (groupBy) {
+          case "hour":
+            key = date.format("YYYY-MM-DD HH:00");
+            break;
+          case "day":
+            key = date.format("YYYY-MM-DD");
+            break;
+          case "week":
+            key = date.startOf("week").format("YYYY-MM-DD");
+            break;
+          case "month":
+            key = date.format("YYYY-MM");
+            break;
+          default:
+            key = date.format("YYYY-MM-DD");
+        }
+
+        if (!grouped[key]) {
+          grouped[key] = {
+            period: key,
+            totalSales: 0,
+            totalRevenue: 0,
+            transactionCount: 0,
+          };
+        }
+
+        grouped[key].totalRevenue += sale.finalAmount;
+        grouped[key].transactionCount += 1;
+      });
+
+      // Calculate average transaction value
+      Object.values(grouped).forEach((period) => {
+        period.averageTransactionValue =
+          period.transactionCount > 0 ? parseFloat((period.totalRevenue / period.transactionCount).toFixed(2)) : 0;
+        period.totalRevenue = parseFloat(period.totalRevenue.toFixed(2));
+      });
+
+      const trendData = Object.values(grouped).sort((a, b) => a.period.localeCompare(b.period));
+
+      res.json({
+        period: { startDate, endDate, groupBy },
+        data: trendData,
+      });
+    } catch (error) {
+      console.error("Sales trends error:", error);
+      res.status(500).json({ error: "Failed to generate sales trends" });
+    }
+  }
+);
+
+// Customer analytics
+router.get("/customer-analytics", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const startDate = moment().subtract(days, "days").toDate();
+
+    // Customer purchase patterns
+    const customerStats = await prisma.customer.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        loyaltyPoints: true,
+        loyaltyTier: true,
+        sales: {
+          where: {
+            createdAt: { gte: startDate },
+            paymentStatus: "COMPLETED",
+          },
+          select: {
+            finalAmount: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    const analytics = customerStats
+      .map((customer) => {
+        const totalSpent = customer.sales.reduce((sum, sale) => sum + sale.finalAmount, 0);
+        const purchaseCount = customer.sales.length;
+        const averageOrderValue = purchaseCount > 0 ? totalSpent / purchaseCount : 0;
+
+        return {
+          customerId: customer.id,
+          name: customer.name,
+          loyaltyTier: customer.loyaltyTier,
+          loyaltyPoints: customer.loyaltyPoints,
+          purchaseCount,
+          totalSpent: parseFloat(totalSpent.toFixed(2)),
+          averageOrderValue: parseFloat(averageOrderValue.toFixed(2)),
+          lastPurchase:
+            customer.sales.length > 0
+              ? moment(customer.sales[customer.sales.length - 1].createdAt).format("YYYY-MM-DD")
+              : null,
+        };
+      })
+      .filter((c) => c.purchaseCount > 0)
+      .sort((a, b) => b.totalSpent - a.totalSpent);
+
+    res.json({
+      period: { days, startDate },
+      customers: analytics.slice(0, 50), // Top 50
+      summary: {
+        totalActiveCustomers: analytics.length,
+        totalRevenue: parseFloat(analytics.reduce((sum, c) => sum + c.totalSpent, 0).toFixed(2)),
+        averageCustomerValue: parseFloat(
+          (analytics.reduce((sum, c) => sum + c.totalSpent, 0) / analytics.length).toFixed(2)
+        ),
+      },
+    });
+  } catch (error) {
+    console.error("Customer analytics error:", error);
+    res.status(500).json({ error: "Failed to generate customer analytics" });
+  }
+});
+
 module.exports = router;

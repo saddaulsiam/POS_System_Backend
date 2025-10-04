@@ -76,6 +76,40 @@ router.get(
   }
 );
 
+// Get customer by phone number (for POS lookup)
+router.get("/phone/:phone", authenticateToken, async (req, res) => {
+  try {
+    const { phone } = req.params;
+
+    const customer = await prisma.customer.findFirst({
+      where: {
+        phoneNumber: phone,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        phoneNumber: true,
+        email: true,
+        address: true,
+        loyaltyPoints: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: "Customer not found" });
+    }
+
+    res.json(customer);
+  } catch (error) {
+    console.error("Get customer by phone error:", error);
+    res.status(500).json({ error: "Failed to get customer" });
+  }
+});
+
 // Search customers by phone number or name (for POS lookup)
 router.get("/search/:query", authenticateToken, async (req, res) => {
   try {
