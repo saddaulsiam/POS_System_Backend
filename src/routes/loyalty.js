@@ -7,6 +7,7 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 // Loyalty tier configuration (can be moved to database)
+// Updated: Added redeem-points endpoint for POS integration
 const LOYALTY_TIERS = {
   BRONZE: { min: 0, multiplier: 1.0, discount: 0, birthdayBonus: 50 },
   SILVER: { min: 500, multiplier: 1.25, discount: 5, birthdayBonus: 100 },
@@ -152,6 +153,99 @@ router.post(
         return {
           reward,
           newBalance: customer.loyaltyPoints - pointsCost,
+        };
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Redeem points error:", error);
+      res.status(500).json({ error: error.message || "Failed to redeem points" });
+    }
+  }
+);
+
+// Redeem points (simplified endpoint for POS)
+router.post(
+  "/redeem-points",
+  [
+    authenticateToken,
+    body("customerId").isInt().withMessage("Customer ID is required"),
+    body("points").isInt({ min: 1 }).withMessage("Points must be positive"),
+    body("rewardType")
+      .isIn(["DISCOUNT", "FREE_PRODUCT", "STORE_CREDIT", "SPECIAL_OFFER"])
+      .withMessage("Invalid reward type"),
+    body("rewardValue").isNumeric().withMessage("Reward value is required"),
+    body("description").optional().isString(),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { customerId, points, rewardType, rewardValue, description } = req.body;
+
+      const result = await prisma.$transaction(async (tx) => {
+        // Get customer
+        const customer = await tx.customer.findUnique({
+          where: { id: customerId },
+        });
+
+        if (!customer) {
+          throw new Error("Customer not found");
+        }
+
+        // Check if customer has enough points
+        if (customer.loyaltyPoints < points) {
+          throw new Error(`Insufficient points. Customer has ${customer.loyaltyPoints}, needs ${points}`);
+        }
+
+        // Deduct points from customer
+        const updatedCustomer = await tx.customer.update({
+          where: { id: customerId },
+          data: { loyaltyPoints: { decrement: points } },
+        });
+
+        // Create points transaction
+        await tx.pointsTransaction.create({
+          data: {
+            customerId,
+            type: "REDEEMED",
+            points: -points,
+            description: description || `Redeemed ${points} points for ${rewardType}`,
+          },
+        });
+
+        // Map reward type to database enum
+        let dbRewardType = "DISCOUNT_FIXED";
+        if (rewardType === "DISCOUNT") {
+          dbRewardType = "DISCOUNT_FIXED";
+        } else if (rewardType === "FREE_PRODUCT") {
+          dbRewardType = "FREE_PRODUCT";
+        } else if (rewardType === "STORE_CREDIT" || rewardType === "SPECIAL_OFFER") {
+          dbRewardType = "DISCOUNT_FIXED";
+        }
+
+        // Create loyalty reward record
+        const reward = await tx.loyaltyReward.create({
+          data: {
+            customerId,
+            rewardType: dbRewardType,
+            rewardValue: parseFloat(rewardValue),
+            pointsCost: points,
+            description: description || `${rewardType} reward`,
+            redeemedAt: new Date(),
+            isActive: false, // Already used/redeemed
+          },
+        });
+
+        return {
+          success: true,
+          reward,
+          newBalance: updatedCustomer.loyaltyPoints,
+          pointsRedeemed: points,
+          discountAmount: parseFloat(rewardValue),
         };
       });
 
@@ -425,3 +519,4 @@ router.put(
 );
 
 module.exports = router;
+// trigger reload
