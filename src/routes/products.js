@@ -46,11 +46,7 @@ router.get(
       const where = {};
 
       if (search) {
-        where.OR = [
-          { name: { contains: search, mode: "insensitive" } },
-          { sku: { contains: search, mode: "insensitive" } },
-          { barcode: { contains: search, mode: "insensitive" } },
-        ];
+        where.OR = [{ name: { contains: search } }, { sku: { contains: search } }, { barcode: { contains: search } }];
       }
 
       if (categoryId) where.categoryId = categoryId;

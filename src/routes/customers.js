@@ -118,11 +118,7 @@ router.get("/search/:query", authenticateToken, async (req, res) => {
     const customers = await prisma.customer.findMany({
       where: {
         isActive: true,
-        OR: [
-          { name: { contains: query, mode: "insensitive" } },
-          { phoneNumber: { contains: query, mode: "insensitive" } },
-          { email: { contains: query, mode: "insensitive" } },
-        ],
+        OR: [{ name: { contains: query } }, { phoneNumber: { contains: query } }, { email: { contains: query } }],
       },
       select: {
         id: true,

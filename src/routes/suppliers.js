@@ -22,10 +22,10 @@ router.get("/", authorizeRoles("ADMIN", "MANAGER"), async (req, res) => {
     const where = search
       ? {
           OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { contactName: { contains: search, mode: "insensitive" } },
-            { phone: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
+            { name: { contains: search } },
+            { contactName: { contains: search } },
+            { phone: { contains: search } },
+            { email: { contains: search } },
           ],
         }
       : {};
