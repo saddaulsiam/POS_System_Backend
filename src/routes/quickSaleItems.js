@@ -6,11 +6,10 @@ const { authenticateToken, authorizeRoles } = require("../middleware/auth");
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Get all active quick sale items
+// Get all quick sale items
 router.get("/", [authenticateToken], async (req, res) => {
   try {
     const quickSaleItems = await prisma.quickSaleItem.findMany({
-      where: { isActive: true },
       include: {
         product: {
           include: {
@@ -33,7 +32,7 @@ router.post(
   "/",
   [
     authenticateToken,
-    authorizeRoles(["ADMIN", "MANAGER"]),
+    authorizeRoles("ADMIN", "MANAGER"),
     body("productId").isInt().withMessage("Product ID is required"),
     body("displayName").notEmpty().withMessage("Display name is required"),
     body("color")
@@ -100,7 +99,7 @@ router.put(
   "/:id",
   [
     authenticateToken,
-    authorizeRoles(["ADMIN", "MANAGER"]),
+    authorizeRoles("ADMIN", "MANAGER"),
     param("id").isInt().withMessage("ID must be an integer"),
     body("displayName").optional().notEmpty(),
     body("color")
@@ -157,7 +156,7 @@ router.put(
 // Delete a quick sale item
 router.delete(
   "/:id",
-  [authenticateToken, authorizeRoles(["ADMIN", "MANAGER"]), param("id").isInt()],
+  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), param("id").isInt()],
   async (req, res) => {
     try {
       const errors = validationResult(req);
