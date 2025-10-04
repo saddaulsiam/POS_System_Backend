@@ -38,29 +38,38 @@ async function updateCustomerTiers() {
       const lifetimePoints = earnedPoints._sum.points || 0;
 
       // Determine correct tier based on lifetime points
-      let correctTier = "BRONZE";
+      let qualifiedTier = "BRONZE";
       if (lifetimePoints >= tierMinimums.PLATINUM) {
-        correctTier = "PLATINUM";
+        qualifiedTier = "PLATINUM";
       } else if (lifetimePoints >= tierMinimums.GOLD) {
-        correctTier = "GOLD";
+        qualifiedTier = "GOLD";
       } else if (lifetimePoints >= tierMinimums.SILVER) {
-        correctTier = "SILVER";
+        qualifiedTier = "SILVER";
       }
 
       const currentTier = customer.loyaltyTier;
+
+      // Tier order for comparison (NEVER downgrade!)
+      const tierOrder = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
+      const currentTierIndex = tierOrder.indexOf(currentTier);
+      const qualifiedTierIndex = tierOrder.indexOf(qualifiedTier);
+
+      // Only upgrade if qualified tier is HIGHER than current tier
+      const shouldUpgrade = qualifiedTierIndex > currentTierIndex;
+      const correctTier = shouldUpgrade ? qualifiedTier : currentTier;
 
       console.log(`\nCustomer: ${customer.name} (ID: ${customer.id})`);
       console.log(`  Current Points: ${customer.loyaltyPoints}`);
       console.log(`  Lifetime Points: ${lifetimePoints}`);
       console.log(`  Current Tier: ${currentTier}`);
-      console.log(`  Correct Tier: ${correctTier}`);
+      console.log(`  Qualified Tier: ${qualifiedTier}`);
 
-      if (currentTier !== correctTier) {
-        console.log(`  ⚠️  MISMATCH! Updating ${currentTier} → ${correctTier}...`);
+      if (shouldUpgrade) {
+        console.log(`  ⬆️  UPGRADE! ${currentTier} → ${qualifiedTier}...`);
 
         await prisma.customer.update({
           where: { id: customer.id },
-          data: { loyaltyTier: correctTier },
+          data: { loyaltyTier: qualifiedTier },
         });
 
         // Create a transaction record for the tier change
@@ -69,11 +78,13 @@ async function updateCustomerTiers() {
             customerId: customer.id,
             type: "ADJUSTED",
             points: 0, // No points change, just tier upgrade
-            description: `Tier upgraded from ${currentTier} to ${correctTier} based on ${lifetimePoints} lifetime points`,
+            description: `Tier upgraded from ${currentTier} to ${qualifiedTier} based on ${lifetimePoints} lifetime points`,
           },
         });
 
-        console.log(`  ✅ Updated to ${correctTier}!`);
+        console.log(`  ✅ Upgraded to ${qualifiedTier}!`);
+      } else if (qualifiedTierIndex < currentTierIndex) {
+        console.log(`  🔒 Would downgrade to ${qualifiedTier}, but KEEPING ${currentTier} (tiers never go down!)`);
       } else {
         console.log(`  ✅ Tier is correct`);
       }

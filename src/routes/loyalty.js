@@ -576,10 +576,18 @@ router.get(
         where: { tier: customer.loyaltyTier },
       });
 
+      // Tier minimums (for progress calculation)
+      const tierMinimums = {
+        BRONZE: 0,
+        SILVER: 500,
+        GOLD: 1500,
+        PLATINUM: 3000,
+      };
+
       // Fallback to hardcoded config if not found
       const currentTierConfig = tierConfig || {
         tier: customer.loyaltyTier,
-        minimumPoints: LOYALTY_TIERS[customer.loyaltyTier]?.min || 0,
+        minimumPoints: tierMinimums[customer.loyaltyTier] || 0,
         pointsMultiplier: LOYALTY_TIERS[customer.loyaltyTier]?.multiplier || 1,
         discountPercentage: LOYALTY_TIERS[customer.loyaltyTier]?.discount || 0,
         birthdayBonus: LOYALTY_TIERS[customer.loyaltyTier]?.birthdayBonus || 0,
@@ -596,6 +604,17 @@ router.get(
         : null;
 
       const nextTierConfig = nextTierConfigFromDb || (nextTier ? LOYALTY_TIERS[nextTier] : null);
+
+      // Calculate points needed for next tier
+      // Progress is based on CURRENT AVAILABLE POINTS, not lifetime points
+      const currentTierMin = tierMinimums[customer.loyaltyTier] || 0;
+      const nextTierMin = nextTier ? tierMinimums[nextTier] || 0 : currentTierMin;
+
+      // Use current available points for progress calculation
+      const currentPoints = customer.loyaltyPoints;
+      const pointsNeededInTier = nextTierMin - currentTierMin;
+      const pointsStillNeeded = Math.max(0, nextTierMin - currentPoints);
+      const pointsInCurrentTier = Math.max(0, currentPoints - currentTierMin);
 
       // Get available offers
       const now = new Date();
@@ -631,8 +650,10 @@ router.get(
           next: nextTier
             ? {
                 tier: nextTier,
-                minimumPoints: nextTierConfig.minimumPoints || nextTierConfig.min,
-                pointsNeeded: (nextTierConfig.minimumPoints || nextTierConfig.min) - lifetimePoints,
+                minimumPoints: nextTierMin,
+                pointsNeeded: pointsStillNeeded, // Points still needed within current tier range
+                progressPoints: pointsInCurrentTier, // Points earned in current tier
+                totalPointsInTier: pointsNeededInTier, // Total range of current tier
               }
             : null,
         },
@@ -800,9 +821,9 @@ router.get("/statistics", authenticateToken, authorizeRoles("ADMIN", "MANAGER"),
       _count: true,
     });
 
-    // Total points issued
+    // Total points issued (all positive transactions)
     const totalPointsIssued = await prisma.pointsTransaction.aggregate({
-      where: { type: "EARNED" },
+      where: { points: { gt: 0 } }, // All positive points (EARNED, ADJUSTED, BIRTHDAY_BONUS, etc.)
       _sum: { points: true },
     });
 
@@ -858,7 +879,7 @@ router.get("/statistics", authenticateToken, authorizeRoles("ADMIN", "MANAGER"),
 
     // Fill in actual counts
     customersByTier.forEach((item) => {
-      tierDistribution[item.loyaltyTier] = item._count.loyaltyTier || item._count._all || 0;
+      tierDistribution[item.loyaltyTier] = item._count || 0;
     });
 
     res.json({
