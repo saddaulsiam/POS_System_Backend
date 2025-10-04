@@ -180,6 +180,7 @@ model Employee {
   CashDrawer  CashDrawer[]
   auditLogs   AuditLog[]
   parkedSales ParkedSale[]
+  posSettings POSSettings[]
 }
 
 model Sale {
@@ -337,4 +338,20 @@ model SystemSetting {
   id    Int    @id @default(autoincrement())
   key   String @unique
   value String
+}
+
+model POSSettings {
+  id                   Int      @id @default(autoincrement())
+  enableQuickSale      Boolean  @default(true)
+  enableSplitPayment   Boolean  @default(true)
+  enableParkSale       Boolean  @default(true)
+  enableCustomerSearch Boolean  @default(true)
+  enableBarcodeScanner Boolean  @default(true)
+  enableLoyaltyPoints  Boolean  @default(true)
+  taxRate              Float    @default(0)
+  receiptFooterText    String?
+  updatedAt            DateTime @updatedAt
+  updatedBy            Int?
+
+  updatedByEmployee Employee? @relation(fields: [updatedBy], references: [id])
 }
