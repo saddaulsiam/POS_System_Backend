@@ -7,6 +7,14 @@ const { generateReceiptId, calculateTax } = require("../utils/helpers");
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Loyalty tier calculation helper
+const calculateTier = (lifetimePoints) => {
+  if (lifetimePoints >= 3000) return "PLATINUM";
+  if (lifetimePoints >= 1500) return "GOLD";
+  if (lifetimePoints >= 500) return "SILVER";
+  return "BRONZE";
+};
+
 // Get all sales with pagination and filtering
 router.get(
   "/",
@@ -276,11 +284,89 @@ router.post(
 
         // Update customer loyalty points if customer is provided
         if (customerId) {
-          const loyaltyPoints = Math.floor(finalAmount / 10); // 1 point per $10 spent
-          await tx.customer.update({
+          // Get customer with current tier
+          const customer = await tx.customer.findUnique({
             where: { id: customerId },
-            data: { loyaltyPoints: { increment: loyaltyPoints } },
+            select: { loyaltyTier: true, loyaltyPoints: true },
           });
+
+          if (customer) {
+            // Get tier configuration from database
+            const tierConfig = await tx.loyaltyTierConfig.findUnique({
+              where: { tier: customer.loyaltyTier },
+            });
+
+            // Fallback to default multipliers if not in database
+            const defaultMultipliers = {
+              BRONZE: 1.0,
+              SILVER: 1.25,
+              GOLD: 1.5,
+              PLATINUM: 2.0,
+            };
+
+            const multiplier = tierConfig?.pointsMultiplier || defaultMultipliers[customer.loyaltyTier] || 1.0;
+
+            // Calculate points with tier bonus
+            const basePoints = Math.floor(finalAmount / 10); // 1 point per $10 spent
+            const bonusPoints = Math.floor(basePoints * (multiplier - 1));
+            const totalPoints = basePoints + bonusPoints;
+
+            // Update customer points
+            await tx.customer.update({
+              where: { id: customerId },
+              data: { loyaltyPoints: { increment: totalPoints } },
+            });
+
+            // Create points transaction record
+            await tx.pointsTransaction.create({
+              data: {
+                customerId,
+                saleId: sale.id,
+                type: "EARNED",
+                points: totalPoints,
+                description: `Purchase ${sale.receiptId}: ${basePoints} base points${
+                  bonusPoints > 0 ? ` + ${bonusPoints} ${customer.loyaltyTier} tier bonus` : ""
+                }`,
+              },
+            });
+
+            // Check if customer qualifies for tier upgrade
+            // Calculate lifetime points (sum of all positive transactions)
+            const earnedPointsSum = await tx.pointsTransaction.aggregate({
+              where: {
+                customerId,
+                points: { gt: 0 },
+              },
+              _sum: {
+                points: true,
+              },
+            });
+
+            const lifetimePoints = earnedPointsSum._sum.points || 0;
+            const qualifiedTier = calculateTier(lifetimePoints);
+
+            // Only upgrade tiers, never downgrade
+            const tierOrder = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
+            const currentTierIndex = tierOrder.indexOf(customer.loyaltyTier);
+            const qualifiedTierIndex = tierOrder.indexOf(qualifiedTier);
+
+            if (qualifiedTierIndex > currentTierIndex) {
+              await tx.customer.update({
+                where: { id: customerId },
+                data: { loyaltyTier: qualifiedTier },
+              });
+
+              // Log tier upgrade in transaction history
+              await tx.pointsTransaction.create({
+                data: {
+                  customerId,
+                  type: "ADJUSTED",
+                  points: 0,
+                  description: `🎉 Tier upgraded from ${customer.loyaltyTier} to ${qualifiedTier}! You've earned ${lifetimePoints} lifetime points.`,
+                },
+              });
+            }
+          }
         }
 
         return sale;

@@ -26,6 +26,7 @@
     "moment": "^2.29.4",
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
     "nodemailer": "^7.0.6",
     "papaparse": "^5.5.3",
     "pdfkit": "^0.17.2",

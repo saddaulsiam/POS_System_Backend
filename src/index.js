@@ -25,6 +25,7 @@ const quickSaleItemsRoutes = require("./routes/quickSaleItems");
 const loyaltyRoutes = require("./routes/loyalty");
 const receiptsRoutes = require("./routes/receipts");
 const emailService = require("./utils/emailService");
+const { startScheduler, stopScheduler } = require("./scheduler");
 
 const app = express();
 const prisma = new PrismaClient();
@@ -98,6 +99,7 @@ const PORT = process.env.PORT || 5000;
 // Graceful shutdown
 process.on("SIGINT", async () => {
   console.log("Shutting down gracefully...");
+  await stopScheduler(); // Stop birthday rewards scheduler
   await prisma.$disconnect();
   process.exit(0);
 });
@@ -108,4 +110,7 @@ app.listen(PORT, async () => {
 
   // Initialize email service
   await emailService.initialize();
+
+  // Start birthday rewards automation
+  startScheduler();
 });

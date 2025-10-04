@@ -201,6 +201,7 @@ router.post(
     body("name").notEmpty().trim().withMessage("Customer name is required"),
     body("phoneNumber").optional().isMobilePhone().withMessage("Invalid phone number"),
     body("email").optional().isEmail().withMessage("Invalid email address"),
+    body("dateOfBirth").optional().isISO8601().withMessage("Invalid date format"),
     body("address").optional().isString().withMessage("Address must be a string"),
   ],
   async (req, res) => {
@@ -210,7 +211,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, phoneNumber, email, address } = req.body;
+      const { name, phoneNumber, email, dateOfBirth, address } = req.body;
 
       // Check for existing customer with same phone or email
       if (phoneNumber || email) {
@@ -232,6 +233,7 @@ router.post(
           name: name.trim(),
           phoneNumber,
           email,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
           address,
         },
         include: {
@@ -257,6 +259,7 @@ router.put(
     body("name").optional().notEmpty().trim().withMessage("Customer name cannot be empty"),
     body("phoneNumber").optional().isMobilePhone().withMessage("Invalid phone number"),
     body("email").optional().isEmail().withMessage("Invalid email address"),
+    body("dateOfBirth").optional().isISO8601().withMessage("Invalid date format"),
     body("address").optional().isString().withMessage("Address must be a string"),
   ],
   async (req, res) => {
@@ -303,6 +306,9 @@ router.put(
       const updateData = { ...req.body };
       if (updateData.name) {
         updateData.name = updateData.name.trim();
+      }
+      if (updateData.dateOfBirth) {
+        updateData.dateOfBirth = new Date(updateData.dateOfBirth);
       }
 
       const customer = await prisma.customer.update({
