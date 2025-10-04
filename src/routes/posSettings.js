@@ -50,14 +50,40 @@ router.put(
   [
     authenticateToken,
     authorizeRoles("ADMIN"),
+    // Feature Toggles
     body("enableQuickSale").optional().isBoolean(),
     body("enableSplitPayment").optional().isBoolean(),
     body("enableParkSale").optional().isBoolean(),
     body("enableCustomerSearch").optional().isBoolean(),
     body("enableBarcodeScanner").optional().isBoolean(),
     body("enableLoyaltyPoints").optional().isBoolean(),
+    // Store Information
+    body("storeName").optional().isString(),
+    body("storeAddress").optional().isString(),
+    body("storePhone").optional().isString(),
+    body("storeEmail").optional().isEmail(),
+    body("taxId").optional().isString(),
+    // Tax & Currency
     body("taxRate").optional().isFloat({ min: 0, max: 100 }),
+    body("currencySymbol").optional().isString(),
+    body("currencyPosition").optional().isIn(["before", "after"]),
+    // Receipt Settings
     body("receiptFooterText").optional().isString(),
+    body("returnPolicy").optional().isString(),
+    body("printReceiptAuto").optional().isBoolean(),
+    body("emailReceiptAuto").optional().isBoolean(),
+    // Alerts & Notifications
+    body("enableLowStockAlerts").optional().isBoolean(),
+    body("lowStockThreshold").optional().isInt({ min: 1, max: 1000 }),
+    body("enableEmailNotifications").optional().isBoolean(),
+    body("adminAlertEmail").optional().isEmail(),
+    // System Settings
+    body("autoLogoutMinutes").optional().isInt({ min: 5, max: 240 }),
+    body("requirePasswordOnVoid").optional().isBoolean(),
+    body("enableAuditLog").optional().isBoolean(),
+    body("productsPerPage").optional().isInt({ min: 10, max: 100 }),
+    body("defaultView").optional().isIn(["grid", "list"]),
+    body("showProductImages").optional().isBoolean(),
   ],
   async (req, res) => {
     try {
@@ -66,26 +92,52 @@ router.put(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const {
-        enableQuickSale,
-        enableSplitPayment,
-        enableParkSale,
-        enableCustomerSearch,
-        enableBarcodeScanner,
-        enableLoyaltyPoints,
-        taxRate,
-        receiptFooterText,
-      } = req.body;
-
       const updateData = {};
-      if (enableQuickSale !== undefined) updateData.enableQuickSale = enableQuickSale;
-      if (enableSplitPayment !== undefined) updateData.enableSplitPayment = enableSplitPayment;
-      if (enableParkSale !== undefined) updateData.enableParkSale = enableParkSale;
-      if (enableCustomerSearch !== undefined) updateData.enableCustomerSearch = enableCustomerSearch;
-      if (enableBarcodeScanner !== undefined) updateData.enableBarcodeScanner = enableBarcodeScanner;
-      if (enableLoyaltyPoints !== undefined) updateData.enableLoyaltyPoints = enableLoyaltyPoints;
-      if (taxRate !== undefined) updateData.taxRate = taxRate;
-      if (receiptFooterText !== undefined) updateData.receiptFooterText = receiptFooterText;
+
+      // Map all possible fields from request body
+      const allowedFields = [
+        // Feature Toggles
+        "enableQuickSale",
+        "enableSplitPayment",
+        "enableParkSale",
+        "enableCustomerSearch",
+        "enableBarcodeScanner",
+        "enableLoyaltyPoints",
+        // Store Information
+        "storeName",
+        "storeAddress",
+        "storePhone",
+        "storeEmail",
+        "taxId",
+        // Tax & Currency
+        "taxRate",
+        "currencySymbol",
+        "currencyPosition",
+        // Receipt Settings
+        "receiptFooterText",
+        "returnPolicy",
+        "printReceiptAuto",
+        "emailReceiptAuto",
+        // Alerts & Notifications
+        "enableLowStockAlerts",
+        "lowStockThreshold",
+        "enableEmailNotifications",
+        "adminAlertEmail",
+        // System Settings
+        "autoLogoutMinutes",
+        "requirePasswordOnVoid",
+        "enableAuditLog",
+        "productsPerPage",
+        "defaultView",
+        "showProductImages",
+      ];
+
+      allowedFields.forEach((field) => {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      });
+
       updateData.updatedBy = req.user.id;
 
       // Get existing settings or create if not exists

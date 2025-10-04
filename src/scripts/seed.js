@@ -403,26 +403,6 @@ async function main() {
       data: { stockQuantity: { decrement: 3 } },
     });
 
-    // Create system settings
-    console.log("Creating system settings...");
-    await Promise.all([
-      prisma.systemSetting.create({
-        data: { key: "TAX_RATE", value: "8.25" },
-      }),
-      prisma.systemSetting.create({
-        data: { key: "STORE_NAME", value: "Fresh Mart Grocery" },
-      }),
-      prisma.systemSetting.create({
-        data: { key: "STORE_ADDRESS", value: "123 Market Street, Shopping District" },
-      }),
-      prisma.systemSetting.create({
-        data: { key: "STORE_PHONE", value: "555-FRESH-1" },
-      }),
-      prisma.systemSetting.create({
-        data: { key: "RECEIPT_FOOTER", value: "Thank you for shopping with us!" },
-      }),
-    ]);
-
     console.log("Database seeding completed successfully!");
     console.log("\nDefault login credentials:");
     console.log("Admin - Username: admin, PIN: 1234");
