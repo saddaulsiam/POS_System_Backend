@@ -6,6 +6,27 @@ const { authenticateToken, authorizeRoles } = require("../middleware/auth");
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Get all product variants
+router.get("/", authenticateToken, async (req, res) => {
+  try {
+    const variants = await prisma.productVariant.findMany({
+      include: {
+        product: {
+          include: {
+            category: true,
+          },
+        },
+      },
+      orderBy: { id: "desc" },
+    });
+
+    res.json(variants);
+  } catch (error) {
+    console.error("Get all variants error:", error);
+    res.status(500).json({ error: "Failed to fetch variants" });
+  }
+});
+
 // Get all variants for a product
 router.get(
   "/product/:productId",
@@ -37,7 +58,7 @@ router.post(
   "/",
   [
     authenticateToken,
-    authorizeRoles(["ADMIN", "MANAGER"]),
+    authorizeRoles("ADMIN", "MANAGER"),
     body("productId").isInt().withMessage("Product ID is required"),
     body("name").notEmpty().withMessage("Variant name is required"),
     body("sku").notEmpty().withMessage("SKU is required"),
@@ -117,7 +138,7 @@ router.put(
   "/:id",
   [
     authenticateToken,
-    authorizeRoles(["ADMIN", "MANAGER"]),
+    authorizeRoles("ADMIN", "MANAGER"),
     param("id").isInt().withMessage("Variant ID must be an integer"),
     body("name").optional().notEmpty(),
     body("sku").optional().notEmpty(),
@@ -193,7 +214,7 @@ router.put(
 // Delete a variant
 router.delete(
   "/:id",
-  [authenticateToken, authorizeRoles(["ADMIN"]), param("id").isInt().withMessage("Variant ID must be an integer")],
+  [authenticateToken, authorizeRoles("ADMIN"), param("id").isInt().withMessage("Variant ID must be an integer")],
   async (req, res) => {
     try {
       const errors = validationResult(req);

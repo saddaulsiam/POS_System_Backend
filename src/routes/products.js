@@ -825,4 +825,33 @@ router.post("/:id/barcode/regenerate", [authenticateToken, authorizeRoles("ADMIN
   }
 });
 
+// Get product by ID (must be last to avoid conflicts with other routes)
+router.get("/:id", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const productId = parseInt(id);
+
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: "Invalid product ID" });
+    }
+
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      include: {
+        category: true,
+        supplier: true,
+      },
+    });
+
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    res.json(product);
+  } catch (error) {
+    console.error("Get product by ID error:", error);
+    res.status(500).json({ error: "Failed to fetch product" });
+  }
+});
+
 module.exports = router;

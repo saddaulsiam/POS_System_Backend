@@ -20,21 +20,33 @@ class EmailService {
   async initialize() {
     // Development mode - use ethereal email (fake SMTP for testing)
     if (process.env.NODE_ENV !== "production") {
-      const testAccount = await nodemailer.createTestAccount();
+      try {
+        const testAccount = await nodemailer.createTestAccount();
 
-      this.transporter = nodemailer.createTransport({
-        host: "smtp.ethereal.email",
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass,
-        },
-      });
+        this.transporter = nodemailer.createTransport({
+          host: "smtp.ethereal.email",
+          port: 587,
+          secure: false,
+          auth: {
+            user: testAccount.user,
+            pass: testAccount.pass,
+          },
+        });
 
-      console.log("📧 Email service initialized (Test Mode - Ethereal)");
-      console.log("   Preview emails at: https://ethereal.email");
-      return;
+        console.log("📧 Email service initialized (Test Mode - Ethereal)");
+        console.log("   Preview emails at: https://ethereal.email");
+        return;
+      } catch (error) {
+        console.warn("⚠️  Could not connect to Ethereal email service:", error.message);
+        console.log("📧 Email service will work in offline mode (emails will be logged only)");
+        // Create a simple transporter that logs instead of sending
+        this.transporter = nodemailer.createTransport({
+          streamTransport: true,
+          newline: "unix",
+          buffer: true,
+        });
+        return;
+      }
     }
 
     // Production mode - configure based on provider
