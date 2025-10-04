@@ -558,25 +558,44 @@ router.get(
         return res.status(404).json({ error: "Customer not found" });
       }
 
-      // Calculate lifetime points
-      const lifetimePoints = await prisma.pointsTransaction.aggregate({
+      // Calculate lifetime points (total earned - should only count positive transactions)
+      const earnedPoints = await prisma.pointsTransaction.aggregate({
         where: {
           customerId,
-          type: "EARNED",
+          points: { gt: 0 }, // Only positive points (earned, bonuses, adjustments)
         },
         _sum: {
           points: true,
         },
       });
 
-      // Get tier configuration
-      const tierConfig = LOYALTY_TIERS[customer.loyaltyTier] || LOYALTY_TIERS.BRONZE;
+      const lifetimePoints = earnedPoints._sum.points || 0;
+
+      // Get tier configuration from database
+      const tierConfig = await prisma.loyaltyTierConfig.findUnique({
+        where: { tier: customer.loyaltyTier },
+      });
+
+      // Fallback to hardcoded config if not found
+      const currentTierConfig = tierConfig || {
+        tier: customer.loyaltyTier,
+        minimumPoints: LOYALTY_TIERS[customer.loyaltyTier]?.min || 0,
+        pointsMultiplier: LOYALTY_TIERS[customer.loyaltyTier]?.multiplier || 1,
+        discountPercentage: LOYALTY_TIERS[customer.loyaltyTier]?.discount || 0,
+        birthdayBonus: LOYALTY_TIERS[customer.loyaltyTier]?.birthdayBonus || 0,
+      };
 
       // Calculate next tier
       const tierOrder = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
       const currentIndex = tierOrder.indexOf(customer.loyaltyTier);
       const nextTier = currentIndex < tierOrder.length - 1 ? tierOrder[currentIndex + 1] : null;
-      const nextTierConfig = nextTier ? LOYALTY_TIERS[nextTier] : null;
+
+      // Get next tier config from database
+      const nextTierConfigFromDb = nextTier
+        ? await prisma.loyaltyTierConfig.findUnique({ where: { tier: nextTier } })
+        : null;
+
+      const nextTierConfig = nextTierConfigFromDb || (nextTier ? LOYALTY_TIERS[nextTier] : null);
 
       // Get available offers
       const now = new Date();
@@ -602,18 +621,18 @@ router.get(
         },
         points: {
           current: customer.loyaltyPoints,
-          lifetime: lifetimePoints._sum.points || 0,
+          lifetime: lifetimePoints,
         },
         tier: {
           current: customer.loyaltyTier,
-          multiplier: tierConfig.multiplier,
-          discountPercentage: tierConfig.discount,
-          birthdayBonus: tierConfig.birthdayBonus,
+          multiplier: currentTierConfig.pointsMultiplier,
+          discountPercentage: currentTierConfig.discountPercentage,
+          birthdayBonus: currentTierConfig.birthdayBonus,
           next: nextTier
             ? {
                 tier: nextTier,
-                minimumPoints: nextTierConfig.min,
-                pointsNeeded: nextTierConfig.min - (lifetimePoints._sum.points || 0),
+                minimumPoints: nextTierConfig.minimumPoints || nextTierConfig.min,
+                pointsNeeded: (nextTierConfig.minimumPoints || nextTierConfig.min) - lifetimePoints,
               }
             : null,
         },
