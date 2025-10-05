@@ -60,6 +60,7 @@ router.get(
             saleItems: {
               include: {
                 product: { select: { id: true, name: true, sku: true } },
+                productVariant: { select: { id: true, name: true, sku: true } },
               },
             },
           },
@@ -108,6 +109,14 @@ router.get("/:identifier", authenticateToken, async (req, res) => {
                 barcode: true,
                 isWeighted: true,
                 category: { select: { name: true } },
+              },
+            },
+            productVariant: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                barcode: true,
               },
             },
           },
@@ -309,6 +318,7 @@ router.post(
             saleItems: {
               include: {
                 product: { select: { id: true, name: true, sku: true, isWeighted: true } },
+                productVariant: { select: { id: true, name: true, sku: true } },
               },
             },
             paymentSplits: paymentMethod === "MIXED",
