@@ -27,7 +27,6 @@ const loyaltyRoutes = require("./routes/loyalty");
 const receiptsRoutes = require("./routes/receipts");
 const posSettingsRoutes = require("./routes/posSettings");
 const cashDrawerRoutes = require("./routes/cashDrawer");
-const emailService = require("./utils/emailService");
 const { startScheduler, stopScheduler } = require("./scheduler");
 
 const app = express();
@@ -113,9 +112,6 @@ process.on("SIGINT", async () => {
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-
-  // Initialize email service
-  await emailService.initialize();
 
   // Start birthday rewards automation
   startScheduler();
