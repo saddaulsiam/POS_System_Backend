@@ -220,20 +220,23 @@ function generateThermalReceipt(saleData, settings = {}) {
 
 // Helper functions for thermal receipt
 function padRight(str, length) {
-  return str.substring(0, length).padEnd(length, " ");
+  if (length <= 0) return str;
+  return str.length > length ? str.substring(0, length) : str.padEnd(length, " ");
 }
 
 function padLeft(str, length) {
-  return str.substring(0, length).padStart(length, " ");
+  if (length <= 0) return str;
+  return str.length > length ? str.substring(0, length) : str.padStart(length, " ");
 }
 
 function center(str, width) {
+  if (width <= str.length) return str;
   const padding = Math.floor((width - str.length) / 2);
   return " ".repeat(padding) + str;
 }
 
 function formatLine(label, value, width) {
-  const maxLabelLength = width - value.length;
+  const maxLabelLength = Math.max(0, width - value.length);
   return padRight(label, maxLabelLength) + value;
 }
 
