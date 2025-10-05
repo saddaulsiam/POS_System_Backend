@@ -624,7 +624,7 @@ router.post(
 );
 
 // Export products to Excel
-router.get("/export/excel", [authenticateToken, authorizeRoles(["ADMIN", "MANAGER"])], async (req, res) => {
+router.get("/export/excel", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], async (req, res) => {
   try {
     const products = await prisma.product.findMany({
       include: {
@@ -685,7 +685,7 @@ router.get("/import/excel/template", [authenticateToken], async (req, res) => {
 // Import products from Excel
 router.post(
   "/import/excel",
-  [authenticateToken, authorizeRoles(["ADMIN", "MANAGER"]), csvUpload.single("file")],
+  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), csvUpload.single("file")],
   async (req, res) => {
     try {
       if (!req.file) {
