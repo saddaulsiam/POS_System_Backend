@@ -910,4 +910,211 @@ router.get(
   }
 );
 
+// Void a sale
+router.post(
+  "/:id/void",
+  [
+    authenticateToken,
+    authorizeRoles("ADMIN", "MANAGER"),
+    body("reason").notEmpty().withMessage("Void reason is required"),
+    body("password").optional().isString(),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { id } = req.params;
+      const { reason, password, restoreStock = true } = req.body;
+      const employeeId = req.user.id;
+
+      // Get POS settings to check if password is required
+      const settings = await prisma.pOSSettings.findFirst();
+
+      if (settings?.requirePasswordOnVoid && password) {
+        // Verify admin/manager password
+        const bcrypt = require("bcryptjs");
+        const employee = await prisma.employee.findUnique({
+          where: { id: employeeId },
+        });
+
+        if (!employee || !(await bcrypt.compare(password, employee.password))) {
+          return res.status(401).json({ error: "Invalid password" });
+        }
+      }
+
+      // Get the sale
+      const sale = await prisma.sale.findUnique({
+        where: { id: parseInt(id) },
+        include: {
+          items: {
+            include: {
+              product: true,
+              variant: true,
+            },
+          },
+          customer: true,
+          paymentSplits: true,
+        },
+      });
+
+      if (!sale) {
+        return res.status(404).json({ error: "Sale not found" });
+      }
+
+      if (sale.status === "VOIDED") {
+        return res.status(400).json({ error: "Sale is already voided" });
+      }
+
+      // Start transaction to void sale and restore stock
+      const result = await prisma.$transaction(async (tx) => {
+        // Update sale status
+        const voidedSale = await tx.sale.update({
+          where: { id: parseInt(id) },
+          data: {
+            status: "VOIDED",
+          },
+        });
+
+        // Restore stock if requested
+        if (restoreStock) {
+          for (const item of sale.items) {
+            if (item.variantId) {
+              // Restore variant stock
+              await tx.productVariant.update({
+                where: { id: item.variantId },
+                data: {
+                  stock: {
+                    increment: item.quantity,
+                  },
+                },
+              });
+
+              // Create stock movement record
+              await tx.stockMovement.create({
+                data: {
+                  productId: item.productId,
+                  variantId: item.variantId,
+                  type: "ADJUSTMENT",
+                  quantity: item.quantity,
+                  reason: `Voided sale #${sale.receiptId}`,
+                  employeeId,
+                },
+              });
+            } else {
+              // Restore product stock
+              await tx.product.update({
+                where: { id: item.productId },
+                data: {
+                  stock: {
+                    increment: item.quantity,
+                  },
+                },
+              });
+
+              // Create stock movement record
+              await tx.stockMovement.create({
+                data: {
+                  productId: item.productId,
+                  type: "ADJUSTMENT",
+                  quantity: item.quantity,
+                  reason: `Voided sale #${sale.receiptId}`,
+                  employeeId,
+                },
+              });
+            }
+          }
+        }
+
+        // Reverse loyalty points if customer exists
+        if (sale.customerId && sale.pointsEarned > 0) {
+          const customer = await tx.customer.update({
+            where: { id: sale.customerId },
+            data: {
+              points: {
+                decrement: sale.pointsEarned,
+              },
+              lifetimePoints: {
+                decrement: sale.pointsEarned,
+              },
+            },
+          });
+
+          // Recalculate tier
+          const newTier = calculateTier(customer.lifetimePoints);
+          if (newTier !== customer.tier) {
+            await tx.customer.update({
+              where: { id: sale.customerId },
+              data: { tier: newTier },
+            });
+          }
+
+          // Create points transaction
+          await tx.pointsTransaction.create({
+            data: {
+              customerId: sale.customerId,
+              type: "DEDUCTION",
+              points: sale.pointsEarned,
+              description: `Reversed from voided sale #${sale.receiptId}`,
+              saleId: sale.id,
+            },
+          });
+        }
+
+        // Reverse redeemed points if any
+        if (sale.customerId && sale.pointsRedeemed > 0) {
+          const customer = await tx.customer.update({
+            where: { id: sale.customerId },
+            data: {
+              points: {
+                increment: sale.pointsRedeemed,
+              },
+            },
+          });
+
+          // Create points transaction
+          await tx.pointsTransaction.create({
+            data: {
+              customerId: sale.customerId,
+              type: "EARNED",
+              points: sale.pointsRedeemed,
+              description: `Refunded from voided sale #${sale.receiptId}`,
+              saleId: sale.id,
+            },
+          });
+        }
+
+        // Create audit log
+        await tx.auditLog.create({
+          data: {
+            employeeId,
+            action: "VOID_SALE",
+            entityType: "Sale",
+            entityId: sale.id,
+            details: JSON.stringify({
+              receiptId: sale.receiptId,
+              reason,
+              total: sale.total,
+              restoreStock,
+              itemCount: sale.items.length,
+            }),
+          },
+        });
+
+        return voidedSale;
+      });
+
+      res.json({
+        message: "Sale voided successfully",
+        sale: result,
+      });
+    } catch (error) {
+      console.error("Error voiding sale:", error);
+      res.status(500).json({ error: "Failed to void sale" });
+    }
+  }
+);
+
 module.exports = router;

@@ -26,6 +26,7 @@ const quickSaleItemsRoutes = require("./routes/quickSaleItems");
 const loyaltyRoutes = require("./routes/loyalty");
 const receiptsRoutes = require("./routes/receipts");
 const posSettingsRoutes = require("./routes/posSettings");
+const cashDrawerRoutes = require("./routes/cashDrawer");
 const emailService = require("./utils/emailService");
 const { startScheduler, stopScheduler } = require("./scheduler");
 
@@ -78,6 +79,7 @@ app.use("/api/quick-sale-items", quickSaleItemsRoutes);
 app.use("/api/loyalty", loyaltyRoutes);
 app.use("/api/receipts", receiptsRoutes);
 app.use("/api/pos-settings", posSettingsRoutes);
+app.use("/api/cash-drawer", cashDrawerRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
