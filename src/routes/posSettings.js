@@ -65,6 +65,7 @@ router.put(
     body("taxId").optional().isString(),
     // Tax & Currency
     body("taxRate").optional().isFloat({ min: 0, max: 100 }),
+    body("currencyCode").optional().isString(),
     body("currencySymbol").optional().isString(),
     body("currencyPosition").optional().isIn(["before", "after"]),
     // Receipt Settings
@@ -111,6 +112,7 @@ router.put(
         "taxId",
         // Tax & Currency
         "taxRate",
+        "currencyCode",
         "currencySymbol",
         "currencyPosition",
         // Receipt Settings

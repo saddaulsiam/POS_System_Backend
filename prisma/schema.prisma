@@ -328,6 +328,7 @@ model POSSettings {
   storeEmail               String    @default("info@possystem.com")
   taxId                    String?
   taxRate                  Float     @default(0)
+  currencyCode             String    @default("USD")
   currencySymbol           String    @default("$")
   currencyPosition         String    @default("before")
   receiptFooterText        String?
