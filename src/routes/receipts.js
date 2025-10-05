@@ -8,18 +8,35 @@ const emailService = require("../utils/emailService");
 const prisma = new PrismaClient();
 
 /**
- * Get store settings (mock for now - can be moved to database later)
+ * Get store settings from database
  */
-function getStoreSettings() {
+async function getStoreSettings() {
+  const settings = await prisma.pOSSettings.findFirst();
+
+  if (settings) {
+    return {
+      storeName: settings.storeName,
+      storeAddress: settings.storeAddress,
+      storePhone: settings.storePhone,
+      storeEmail: settings.storeEmail,
+      taxId: settings.taxId,
+      returnPolicy: settings.returnPolicy,
+      receiptFooterText: settings.receiptFooterText,
+      taxRate: settings.taxRate,
+      currencyCode: settings.currencyCode,
+      currencySymbol: settings.currencySymbol,
+      currencyPosition: settings.currencyPosition,
+    };
+  }
+
+  // Fallback to defaults if no settings found
   return {
-    storeName: process.env.STORE_NAME || "Modern POS System",
-    storeAddress: process.env.STORE_ADDRESS || "123 Business Avenue, Suite 100, City, State 12345",
-    storePhone: process.env.STORE_PHONE || "(555) 123-4567",
-    storeEmail: process.env.STORE_EMAIL || "info@possystem.com",
-    taxId: process.env.TAX_ID || "TAX-123456789",
-    returnPolicy:
-      process.env.RETURN_POLICY ||
-      "Items may be returned within 30 days with receipt. Store credit only for items without receipt.",
+    storeName: "POS System",
+    storeAddress: "123 Business Avenue, Suite 100, City, State 12345",
+    storePhone: "(555) 123-4567",
+    storeEmail: "info@possystem.com",
+    taxId: "TAX-123456789",
+    returnPolicy: "Items may be returned within 30 days with receipt. Store credit only for items without receipt.",
   };
 }
 
@@ -72,7 +89,7 @@ router.post("/send-email", authenticateToken, async (req, res) => {
 
     // Get sale data
     const saleData = await getSaleData(saleId);
-    const settings = getStoreSettings();
+    const settings = await getStoreSettings();
 
     // Generate HTML receipt
     const htmlContent = generateHTMLReceipt(saleData, settings);
@@ -140,7 +157,7 @@ router.get("/:saleId/pdf", authenticateToken, async (req, res) => {
 
     // Get sale data
     const saleData = await getSaleData(saleId);
-    const settings = getStoreSettings();
+    const settings = await getStoreSettings();
 
     // Generate PDF
     const pdfDoc = generatePDFReceipt(saleData, settings);
@@ -171,7 +188,7 @@ router.get("/:saleId/html", authenticateToken, async (req, res) => {
 
     // Get sale data
     const saleData = await getSaleData(saleId);
-    const settings = getStoreSettings();
+    const settings = await getStoreSettings();
 
     // Generate HTML
     const htmlContent = generateHTMLReceipt(saleData, settings);
@@ -197,7 +214,7 @@ router.get("/:saleId/thermal", authenticateToken, async (req, res) => {
 
     // Get sale data
     const saleData = await getSaleData(saleId);
-    const settings = getStoreSettings();
+    const settings = await getStoreSettings();
 
     // Generate thermal receipt
     const thermalContent = generateThermalReceipt(saleData, settings);
@@ -232,7 +249,7 @@ router.post("/resend/:saleId", authenticateToken, async (req, res) => {
       });
     }
 
-    const settings = getStoreSettings();
+    const settings = await getStoreSettings();
     const htmlContent = generateHTMLReceipt(saleData, settings);
 
     // Send email
@@ -296,7 +313,7 @@ router.get("/:saleId/preview", authenticateToken, async (req, res) => {
     const { saleId } = req.params;
 
     const saleData = await getSaleData(saleId);
-    const settings = getStoreSettings();
+    const settings = await getStoreSettings();
 
     res.json({
       sale: saleData,
@@ -325,7 +342,7 @@ router.post("/print-thermal", authenticateToken, async (req, res) => {
     }
 
     const saleData = await getSaleData(saleId);
-    const settings = getStoreSettings();
+    const settings = await getStoreSettings();
     const thermalContent = generateThermalReceipt(saleData, settings);
 
     // TODO: Implement actual printer integration
