@@ -664,7 +664,7 @@ router.get("/purchase-orders", [authenticateToken, authorizeRoles("ADMIN", "MANA
           },
         },
         orderBy: {
-          orderDate: "desc",
+          createdAt: "desc",
         },
       }),
       prisma.purchaseOrder.count({ where }),
