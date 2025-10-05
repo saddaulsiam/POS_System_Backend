@@ -47,7 +47,7 @@ async function getSaleData(saleId) {
   const sale = await prisma.sale.findUnique({
     where: { id: parseInt(saleId) },
     include: {
-      items: {
+      saleItems: {
         include: {
           product: true,
           productVariant: true,
@@ -57,9 +57,8 @@ async function getSaleData(saleId) {
       employee: {
         select: {
           id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
+          name: true,
+          username: true,
         },
       },
       paymentSplits: true,

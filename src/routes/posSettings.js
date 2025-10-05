@@ -75,6 +75,7 @@ router.put(
     body("returnPolicy").optional().isString(),
     body("printReceiptAuto").optional().isBoolean(),
     body("emailReceiptAuto").optional().isBoolean(),
+    body("autoPrintThermal").optional().isBoolean(),
     // Alerts & Notifications
     body("enableLowStockAlerts").optional().isBoolean(),
     body("lowStockThreshold").optional().isInt({ min: 1, max: 1000 }),
@@ -124,6 +125,7 @@ router.put(
         "returnPolicy",
         "printReceiptAuto",
         "emailReceiptAuto",
+        "autoPrintThermal",
         // Alerts & Notifications
         "enableLowStockAlerts",
         "lowStockThreshold",

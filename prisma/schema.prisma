@@ -336,6 +336,7 @@ model POSSettings {
   receiptFooterText        String?
   returnPolicy             String?
   printReceiptAuto         Boolean   @default(false)
+  autoPrintThermal         Boolean   @default(false)
   emailReceiptAuto         Boolean   @default(false)
   enableLowStockAlerts     Boolean   @default(true)
   lowStockThreshold        Int       @default(10)

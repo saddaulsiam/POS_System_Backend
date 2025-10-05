@@ -57,105 +57,7 @@ function generatePDFReceipt(saleData, settings = {}) {
   doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
   doc.moveDown();
 
-  // Items Header
-  doc.fontSize(9).font("Helvetica-Bold");
-  doc.text("Item", 50, doc.y);
-  doc.text("Qty", 300, doc.y);
-  doc.text("Price", 370, doc.y);
-  doc.text("Total", 480, doc.y, { align: "right" });
-
-  doc.moveDown(0.3);
-  doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-  doc.moveDown(0.5);
-
-  // Items
-  doc.font("Helvetica");
-  saleData.items.forEach((item) => {
-    const itemName = item.productVariant ? `${item.product.name} - ${item.productVariant.name}` : item.product.name;
-
-    doc.text(itemName, 50, doc.y, { width: 240 });
-    const itemY = doc.y - 12; // Adjust to align with item name
-    doc.text(item.quantity.toString(), 300, itemY);
-    doc.text(`$${item.unitPrice.toFixed(2)}`, 370, itemY);
-    doc.text(`$${item.total.toFixed(2)}`, 480, itemY, { align: "right" });
-    doc.moveDown(0.5);
-  });
-
-  doc.moveDown();
-  doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-  doc.moveDown();
-
-  // Totals
-  const rightAlign = 480;
-  doc.fontSize(10);
-
-  doc.text("Subtotal:", 400, doc.y);
-  doc.text(`$${saleData.subtotal.toFixed(2)}`, rightAlign, doc.y, { align: "right" });
-  doc.moveDown(0.3);
-
-  if (saleData.discountAmount > 0) {
-    doc.text("Discount:", 400, doc.y);
-    doc.text(`-$${saleData.discountAmount.toFixed(2)}`, rightAlign, doc.y, { align: "right" });
-    if (saleData.discountReason) {
-      doc.fontSize(8).text(`(${saleData.discountReason})`, 400, doc.y);
-      doc.fontSize(10);
-    }
-    doc.moveDown(0.3);
-  }
-
-  doc.text("Tax:", 400, doc.y);
-  doc.text(`$${saleData.taxAmount.toFixed(2)}`, rightAlign, doc.y, { align: "right" });
-  doc.moveDown(0.3);
-
-  doc.fontSize(12).font("Helvetica-Bold");
-  doc.text("TOTAL:", 400, doc.y);
-  doc.text(`$${saleData.finalAmount.toFixed(2)}`, rightAlign, doc.y, { align: "right" });
-  doc.moveDown();
-
-  // Payment Info
-  doc.fontSize(9).font("Helvetica");
-  doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-  doc.moveDown(0.5);
-
-  if (saleData.paymentSplits && saleData.paymentSplits.length > 0) {
-    doc.text("Payment Details:", 50, doc.y);
-    doc.moveDown(0.3);
-    saleData.paymentSplits.forEach((split) => {
-      doc.text(`${split.paymentMethod}:`, 70, doc.y);
-      doc.text(`$${split.amount.toFixed(2)}`, rightAlign, doc.y, { align: "right" });
-      doc.moveDown(0.3);
-    });
-  } else {
-    doc.text(`Payment Method: ${saleData.paymentMethod}`, 50, doc.y);
-    doc.text(`Amount Paid: $${saleData.finalAmount.toFixed(2)}`, rightAlign, doc.y, { align: "right" });
-    doc.moveDown(0.3);
-  }
-
-  if (saleData.paymentStatus === "COMPLETED") {
-    doc.text("Payment Status: PAID IN FULL", 50, doc.y, { align: "center" });
-  }
-
-  // Loyalty Points
-  if (saleData.pointsEarned && saleData.pointsEarned > 0) {
-    doc.moveDown();
-    doc.fontSize(10).font("Helvetica-Bold");
-    doc.text(`Loyalty Points Earned: ${saleData.pointsEarned} pts`, { align: "center" });
-    doc.font("Helvetica");
-  }
-
-  // Footer
-  doc.moveDown(2);
-  doc
-    .fontSize(8)
-    .font("Helvetica-Oblique")
-    .text("Thank you for your business!", { align: "center" })
-    .text("Please keep this receipt for your records", { align: "center" });
-
-  if (settings.returnPolicy) {
-    doc.moveDown(0.5);
-    doc.fontSize(7).text(settings.returnPolicy, { align: "center", width: 400 });
-  }
-
+  // ...existing code...
   return doc;
 }
 
@@ -166,110 +68,149 @@ function generatePDFReceipt(saleData, settings = {}) {
  * @returns {string} ESC/POS formatted text
  */
 function generateThermalReceipt(saleData, settings = {}) {
+  // Use dynamic currency symbol
+  const currency = settings.currencySymbol || "$";
   const width = 48; // Characters per line for 80mm thermal printer
   const ESC = "\x1B";
   const GS = "\x1D";
 
   let receipt = "";
 
-  // Initialize printer
-  receipt += `${ESC}@`; // Initialize
-  receipt += `${ESC}a${String.fromCharCode(1)}`; // Center align
-
-  // Store header
+  // Store header (centered, no ESC codes)
   const storeName = settings.storeName || "POS System";
-  receipt += `${ESC}!${String.fromCharCode(0x30)}`; // Double width + height
-  receipt += `${storeName}\n`;
-  receipt += `${ESC}!${String.fromCharCode(0x00)}`; // Normal size
-
+  receipt += center(storeName, width) + "\n";
   const address = settings.storeAddress || "123 Main St, City";
+  receipt += center(address, width) + "\n";
   const phone = settings.storePhone || "(123) 456-7890";
-  receipt += `${address}\n`;
-  receipt += `Phone: ${phone}\n`;
-
+  receipt += center(`Phone: ${phone}`, width) + "\n";
   if (settings.taxId) {
-    receipt += `Tax ID: ${settings.taxId}\n`;
+    receipt += center(`Tax ID: ${settings.taxId}`, width) + "\n";
   }
+  receipt += "=".repeat(width) + "\n";
 
-  receipt += center("=".repeat(width), width) + "\n";
-
-  // Receipt info
-  receipt += `${ESC}a${String.fromCharCode(0)}`; // Left align
-  receipt += `Receipt #: ${saleData.id}\n`;
-
+  // Receipt info (left aligned)
   const receiptDate = new Date(saleData.createdAt);
+  receipt += `Receipt #: ${saleData.id}\n`;
   receipt += `Date: ${receiptDate.toLocaleDateString()}\n`;
   receipt += `Time: ${receiptDate.toLocaleTimeString()}\n`;
 
+  // Cashier name fallback (always show)
+  let cashierName = "N/A";
   if (saleData.employee) {
-    receipt += `Cashier: ${saleData.employee.firstName} ${saleData.employee.lastName}\n`;
+    const first = saleData.employee.firstName || "";
+    const last = saleData.employee.lastName || "";
+    let full = `${first} ${last}`.trim();
+    if ((!full || full === "undefined undefined" || full === "") && saleData.employee.name) {
+      full = saleData.employee.name;
+    }
+    if (full && full !== "undefined undefined" && full !== "") {
+      cashierName = full;
+    }
   }
+  receipt += `Cashier: ${cashierName}\n`;
 
+  // Customer name fallback (always show)
+  let customerName = "N/A";
   if (saleData.customer) {
-    receipt += `Customer: ${saleData.customer.firstName} ${saleData.customer.lastName}\n`;
+    const first = saleData.customer.firstName || "";
+    const last = saleData.customer.lastName || "";
+    let full = `${first} ${last}`.trim();
+    if ((!full || full === "undefined undefined" || full === "") && saleData.customer.name) {
+      full = saleData.customer.name;
+    }
+    if (full && full !== "undefined undefined" && full !== "") {
+      customerName = full;
+    }
   }
+  receipt += `Customer: ${customerName}\n`;
 
   receipt += "-".repeat(width) + "\n";
 
-  // Items
-  receipt += `${ESC}!${String.fromCharCode(0x10)}`; // Emphasized
+  // Items header
   receipt += padRight("Item", 24) + padRight("Qty", 8) + padLeft("Total", 16) + "\n";
-  receipt += `${ESC}!${String.fromCharCode(0x00)}`; // Normal
   receipt += "-".repeat(width) + "\n";
 
-  saleData.items.forEach((item) => {
+  saleData.saleItems.forEach((item) => {
     const itemName = item.productVariant ? `${item.product.name}-${item.productVariant.name}` : item.product.name;
-
     // Item name (may wrap)
-    receipt += truncate(itemName, width) + "\n";
+    let nameLines = [];
+    let name = itemName;
+    while (name.length > width) {
+      nameLines.push(name.slice(0, width));
+      name = name.slice(width);
+    }
+    if (name.length > 0) nameLines.push(name);
+    nameLines.forEach((line, idx) => {
+      receipt += truncate(line, width) + "\n";
+    });
 
-    // Quantity and price on same line
-    const qtyStr = `${item.quantity} x $${item.unitPrice.toFixed(2)}`;
-    const totalStr = `$${item.total.toFixed(2)}`;
-    receipt += padRight(qtyStr, width - totalStr.length) + totalStr + "\n";
+    // Quantity and price on same line, indented for clarity
+    const qtyStr = `${item.quantity} x ${currency}${item.priceAtSale.toFixed(2)}`;
+    const totalStr = `${currency}${item.subtotal.toFixed(2)}`;
+    receipt += padRight("  " + qtyStr, width - totalStr.length) + totalStr + "\n";
   });
 
-  receipt += "=".repeat(width) + "\n";
+  // Add spacing before totals
+  receipt += "\n" + "=".repeat(width) + "\n";
 
-  // Totals
-  receipt += `${ESC}!${String.fromCharCode(0x00)}`; // Normal
-  receipt += formatLine("Subtotal:", `$${saleData.subtotal.toFixed(2)}`, width) + "\n";
-
+  // Totals section
+  receipt += formatLine("Subtotal:", `${currency}${saleData.subtotal.toFixed(2)}`, width) + "\n";
   if (saleData.discountAmount > 0) {
-    receipt += formatLine("Discount:", `-$${saleData.discountAmount.toFixed(2)}`, width) + "\n";
+    receipt += formatLine("Discount:", `-${currency}${saleData.discountAmount.toFixed(2)}`, width) + "\n";
   }
-
-  receipt += formatLine("Tax:", `$${saleData.taxAmount.toFixed(2)}`, width) + "\n";
+  receipt += formatLine("Tax:", `${currency}${saleData.taxAmount.toFixed(2)}`, width) + "\n";
   receipt += "-".repeat(width) + "\n";
 
-  receipt += `${ESC}!${String.fromCharCode(0x30)}`; // Double width + height
-  receipt += formatLine("TOTAL:", `$${saleData.finalAmount.toFixed(2)}`, width / 2) + "\n";
-  receipt += `${ESC}!${String.fromCharCode(0x00)}`; // Normal
+  // Centered and bold TOTAL
+  const totalLine = formatLine("TOTAL:", `${currency}${saleData.finalAmount.toFixed(2)}`, width / 2);
+  receipt += center(totalLine, width) + "\n";
   receipt += "=".repeat(width) + "\n";
 
   // Payment
   if (saleData.paymentSplits && saleData.paymentSplits.length > 0) {
     receipt += "Payment:\n";
     saleData.paymentSplits.forEach((split) => {
-      receipt += formatLine(`  ${split.paymentMethod}`, `$${split.amount.toFixed(2)}`, width) + "\n";
+      receipt += formatLine(`  ${split.paymentMethod}`, `${currency}${split.amount.toFixed(2)}`, width) + "\n";
     });
   } else {
-    receipt += formatLine(`Payment (${saleData.paymentMethod}):`, `$${saleData.finalAmount.toFixed(2)}`, width) + "\n";
+    receipt +=
+      formatLine(`Payment (${saleData.paymentMethod}):`, `${currency}${saleData.finalAmount.toFixed(2)}`, width) + "\n";
   }
 
   // Loyalty points
   if (saleData.pointsEarned && saleData.pointsEarned > 0) {
     receipt += "-".repeat(width) + "\n";
-    receipt += `${ESC}a${String.fromCharCode(1)}`; // Center
-    receipt += `Points Earned: ${saleData.pointsEarned}\n`;
-    receipt += `${ESC}a${String.fromCharCode(0)}`; // Left
+    receipt += center(`Points Earned: ${saleData.pointsEarned}`, width) + "\n";
   }
 
   // Footer
   receipt += "\n";
-  receipt += `${ESC}a${String.fromCharCode(1)}`; // Center
-  receipt += "Thank you for your business!\n";
-  receipt += "Please come again\n\n";
+  if (settings.receiptFooterText) {
+    receipt += center(settings.receiptFooterText, width) + "\n";
+  } else {
+    receipt += center("Thank you for your business!", width) + "\n";
+  }
+
+  if (settings.returnPolicy) {
+    receipt += "\n";
+    receipt += center("Return Policy:", width) + "\n";
+    // Wrap return policy text for thermal printer
+    const policyWords = settings.returnPolicy.split(" ");
+    let policyLine = "";
+    policyWords.forEach((word) => {
+      if ((policyLine + word).length > width) {
+        receipt += center(policyLine.trim(), width) + "\n";
+        policyLine = word + " ";
+      } else {
+        policyLine += word + " ";
+      }
+    });
+    if (policyLine.trim()) {
+      receipt += center(policyLine.trim(), width) + "\n";
+    }
+  }
+
+  receipt += "\n";
 
   // Cut paper
   receipt += `${GS}V${String.fromCharCode(66)}${String.fromCharCode(0)}`;
@@ -369,7 +310,7 @@ function generateHTMLReceipt(saleData, settings = {}) {
       </tr>
     </thead>
     <tbody>
-      ${saleData.items
+      ${saleData.saleItems
         .map((item) => {
           const itemName = item.productVariant
             ? `${item.product.name} - ${item.productVariant.name}`
@@ -378,8 +319,8 @@ function generateHTMLReceipt(saleData, settings = {}) {
         <tr>
           <td>${itemName}</td>
           <td style="text-align: center;">${item.quantity}</td>
-          <td style="text-align: right;">$${item.unitPrice.toFixed(2)}</td>
-          <td style="text-align: right;">$${item.total.toFixed(2)}</td>
+          <td style="text-align: right;">$${item.priceAtSale.toFixed(2)}</td>
+          <td style="text-align: right;">$${item.subtotal.toFixed(2)}</td>
         </tr>
         `;
         })
@@ -435,9 +376,13 @@ function generateHTMLReceipt(saleData, settings = {}) {
   }
 
   <div class="footer">
-    <p><strong>Thank you for your business!</strong></p>
+    <p><strong>${settings.receiptFooterText || "Thank you for your business!"}</strong></p>
     <p>Please keep this receipt for your records</p>
-    ${settings.returnPolicy ? `<p style="font-size: 11px; margin-top: 10px;">${settings.returnPolicy}</p>` : ""}
+    ${
+      settings.returnPolicy
+        ? `<p style="font-size: 11px; margin-top: 10px;"><strong>Return Policy:</strong><br>${settings.returnPolicy}</p>`
+        : ""
+    }
   </div>
 </body>
 </html>
