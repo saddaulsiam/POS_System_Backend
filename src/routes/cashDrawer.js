@@ -43,7 +43,7 @@ router.get("/", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], async (
             select: {
               id: true,
               name: true,
-              email: true,
+              // email removed (not in model)
             },
           },
         },
@@ -84,7 +84,7 @@ router.get("/current", authenticateToken, async (req, res) => {
           select: {
             id: true,
             name: true,
-            email: true,
+            // email removed (not in model)
           },
         },
       },
@@ -136,7 +136,7 @@ router.post("/open", authenticateToken, async (req, res) => {
           select: {
             id: true,
             name: true,
-            email: true,
+            // email removed (not in model)
           },
         },
       },
@@ -145,9 +145,9 @@ router.post("/open", authenticateToken, async (req, res) => {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        employeeId,
+        userId: employeeId,
         action: "OPEN_CASH_DRAWER",
-        entityType: "CashDrawer",
+        entity: "CashDrawer",
         entityId: cashDrawer.id,
         details: JSON.stringify({
           openingBalance: parseFloat(openingBalance),
@@ -196,7 +196,7 @@ router.post("/close/:id", authenticateToken, async (req, res) => {
         createdAt: {
           gte: cashDrawer.openedAt,
         },
-        status: {
+        paymentStatus: {
           not: "VOIDED",
         },
       },
@@ -209,12 +209,12 @@ router.post("/close/:id", authenticateToken, async (req, res) => {
     sales.forEach((sale) => {
       if (sale.paymentSplits && sale.paymentSplits.length > 0) {
         sale.paymentSplits.forEach((split) => {
-          if (split.method === "CASH") {
+          if (split.paymentMethod === "CASH") {
             cashSalesTotal += split.amount;
           }
         });
       } else if (sale.paymentMethod === "CASH") {
-        cashSalesTotal += sale.total;
+        cashSalesTotal += sale.finalAmount;
       }
     });
 
@@ -236,7 +236,7 @@ router.post("/close/:id", authenticateToken, async (req, res) => {
           select: {
             id: true,
             name: true,
-            email: true,
+            // email removed (not in model)
           },
         },
       },
@@ -245,9 +245,9 @@ router.post("/close/:id", authenticateToken, async (req, res) => {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        employeeId,
+        userId: employeeId,
         action: "CLOSE_CASH_DRAWER",
-        entityType: "CashDrawer",
+        entity: "CashDrawer",
         entityId: updatedDrawer.id,
         details: JSON.stringify({
           closingBalance: parseFloat(closingBalance),
@@ -278,7 +278,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
           select: {
             id: true,
             name: true,
-            email: true,
+            // email removed (not in model)
           },
         },
       },
@@ -313,7 +313,7 @@ router.get("/:id/reconciliation", authenticateToken, async (req, res) => {
           select: {
             id: true,
             name: true,
-            email: true,
+            // email removed (not in model)
           },
         },
       },
@@ -333,21 +333,16 @@ router.get("/:id/reconciliation", authenticateToken, async (req, res) => {
       employeeId: cashDrawer.employeeId,
       createdAt: {
         gte: cashDrawer.openedAt,
+        ...(cashDrawer.closedAt ? { lte: cashDrawer.closedAt } : {}),
       },
-      status: {
-        not: "VOIDED",
-      },
+      NOT: [{ paymentStatus: "VOIDED" }],
     };
-
-    if (cashDrawer.closedAt) {
-      whereConditions.createdAt.lte = cashDrawer.closedAt;
-    }
 
     const sales = await prisma.sale.findMany({
       where: whereConditions,
       include: {
         paymentSplits: true,
-        items: {
+        saleItems: {
           include: {
             product: true,
           },
@@ -369,11 +364,13 @@ router.get("/:id/reconciliation", authenticateToken, async (req, res) => {
     let totalSales = 0;
 
     sales.forEach((sale) => {
-      totalSales += sale.total;
+      totalSales += sale.finalAmount;
 
       if (sale.paymentSplits && sale.paymentSplits.length > 0) {
         sale.paymentSplits.forEach((split) => {
-          switch (split.method) {
+          // Normalize payment method for robust matching
+          const method = (split.paymentMethod || "").toUpperCase();
+          switch (method) {
             case "CASH":
               paymentBreakdown.cash += split.amount;
               break;
@@ -381,6 +378,8 @@ router.get("/:id/reconciliation", authenticateToken, async (req, res) => {
               paymentBreakdown.card += split.amount;
               break;
             case "MOBILE":
+            case "MOBILE_PAYMENT":
+            case "MOBILEPAY":
               paymentBreakdown.mobile += split.amount;
               break;
             default:
@@ -390,16 +389,16 @@ router.get("/:id/reconciliation", authenticateToken, async (req, res) => {
       } else {
         switch (sale.paymentMethod) {
           case "CASH":
-            paymentBreakdown.cash += sale.total;
+            paymentBreakdown.cash += sale.finalAmount;
             break;
           case "CARD":
-            paymentBreakdown.card += sale.total;
+            paymentBreakdown.card += sale.finalAmount;
             break;
           case "MOBILE":
-            paymentBreakdown.mobile += sale.total;
+            paymentBreakdown.mobile += sale.finalAmount;
             break;
           default:
-            paymentBreakdown.other += sale.total;
+            paymentBreakdown.other += sale.finalAmount;
         }
       }
     });
@@ -414,7 +413,10 @@ router.get("/:id/reconciliation", authenticateToken, async (req, res) => {
       expectedCashBalance,
       actualBalance: cashDrawer.closingBalance || null,
       difference: cashDrawer.difference || null,
-      recentTransactions: sales.slice(0, 10),
+      recentTransactions: sales.slice(0, 10).map((sale) => ({
+        receiptId: sale.receiptId,
+        finalAmount: sale.finalAmount,
+      })),
     });
   } catch (error) {
     console.error("Error fetching reconciliation:", error);
