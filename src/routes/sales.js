@@ -193,14 +193,36 @@ router.post(
             throw new Error(`Product with ID ${item.productId} not found or inactive`);
           }
 
+          let variant = null;
+          let stockQuantity = product.stockQuantity;
+          let productName = product.name;
+
+          // If variant is specified, use variant stock
+          if (item.productVariantId) {
+            variant = await tx.productVariant.findUnique({
+              where: { id: item.productVariantId, isActive: true },
+            });
+
+            if (!variant) {
+              throw new Error(`Product variant with ID ${item.productVariantId} not found or inactive`);
+            }
+
+            if (variant.productId !== item.productId) {
+              throw new Error(`Variant ${item.productVariantId} does not belong to product ${item.productId}`);
+            }
+
+            stockQuantity = variant.stockQuantity;
+            productName = `${product.name} - ${variant.name}`;
+          }
+
           // Check stock availability
-          if (product.stockQuantity < item.quantity) {
+          if (stockQuantity < item.quantity) {
             throw new Error(
-              `Insufficient stock for ${product.name}. Available: ${product.stockQuantity}, Requested: ${item.quantity}`
+              `Insufficient stock for ${productName}. Available: ${stockQuantity}, Requested: ${item.quantity}`
             );
           }
 
-          const price = item.price || product.sellingPrice;
+          const price = item.price || (variant ? variant.sellingPrice : product.sellingPrice);
           const discount = item.discount || 0;
           const itemSubtotal = price * item.quantity - discount;
           const itemTax = calculateTax(itemSubtotal, product.taxRate);
@@ -210,6 +232,7 @@ router.post(
 
           saleItemsData.push({
             productId: item.productId,
+            productVariantId: item.productVariantId || null,
             quantity: item.quantity,
             priceAtSale: price,
             discount,
@@ -217,15 +240,25 @@ router.post(
           });
 
           // Update stock
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stockQuantity: { decrement: item.quantity } },
-          });
+          if (variant) {
+            // Update variant stock
+            await tx.productVariant.update({
+              where: { id: variant.id },
+              data: { stockQuantity: { decrement: item.quantity } },
+            });
+          } else {
+            // Update product stock
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stockQuantity: { decrement: item.quantity } },
+            });
+          }
 
           // Create stock movement
           await tx.stockMovement.create({
             data: {
               productId: item.productId,
+              productVariantId: item.productVariantId || null,
               movementType: "SALE",
               quantity: -item.quantity,
               reason: "Sale transaction",
