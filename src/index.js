@@ -16,6 +16,7 @@ const salesRoutes = require("./routes/sales");
 const inventoryRoutes = require("./routes/inventory");
 const reportRoutes = require("./routes/reports");
 const suppliersRoutes = require("./routes/suppliers");
+const analyticsRoutes = require("./routes/analytics");
 
 const employeeRoutes = require("./routes/employees");
 const profileRoutes = require("./routes/profile");
@@ -68,6 +69,7 @@ app.use("/api/sales", salesRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/suppliers", suppliersRoutes);
+app.use("/api/analytics", analyticsRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/audit-logs", auditLogsRoutes);
