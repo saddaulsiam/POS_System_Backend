@@ -33,7 +33,7 @@ model Supplier {
   name          String
   contactName   String?
   phone         String?
-  email         String?
+  // email field removed
   address       String?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
@@ -92,7 +92,7 @@ model Customer {
   id                 Int                 @id @default(autoincrement())
   name               String
   phoneNumber        String?             @unique
-  email              String?             @unique
+  // email field removed
   loyaltyPoints      Int                 @default(0)
   loyaltyTier        String              @default("BRONZE")
   dateOfBirth        DateTime?
@@ -315,40 +315,40 @@ model CashDrawer {
 }
 
 model POSSettings {
-  id                       Int       @id @default(autoincrement())
-  enableQuickSale          Boolean   @default(true)
-  enableSplitPayment       Boolean   @default(true)
-  enableParkSale           Boolean   @default(true)
-  enableCustomerSearch     Boolean   @default(true)
-  enableBarcodeScanner     Boolean   @default(true)
-  enableLoyaltyPoints      Boolean   @default(true)
-  loyaltyPointsPerUnit     Float     @default(10)
-  pointsRedemptionRate     Float     @default(100)
-  storeName                String    @default("POS System")
-  storeAddress             String    @default("123 Main St, City, Country")
-  storePhone               String    @default("(123) 456-7890")
-  storeEmail               String    @default("info@possystem.com")
-  taxId                    String?
-  taxRate                  Float     @default(0)
-  currencyCode             String    @default("USD")
-  currencySymbol           String    @default("$")
-  currencyPosition         String    @default("before")
-  receiptFooterText        String?
-  returnPolicy             String?
-  printReceiptAuto         Boolean   @default(false)
-  autoPrintThermal         Boolean   @default(false)
-  emailReceiptAuto         Boolean   @default(false)
-  enableLowStockAlerts     Boolean   @default(true)
-  lowStockThreshold        Int       @default(10)
-  enableEmailNotifications Boolean   @default(true)
-  adminAlertEmail          String?
-  autoLogoutMinutes        Int       @default(30)
-  requirePasswordOnVoid    Boolean   @default(true)
-  enableAuditLog           Boolean   @default(true)
-  productsPerPage          Int       @default(20)
-  defaultView              String    @default("grid")
-  showProductImages        Boolean   @default(true)
-  updatedAt                DateTime  @updatedAt
-  updatedBy                Int?
-  updatedByEmployee        Employee? @relation(fields: [updatedBy], references: [id])
+  id                    Int       @id @default(autoincrement())
+  enableQuickSale       Boolean   @default(true)
+  enableSplitPayment    Boolean   @default(true)
+  enableParkSale        Boolean   @default(true)
+  enableCustomerSearch  Boolean   @default(true)
+  enableBarcodeScanner  Boolean   @default(true)
+  enableLoyaltyPoints   Boolean   @default(true)
+  loyaltyPointsPerUnit  Float     @default(10)
+  pointsRedemptionRate  Float     @default(100)
+  storeName             String    @default("POS System")
+  storeAddress          String    @default("123 Main St, City, Country")
+  storePhone            String    @default("(123) 456-7890")
+  // storeEmail field removed
+  taxId                 String?
+  taxRate               Float     @default(0)
+  currencyCode          String    @default("USD")
+  currencySymbol        String    @default("$")
+  currencyPosition      String    @default("before")
+  receiptFooterText     String?
+  returnPolicy          String?
+  printReceiptAuto      Boolean   @default(false)
+  autoPrintThermal      Boolean   @default(false)
+  // emailReceiptAuto field removed
+  enableLowStockAlerts  Boolean   @default(true)
+  lowStockThreshold     Int       @default(10)
+  // enableEmailNotifications field removed
+  // adminAlertEmail field removed
+  autoLogoutMinutes     Int       @default(30)
+  requirePasswordOnVoid Boolean   @default(true)
+  enableAuditLog        Boolean   @default(true)
+  productsPerPage       Int       @default(20)
+  defaultView           String    @default("grid")
+  showProductImages     Boolean   @default(true)
+  updatedAt             DateTime  @updatedAt
+  updatedBy             Int?
+  updatedByEmployee     Employee? @relation(fields: [updatedBy], references: [id])
 }

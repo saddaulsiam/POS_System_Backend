@@ -3,7 +3,6 @@ const router = express.Router();
 const { PrismaClient } = require("@prisma/client");
 const { authenticateToken } = require("../middleware/auth");
 const { generatePDFReceipt, generateThermalReceipt, generateHTMLReceipt } = require("../utils/receiptGenerator");
-const emailService = require("../utils/emailService");
 
 const prisma = new PrismaClient();
 
@@ -72,79 +71,7 @@ async function getSaleData(saleId) {
   return sale;
 }
 
-/**
- * POST /api/receipts/send-email
- * Send receipt to customer via email
- */
-router.post("/send-email", authenticateToken, async (req, res) => {
-  try {
-    const { saleId, customerEmail, customerName, includePDF } = req.body;
-
-    if (!saleId || !customerEmail) {
-      return res.status(400).json({
-        error: "Sale ID and customer email are required",
-      });
-    }
-
-    // Get sale data
-    const saleData = await getSaleData(saleId);
-    const settings = await getStoreSettings();
-
-    // Generate HTML receipt
-    const htmlContent = generateHTMLReceipt(saleData, settings);
-
-    // Send email
-    let result;
-    if (includePDF) {
-      // Generate PDF and attach it
-      const pdfDoc = generatePDFReceipt(saleData, settings);
-      const chunks = [];
-
-      pdfDoc.on("data", (chunk) => chunks.push(chunk));
-
-      await new Promise((resolve, reject) => {
-        pdfDoc.on("end", resolve);
-        pdfDoc.on("error", reject);
-        pdfDoc.end();
-      });
-
-      const pdfBuffer = Buffer.concat(chunks);
-
-      result = await emailService.sendReceiptWithPDF(
-        customerEmail,
-        customerName || `${saleData.customer?.firstName} ${saleData.customer?.lastName}` || "Customer",
-        htmlContent,
-        pdfBuffer,
-        saleData.id
-      );
-    } else {
-      result = await emailService.sendReceipt(
-        customerEmail,
-        customerName || `${saleData.customer?.firstName} ${saleData.customer?.lastName}` || "Customer",
-        htmlContent
-      );
-    }
-
-    if (result.success) {
-      res.json({
-        message: "Receipt sent successfully",
-        messageId: result.messageId,
-        previewUrl: result.previewUrl, // For development mode
-      });
-    } else {
-      res.status(500).json({
-        error: "Failed to send email",
-        details: result.error,
-      });
-    }
-  } catch (error) {
-    console.error("Error sending receipt email:", error);
-    res.status(500).json({
-      error: "Failed to send receipt email",
-      details: error.message,
-    });
-  }
-});
+// Email receipt route removed
 
 /**
  * GET /api/receipts/:saleId/pdf

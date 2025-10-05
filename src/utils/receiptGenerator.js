@@ -13,7 +13,6 @@ function generatePDFReceipt(saleData, settings = {}) {
     name: settings.storeName || "POS System",
     address: settings.storeAddress || "123 Main St, City, Country",
     phone: settings.storePhone || "(123) 456-7890",
-    email: settings.storeEmail || "info@possystem.com",
     taxId: settings.taxId || "TAX-123456",
     ...settings,
   };
@@ -24,7 +23,7 @@ function generatePDFReceipt(saleData, settings = {}) {
     .fontSize(10)
     .font("Helvetica")
     .text(storeSettings.address, { align: "center" })
-    .text(`Phone: ${storeSettings.phone} | Email: ${storeSettings.email}`, { align: "center" })
+    .text(`Phone: ${storeSettings.phone}`, { align: "center" })
     .text(`Tax ID: ${storeSettings.taxId}`, { align: "center" });
 
   doc.moveDown();
@@ -255,7 +254,6 @@ function generateHTMLReceipt(saleData, settings = {}) {
     name: settings.storeName || "POS System",
     address: settings.storeAddress || "123 Main St, City, Country",
     phone: settings.storePhone || "(123) 456-7890",
-    email: settings.storeEmail || "info@possystem.com",
     ...settings,
   };
 
@@ -291,7 +289,7 @@ function generateHTMLReceipt(saleData, settings = {}) {
     <div class="store-name">${storeSettings.name}</div>
     <div class="store-info">
       ${storeSettings.address}<br>
-      Phone: ${storeSettings.phone} | Email: ${storeSettings.email}
+  Phone: ${storeSettings.phone}
       ${storeSettings.taxId ? `<br>Tax ID: ${storeSettings.taxId}` : ""}
     </div>
   </div>
