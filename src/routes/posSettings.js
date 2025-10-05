@@ -57,6 +57,8 @@ router.put(
     body("enableCustomerSearch").optional().isBoolean(),
     body("enableBarcodeScanner").optional().isBoolean(),
     body("enableLoyaltyPoints").optional().isBoolean(),
+    body("loyaltyPointsPerUnit").optional().isFloat({ min: 0.01 }),
+    body("pointsRedemptionRate").optional().isFloat({ min: 1 }),
     // Store Information
     body("storeName").optional().isString(),
     body("storeAddress").optional().isString(),
@@ -104,6 +106,8 @@ router.put(
         "enableCustomerSearch",
         "enableBarcodeScanner",
         "enableLoyaltyPoints",
+        "loyaltyPointsPerUnit",
+        "pointsRedemptionRate",
         // Store Information
         "storeName",
         "storeAddress",

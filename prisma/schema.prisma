@@ -322,6 +322,8 @@ model POSSettings {
   enableCustomerSearch     Boolean   @default(true)
   enableBarcodeScanner     Boolean   @default(true)
   enableLoyaltyPoints      Boolean   @default(true)
+  loyaltyPointsPerUnit     Float     @default(10)
+  pointsRedemptionRate     Float     @default(100)
   storeName                String    @default("POS System")
   storeAddress             String    @default("123 Main St, City, Country")
   storePhone               String    @default("(123) 456-7890")

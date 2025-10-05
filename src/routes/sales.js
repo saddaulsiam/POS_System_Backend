@@ -291,6 +291,13 @@ router.post(
           });
 
           if (customer) {
+            // Get POS settings for points calculation rate
+            const settings = await tx.pOSSettings.findFirst({
+              select: { loyaltyPointsPerUnit: true },
+            });
+
+            const pointsPerUnit = settings?.loyaltyPointsPerUnit || 10; // Default: 1 point per 10 currency units
+
             // Get tier configuration from database
             const tierConfig = await tx.loyaltyTierConfig.findUnique({
               where: { tier: customer.loyaltyTier },
@@ -307,7 +314,8 @@ router.post(
             const multiplier = tierConfig?.pointsMultiplier || defaultMultipliers[customer.loyaltyTier] || 1.0;
 
             // Calculate points with tier bonus
-            const basePoints = Math.floor(finalAmount / 10); // 1 point per $10 spent
+            // Points are based on currency units spent (works for USD, BDT, EUR, etc.)
+            const basePoints = Math.floor(finalAmount / pointsPerUnit);
             const bonusPoints = Math.floor(basePoints * (multiplier - 1));
             const totalPoints = basePoints + bonusPoints;
 
