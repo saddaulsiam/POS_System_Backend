@@ -66,6 +66,7 @@ router.get(
           page,
           limit,
           total,
+          totalItems: total,
           pages: Math.ceil(total / limit),
         },
       });
