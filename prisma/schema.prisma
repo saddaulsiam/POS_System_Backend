@@ -61,6 +61,8 @@ model Product {
   hasVariants       Boolean             @default(false)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
+  expiryDate        DateTime?
+  lastSoldDate      DateTime?
   supplier          Supplier?           @relation(fields: [supplierId], references: [id])
   category          Category            @relation(fields: [categoryId], references: [id])
   variants          ProductVariant[]
@@ -69,6 +71,7 @@ model Product {
   saleItems         SaleItem[]
   stockAlerts       StockAlert[]
   stockMovements    StockMovement[]
+  notifications     Notification[]
 }
 
 model ProductVariant {
@@ -366,4 +369,14 @@ model POSSettings {
   updatedAt                       DateTime  @updatedAt
   updatedBy                       Int?
   updatedByEmployee               Employee? @relation(fields: [updatedBy], references: [id])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  type      String // e.g., 'expiry', 'inactive', etc.
+  message   String
+  productId Int?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  product   Product? @relation(fields: [productId], references: [id])
 }

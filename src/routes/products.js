@@ -17,6 +17,33 @@ const router = express.Router();
 const prisma = new PrismaClient();
 const csvUpload = multer({ storage: multer.memoryStorage() });
 
+// Unified notifications endpoint
+router.get("/notifications", authenticateToken, async (req, res) => {
+  try {
+    const notifications = await prisma.notification.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { product: true },
+    });
+    res.json({ data: notifications });
+  } catch (error) {
+    console.error("Fetch notifications error:", error);
+    res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+});
+
+router.post("/notifications/:id/read", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.notification.update({
+      where: { id: parseInt(id) },
+      data: { isRead: true },
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Mark notification as read error:", error);
+    res.status(500).json({ error: "Failed to mark notification as read" });
+  }
+});
 // Get all products with pagination and filtering
 router.get(
   "/",

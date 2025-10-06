@@ -442,6 +442,78 @@ router.post(
       });
 
       res.status(201).json(result);
+      // --- ALERTS & NOTIFICATIONS LOGIC ---
+      try {
+        const posSettings = await prisma.pOSSettings.findFirst();
+        const allProducts = await prisma.product.findMany({ where: { isActive: true } });
+
+        // Low Stock Alerts
+        if (posSettings?.enableLowStockAlerts) {
+          for (const product of allProducts) {
+            const threshold = product.lowStockThreshold || posSettings.lowStockThreshold || 10;
+            if (product.stockQuantity <= threshold) {
+              const exists = await prisma.notification.findFirst({
+                where: { productId: product.id, type: "low_stock", isRead: false },
+              });
+              if (!exists) {
+                await prisma.notification.create({
+                  data: {
+                    type: "low_stock",
+                    message: `Stock for ${product.name} is low (${product.stockQuantity} left)`,
+                    productId: product.id,
+                  },
+                });
+              }
+            }
+          }
+        }
+
+        // High Stock Alerts
+        if (posSettings?.enableHighStockAlerts) {
+          for (const product of allProducts) {
+            const threshold = posSettings.highStockThreshold || 1000;
+            if (product.stockQuantity >= threshold) {
+              const exists = await prisma.notification.findFirst({
+                where: { productId: product.id, type: "high_stock", isRead: false },
+              });
+              if (!exists) {
+                await prisma.notification.create({
+                  data: {
+                    type: "high_stock",
+                    message: `Stock for ${product.name} is very high (${product.stockQuantity})`,
+                    productId: product.id,
+                  },
+                });
+              }
+            }
+          }
+        }
+
+        // Product Expiry Alerts
+        if (posSettings?.enableProductExpiryAlerts) {
+          for (const product of allProducts) {
+            if (product.expiryDate) {
+              const daysToExpiry = Math.ceil((new Date(product.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+              if (daysToExpiry <= (posSettings.productExpiryDays || 7)) {
+                const exists = await prisma.notification.findFirst({
+                  where: { productId: product.id, type: "expiry", isRead: false },
+                });
+                if (!exists) {
+                  await prisma.notification.create({
+                    data: {
+                      type: "expiry",
+                      message: `Product ${product.name} is expiring in ${daysToExpiry} days`,
+                      productId: product.id,
+                    },
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch (notifyErr) {
+        console.error("Notification logic error after sale:", notifyErr);
+      }
     } catch (error) {
       console.error("Create sale error:", error);
       res.status(500).json({ error: error.message || "Failed to create sale" });
