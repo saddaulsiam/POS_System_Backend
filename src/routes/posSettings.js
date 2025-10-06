@@ -177,6 +177,8 @@ router.put(
         // Loyalty Points Expiry Alert
         "loyaltyPointsExpiryAlertEnabled",
         "loyaltyPointsExpiryDays",
+        // System Error/Failure Alert
+        "systemErrorAlertEnabled",
         // System Settings
         "autoLogoutMinutes",
         "requirePasswordOnVoid",

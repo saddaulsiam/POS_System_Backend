@@ -315,6 +315,7 @@ model CashDrawer {
 }
 
 model POSSettings {
+  systemErrorAlertEnabled         Boolean   @default(false)
   priceChangeAlertEnabled         Boolean   @default(false)
   id                              Int       @id @default(autoincrement())
   enableQuickSale                 Boolean   @default(true)
