@@ -84,20 +84,26 @@ router.put(
     body("productExpiryDays").optional().isInt({ min: 1, max: 365 }),
     body("enableEmailNotifications").optional().isBoolean(),
     body("adminAlertEmail").optional().isEmail(),
-  // Daily Sales Target Alert
-  body("dailySalesTargetAlertEnabled").optional().isBoolean(),
-  body("dailySalesTargetAmount").optional().isInt({ min: 1 }),
-  // Price Change Alert
-  body("priceChangeAlertEnabled").optional().isBoolean(),
-  // Supplier Delivery Alert
-  body("supplierDeliveryAlertEnabled").optional().isBoolean(),
-  body("expectedDeliveryDays").optional().isInt({ min: 1, max: 60 }),
-  // Inactive Product Alert
-  body("inactiveProductAlertEnabled").optional().isBoolean(),
-  body("inactiveProductDays").optional().isInt({ min: 1, max: 365 }),
-  // Low Balance Alert
-  body("lowBalanceAlertEnabled").optional().isBoolean(),
-  body("lowBalanceThreshold").optional().isFloat({ min: 0 }),
+    // Daily Sales Target Alert
+    body("dailySalesTargetAlertEnabled").optional().isBoolean(),
+    body("dailySalesTargetAmount").optional().isInt({ min: 1 }),
+    // Price Change Alert
+    body("priceChangeAlertEnabled").optional().isBoolean(),
+    // Supplier Delivery Alert
+    body("supplierDeliveryAlertEnabled").optional().isBoolean(),
+    body("expectedDeliveryDays").optional().isInt({ min: 1, max: 60 }),
+    // Inactive Product Alert
+    body("inactiveProductAlertEnabled").optional().isBoolean(),
+    body("inactiveProductDays").optional().isInt({ min: 1, max: 365 }),
+    // Low Balance Alert
+    body("lowBalanceAlertEnabled").optional().isBoolean(),
+    body("lowBalanceThreshold").optional().isFloat({ min: 0 }),
+    // Frequent Refunds Alert
+    body("frequentRefundsAlertEnabled").optional().isBoolean(),
+    body("frequentRefundsThreshold").optional().isInt({ min: 1 }),
+    // Loyalty Points Expiry Alert
+    body("loyaltyPointsExpiryAlertEnabled").optional().isBoolean(),
+    body("loyaltyPointsExpiryDays").optional().isInt({ min: 1 }),
     // System Settings
     body("autoLogoutMinutes").optional().isInt({ min: 5, max: 240 }),
     body("requirePasswordOnVoid").optional().isBoolean(),
@@ -156,15 +162,21 @@ router.put(
         "dailySalesTargetAmount",
         // Price Change Alert
         "priceChangeAlertEnabled",
-  // Supplier Delivery Alert
-  "supplierDeliveryAlertEnabled",
-  "expectedDeliveryDays",
-  // Inactive Product Alert
-  "inactiveProductAlertEnabled",
-  "inactiveProductDays",
-  // Low Balance Alert
-  "lowBalanceAlertEnabled",
-  "lowBalanceThreshold",
+        // Supplier Delivery Alert
+        "supplierDeliveryAlertEnabled",
+        "expectedDeliveryDays",
+        // Inactive Product Alert
+        "inactiveProductAlertEnabled",
+        "inactiveProductDays",
+        // Low Balance Alert
+        "lowBalanceAlertEnabled",
+        "lowBalanceThreshold",
+        // Frequent Refunds Alert
+        "frequentRefundsAlertEnabled",
+        "frequentRefundsThreshold",
+        // Loyalty Points Expiry Alert
+        "loyaltyPointsExpiryAlertEnabled",
+        "loyaltyPointsExpiryDays",
         // System Settings
         "autoLogoutMinutes",
         "requirePasswordOnVoid",
