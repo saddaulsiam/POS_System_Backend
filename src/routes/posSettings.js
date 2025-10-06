@@ -36,7 +36,6 @@ router.get("/", [authenticateToken], async (req, res) => {
         },
       });
     }
-
     res.json(settings);
   } catch (error) {
     console.error("Get POS settings error:", error);
@@ -79,8 +78,26 @@ router.put(
     // Alerts & Notifications
     body("enableLowStockAlerts").optional().isBoolean(),
     body("lowStockThreshold").optional().isInt({ min: 1, max: 1000 }),
+    body("enableHighStockAlerts").optional().isBoolean(),
+    body("highStockThreshold").optional().isInt({ min: 10, max: 10000 }),
+    body("enableProductExpiryAlerts").optional().isBoolean(),
+    body("productExpiryDays").optional().isInt({ min: 1, max: 365 }),
     body("enableEmailNotifications").optional().isBoolean(),
     body("adminAlertEmail").optional().isEmail(),
+  // Daily Sales Target Alert
+  body("dailySalesTargetAlertEnabled").optional().isBoolean(),
+  body("dailySalesTargetAmount").optional().isInt({ min: 1 }),
+  // Price Change Alert
+  body("priceChangeAlertEnabled").optional().isBoolean(),
+  // Supplier Delivery Alert
+  body("supplierDeliveryAlertEnabled").optional().isBoolean(),
+  body("expectedDeliveryDays").optional().isInt({ min: 1, max: 60 }),
+  // Inactive Product Alert
+  body("inactiveProductAlertEnabled").optional().isBoolean(),
+  body("inactiveProductDays").optional().isInt({ min: 1, max: 365 }),
+  // Low Balance Alert
+  body("lowBalanceAlertEnabled").optional().isBoolean(),
+  body("lowBalanceThreshold").optional().isFloat({ min: 0 }),
     // System Settings
     body("autoLogoutMinutes").optional().isInt({ min: 5, max: 240 }),
     body("requirePasswordOnVoid").optional().isBoolean(),
@@ -97,7 +114,6 @@ router.put(
       }
 
       const updateData = {};
-
       // Map all possible fields from request body
       const allowedFields = [
         // Feature Toggles
@@ -129,8 +145,26 @@ router.put(
         // Alerts & Notifications
         "enableLowStockAlerts",
         "lowStockThreshold",
+        "enableHighStockAlerts",
+        "highStockThreshold",
+        "enableProductExpiryAlerts",
+        "productExpiryDays",
         "enableEmailNotifications",
         "adminAlertEmail",
+        // Daily Sales Target Alert
+        "dailySalesTargetAlertEnabled",
+        "dailySalesTargetAmount",
+        // Price Change Alert
+        "priceChangeAlertEnabled",
+  // Supplier Delivery Alert
+  "supplierDeliveryAlertEnabled",
+  "expectedDeliveryDays",
+  // Inactive Product Alert
+  "inactiveProductAlertEnabled",
+  "inactiveProductDays",
+  // Low Balance Alert
+  "lowBalanceAlertEnabled",
+  "lowBalanceThreshold",
         // System Settings
         "autoLogoutMinutes",
         "requirePasswordOnVoid",
