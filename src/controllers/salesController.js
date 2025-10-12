@@ -1,61 +1,86 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
-const { generateReceiptId, calculateTax } = require("../utils/helpers");
+import * as salesService from "../services/salesService.js";
+import { validationResult } from "express-validator";
+import { sendSuccess, sendError } from "../utils/responseUtils.js";
 
-// Get all sales with pagination and filtering
-async function getSales(req, res) {
+export const getSales = async (req, res) => {
   try {
-    const errors = req.validationResult ? req.validationResult() : [];
-    if (errors && errors.length > 0) {
-      return res.status(400).json({ errors });
-    }
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
-    const where = {};
-    if (req.query.startDate || req.query.endDate) {
-      where.createdAt = {};
-      if (req.query.startDate) where.createdAt.gte = new Date(req.query.startDate);
-      if (req.query.endDate) where.createdAt.lte = new Date(req.query.endDate);
-    }
-    if (req.query.employeeId) where.employeeId = parseInt(req.query.employeeId);
-    if (req.query.customerId) where.customerId = parseInt(req.query.customerId);
-    if (req.query.paymentMethod) where.paymentMethod = req.query.paymentMethod;
-    const [sales, total] = await Promise.all([
-      prisma.sale.findMany({
-        where,
-        include: {
-          employee: { select: { id: true, name: true, username: true } },
-          customer: { select: { id: true, name: true, phoneNumber: true } },
-          saleItems: {
-            include: {
-              product: { select: { id: true, name: true, sku: true } },
-              productVariant: { select: { id: true, name: true, sku: true } },
-            },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
-      }),
-      prisma.sale.count({ where }),
-    ]);
-    res.json({
-      data: sales,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+    const result = await salesService.getSales(req.query);
+    sendSuccess(res, result);
   } catch (error) {
-    console.error("Get sales error:", error);
-    res.status(500).json({ error: "Failed to fetch sales" });
+    sendError(res, 500, "Failed to fetch sales", error);
   }
-}
+};
 
-module.exports = {
-  getSales,
-  // Add other sales controller functions here
+export const getSaleById = async (req, res) => {
+  try {
+    const result = await salesService.getSaleById(req.params.identifier);
+    if (!result) return sendError(res, 404, "Sale not found");
+    sendSuccess(res, result);
+  } catch (error) {
+    sendError(res, 500, "Failed to fetch sale", error);
+  }
+};
+
+export const createSale = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+    const result = await salesService.createSale(req.body, req.user, req.ip, req.headers["user-agent"]);
+    sendSuccess(res, result, 201);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to create sale", error);
+  }
+};
+
+export const processReturn = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+    const result = await salesService.processReturn(req.params.id, req.body, req.user);
+    sendSuccess(res, result, 201);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to process return", error);
+  }
+};
+
+export const getReturnHistory = async (req, res) => {
+  try {
+    const result = await salesService.getReturnHistory(req.params.id);
+    sendSuccess(res, result);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to get return history", error);
+  }
+};
+
+export const getAllReturns = async (req, res) => {
+  try {
+    const result = await salesService.getAllReturns(req.query);
+    sendSuccess(res, result);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to get returns", error);
+  }
+};
+
+export const getSalesSummary = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+    const result = await salesService.getSalesSummary(req.query);
+    sendSuccess(res, result);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to generate sales summary", error);
+  }
+};
+
+export const voidSale = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+    const result = await salesService.voidSale(req.params.id, req.body, req.user);
+    sendSuccess(res, result);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to void sale", error);
+  }
 };
