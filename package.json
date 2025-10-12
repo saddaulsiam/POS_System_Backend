@@ -2,10 +2,10 @@
   "name": "grocery-pos-backend",
   "version": "1.0.0",
   "description": "Backend API for Grocery Store POS System",
-  "main": "src/index.js",
+  "main": "src/app.js",
   "scripts": {
-    "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
+    "dev": "nodemon src/app.js",
+    "start": "node src/app.js",
     "seed": "node src/scripts/seed.js",
     "test": "jest",
     "migrate": "npx prisma migrate dev",

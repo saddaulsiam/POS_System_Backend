@@ -7,7 +7,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
-import router from "../src/routes/index.ts";
+import router from "./routes/index.ts";
 import { startScheduler, stopScheduler } from "./scripts/scheduler.js";
 
 const __filename = fileURLToPath(import.meta.url);
