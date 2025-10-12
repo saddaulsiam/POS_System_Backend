@@ -38,7 +38,7 @@ export const getSales = async (query) => {
   ]);
 
   return {
-    sales,
+    data: sales,
     pagination: {
       page,
       limit,

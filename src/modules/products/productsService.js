@@ -7,8 +7,16 @@ const prisma = new PrismaClient();
 
 // Alerts for product status changes
 export async function checkAndCreateAlerts(productId) {
+  if (!productId || isNaN(productId)) {
+    // Don't run alerts if productId is missing or invalid
+    return;
+  }
   const settings = await prisma.pOSSettings.findFirst();
   const product = await prisma.product.findUnique({ where: { id: productId } });
+  if (!product) {
+    // Optionally log or notify about missing product
+    return;
+  }
 
   // Low Stock Alert
   if (settings?.enableLowStockAlerts && product.stockQuantity <= settings.lowStockThreshold) {
@@ -180,7 +188,7 @@ export async function getProductsService({ page, limit, search, categoryId, isAc
     prisma.product.count({ where }),
   ]);
   return {
-    products,
+    data: products,
     pagination: {
       page,
       limit,

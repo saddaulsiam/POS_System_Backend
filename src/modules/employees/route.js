@@ -24,21 +24,21 @@ router.get("/:id", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], empl
 // Create new employee
 router.post(
   "/",
-  [authenticateToken, authorizeRoles("ADMIN"), ...createEmployeeValidator],
+  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...createEmployeeValidator],
   employeesController.createEmployee
 );
 
 // Update employee
 router.put(
   "/:id",
-  [authenticateToken, authorizeRoles("ADMIN"), ...updateEmployeeValidator],
+  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...updateEmployeeValidator],
   employeesController.updateEmployee
 );
 
 // Reset employee PIN
 router.put(
   "/:id/reset-pin",
-  [authenticateToken, authorizeRoles("ADMIN"), ...resetPinValidator],
+  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...resetPinValidator],
   employeesController.resetEmployeePin
 );
 
@@ -50,6 +50,6 @@ router.get(
 );
 
 // Deactivate employee (soft delete)
-router.delete("/:id", [authenticateToken, authorizeRoles("ADMIN")], employeesController.deactivateEmployee);
+router.delete("/:id", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], employeesController.deactivateEmployee);
 
 export const EmployeeRoutes = router;

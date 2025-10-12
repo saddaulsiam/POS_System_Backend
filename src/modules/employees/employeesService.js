@@ -100,6 +100,9 @@ export async function updateEmployeeService(id, data, user) {
   const updateData = { ...data };
   if (updateData.name) updateData.name = updateData.name.trim();
   if (updateData.username) updateData.username = updateData.username.trim();
+  if (updateData.pinCode) {
+    updateData.pinCode = await hashPassword(updateData.pinCode);
+  }
   return prisma.employee.update({
     where: { id: employeeId },
     data: updateData,
