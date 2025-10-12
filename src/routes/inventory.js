@@ -136,7 +136,7 @@ router.post(
   }
 );
 
-// Get low stock alert
+/* // Get low stock alert
 router.get("/alerts/low-stock", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], async (req, res) => {
   try {
     // Note: This is a workaround since Prisma doesn't support field comparison directly
@@ -153,7 +153,7 @@ router.get("/alerts/low-stock", [authenticateToken, authorizeRoles("ADMIN", "MAN
     console.error("Low stock alert error:", error);
     res.status(500).json({ error: "Failed to fetch low stock alerts" });
   }
-});
+});*/
 
 // Get inventory summary
 router.get("/summary", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], async (req, res) => {
