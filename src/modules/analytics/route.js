@@ -1,5 +1,5 @@
 import express from "express";
-import analyticsController from "./analyticsController.js";
+import * as analyticsController from "./analyticsController.js";
 import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
 import analyticsValidator from "./analyticsValidator.js";
 

@@ -104,10 +104,4 @@ async function deleteCategory(req, res) {
   }
 }
 
-export default {
-  getCategories,
-  getCategoryById,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-};
+export { getCategories, getCategoryById, createCategory, updateCategory, deleteCategory };

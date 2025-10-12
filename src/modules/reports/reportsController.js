@@ -1,6 +1,6 @@
 import { validationResult } from "express-validator";
 import * as reportsService from "./reportsService.js";
-import { sendError, sendSuccess } from "../utils/responseUtils.js";
+import { sendError, sendSuccess } from "../../utils/response.js";
 
 export const getDailySales = async (req, res) => {
   try {

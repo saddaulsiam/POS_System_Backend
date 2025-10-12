@@ -13,7 +13,7 @@ import {
   searchCustomers,
   updateCustomerService,
 } from "./customersService.js";
-const { validationResult } = require("express-validator");
+import { validationResult } from "express-validator";
 
 // Get all customers with pagination and search
 async function getCustomers(req, res) {

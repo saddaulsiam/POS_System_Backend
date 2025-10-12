@@ -1,5 +1,5 @@
 import express from "express";
-import productVariantsController from "./productVariantsController.js";
+import * as productVariantsController from "./productVariantsController.js";
 import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
 import {
   createVariantValidator,

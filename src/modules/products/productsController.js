@@ -208,7 +208,7 @@ async function regenerateProductBarcode(req, res) {
   }
 }
 
-export default {
+export {
   listProducts,
   createProduct,
   updateProduct,

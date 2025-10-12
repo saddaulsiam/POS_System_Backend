@@ -1,6 +1,6 @@
 import { validationResult } from "express-validator";
 import { sendSuccess, sendError } from "../../utils/response.js";
-import productVariantsService from "./productVariantsService.js";
+import * as productVariantsService from "./productVariantsService.js";
 
 export const getAllVariants = async (req, res) => {
   try {

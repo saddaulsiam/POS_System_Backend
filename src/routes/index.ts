@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { AnalyticsRoutes } from "../modules/analytics/route.js";
 import { AuditLogsRoutes } from "../modules/auditLogs/route.js";
-import { AuthRoutes } from "../modules/auth/route";
+import { AuthRoutes } from "../modules/auth/route.js";
 import { CashDrawerRoutes } from "../modules/cashDrawer/route.js";
 import { CategoryRoutes } from "../modules/categories/route.js";
 import { CustomerRoutes } from "../modules/customers/route.js";

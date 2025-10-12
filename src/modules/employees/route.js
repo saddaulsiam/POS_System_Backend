@@ -1,5 +1,5 @@
 import express from "express";
-import employeesController from "./employeesController.js";
+import * as employeesController from "./employeesController.js";
 import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
 import {
   createEmployeeValidator,

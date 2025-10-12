@@ -1,6 +1,6 @@
 import * as salesService from "./salesService.js";
 import { validationResult } from "express-validator";
-import { sendSuccess, sendError } from "../utils/responseUtils.js";
+import { sendSuccess, sendError } from "../../utils/response.js";
 
 export const getSales = async (req, res) => {
   try {
