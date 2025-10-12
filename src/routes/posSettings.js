@@ -5,9 +5,6 @@ import { posSettingsValidator } from "../validators/posSettingsValidator.js";
 
 const router = express.Router();
 
-// Apply authentication to all routes
-router.use(authenticateToken);
-
 router.get("/", authenticateToken, posSettingsController.getSettings);
 
 router.put(

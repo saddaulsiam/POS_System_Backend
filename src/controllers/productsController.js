@@ -15,13 +15,14 @@ import {
   updateProductService,
   uploadProductImageService,
 } from "../services/productsService.js";
+import { sendError, sendSuccess } from "../utils/response.js";
 
 // Modularized product listing
 async function listProducts(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return sendError(res, errors.array(), 400);
     }
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
@@ -30,10 +31,10 @@ async function listProducts(req, res) {
     const isActive =
       req.query.isActive !== undefined ? req.query.isActive === "true" || req.query.isActive === true : undefined;
     const result = await getProductsService({ page, limit, search, categoryId, isActive });
-    res.json(result);
+    sendSuccess(res, result);
   } catch (error) {
     console.error("List products error:", error);
-    res.status(500).json({ error: "Failed to fetch products" });
+    sendError(res, "Failed to fetch products", 500);
   }
 }
 
@@ -42,13 +43,13 @@ async function createProduct(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return sendError(res, errors.array(), 400);
     }
     const result = await createProductService(req.body, req.user.id);
-    res.status(201).json(result);
+    sendSuccess(res, result, 201);
   } catch (error) {
     console.error("Create product error:", error);
-    res.status(500).json({ error: error.message || "Failed to create product" });
+    sendError(res, error.message || "Failed to create product", 500);
   }
 }
 
@@ -56,15 +57,15 @@ async function updateProduct(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return sendError(res, errors.array(), 400);
     }
     const { id } = req.params;
     const product = await updateProductService(id, req.body);
     await checkAndCreateAlerts(product.id);
-    res.json(product);
+    sendSuccess(res, product);
   } catch (error) {
     console.error("Update product error:", error);
-    res.status(500).json({ error: error.message || "Failed to update product" });
+    sendError(res, error.message || "Failed to update product", 500);
   }
 }
 
@@ -73,10 +74,10 @@ async function deleteProduct(req, res) {
   try {
     const { id } = req.params;
     await deleteProductService(id);
-    res.json({ message: "Product deleted successfully" });
+    sendSuccess(res, { message: "Product deleted successfully" });
   } catch (error) {
     console.error("Delete product error:", error);
-    res.status(500).json({ error: error.message || "Failed to delete product" });
+    sendError(res, error.message || "Failed to delete product", 500);
   }
 }
 
@@ -85,11 +86,11 @@ async function getProductById(req, res) {
   try {
     const { id } = req.params;
     const product = await getProductByIdService(id);
-    if (!product) return res.status(404).json({ error: "Product not found" });
-    res.json(product);
+    if (!product) return sendError(res, "Product not found", 404);
+    sendSuccess(res, product);
   } catch (error) {
     console.error("Get product error:", error);
-    res.status(500).json({ error: error.message || "Failed to fetch product" });
+    sendError(res, error.message || "Failed to fetch product", 500);
   }
 }
 
@@ -98,15 +99,15 @@ async function uploadProductImage(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return sendError(res, errors.array(), 400);
     }
     const { id } = req.params;
-    if (!req.file) return res.status(400).json({ error: "No image uploaded" });
+    if (!req.file) return sendError(res, "No image uploaded", 400);
     const updatedProduct = await uploadProductImageService(id, req.file);
-    res.json(updatedProduct);
+    sendSuccess(res, updatedProduct);
   } catch (error) {
     console.error("Upload image error:", error);
-    res.status(500).json({ error: error.message || "Failed to upload image" });
+    sendError(res, error.message || "Failed to upload image", 500);
   }
 }
 
@@ -115,14 +116,14 @@ async function deleteProductImage(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return sendError(res, errors.array(), 400);
     }
     const { id } = req.params;
     const updatedProduct = await deleteProductImageService(id);
-    res.json(updatedProduct);
+    sendSuccess(res, updatedProduct);
   } catch (error) {
     console.error("Delete image error:", error);
-    res.status(500).json({ error: error.message || "Failed to delete image" });
+    sendError(res, error.message || "Failed to delete image", 500);
   }
 }
 
@@ -135,7 +136,7 @@ async function exportProductsCSV(req, res) {
     res.send(csv);
   } catch (error) {
     console.error("Export error:", error);
-    res.status(500).json({ error: error.message || "Failed to export products" });
+    sendError(res, error.message || "Failed to export products", 500);
   }
 }
 
@@ -144,14 +145,14 @@ async function importProductsCSV(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return sendError(res, errors.array(), 400);
     }
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    if (!req.file) return sendError(res, "No file uploaded", 400);
     await importProductsCSVService(req.file.buffer);
-    res.json({ success: true });
+    sendSuccess(res, { success: true });
   } catch (error) {
     console.error("Import error:", error);
-    res.status(500).json({ error: error.message || "Failed to import products" });
+    sendError(res, error.message || "Failed to import products", 500);
   }
 }
 
@@ -164,7 +165,7 @@ async function exportProductsExcel(req, res) {
     res.send(buffer);
   } catch (error) {
     console.error("Export Excel error:", error);
-    res.status(500).json({ error: error.message || "Failed to export products to Excel" });
+    sendError(res, error.message || "Failed to export products to Excel", 500);
   }
 }
 
@@ -173,14 +174,14 @@ async function importProductsExcel(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return sendError(res, errors.array(), 400);
     }
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    if (!req.file) return sendError(res, "No file uploaded", 400);
     await importProductsExcelService(req.file.buffer);
-    res.json({ success: true });
+    sendSuccess(res, { success: true });
   } catch (error) {
     console.error("Excel import error:", error);
-    res.status(500).json({ error: error.message || "Failed to import Excel file" });
+    sendError(res, error.message || "Failed to import Excel file", 500);
   }
 }
 
@@ -192,7 +193,7 @@ async function getProductBarcode(req, res) {
     res.header("Content-Type", "image/png");
     res.send(result.image);
   } catch (error) {
-    res.status(500).json({ error: error.message || "Failed to generate barcode" });
+    sendError(res, error.message || "Failed to generate barcode", 500);
   }
 }
 
@@ -201,9 +202,9 @@ async function regenerateProductBarcode(req, res) {
   try {
     const { id } = req.params;
     const result = await regenerateProductBarcodeService(id);
-    res.json(result);
+    sendSuccess(res, result);
   } catch (error) {
-    res.status(500).json({ error: error.message || "Failed to regenerate barcode" });
+    sendError(res, error.message || "Failed to regenerate barcode", 500);
   }
 }
 
