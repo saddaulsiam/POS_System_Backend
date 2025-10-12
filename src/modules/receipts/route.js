@@ -16,4 +16,4 @@ router.get("/:saleId/preview", authenticateToken, receiptsController.getReceiptP
 
 router.post("/print-thermal", authenticateToken, receiptsController.printThermalReceipt);
 
-export default router;
+export const ReceiptsRoutes = router;

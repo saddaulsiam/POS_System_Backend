@@ -7,4 +7,4 @@ const router = express.Router();
 
 router.put("/me", [authenticateToken, ...updateProfileValidator], profileController.updateProfile);
 
-export default router;
+export const ProfileRoutes = router;

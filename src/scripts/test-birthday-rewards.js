@@ -99,7 +99,7 @@ async function testBirthdayRewards() {
       console.log("Step 3: Running birthday rewards check...");
       console.log("=".repeat(60));
 
-      const { processBirthdayRewards } = require("../scheduler");
+      const { processBirthdayRewards } = require("./scheduler");
       const result = await processBirthdayRewards();
 
       console.log("=".repeat(60));

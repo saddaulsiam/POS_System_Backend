@@ -42,4 +42,4 @@ router.put(
 // Delete category
 router.delete("/:id", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], deleteCategory);
 
-export default router;
+export const CategoryRoutes = router;

@@ -29,4 +29,4 @@ router.delete(
   quickSaleItemsController.deleteQuickSaleItem
 );
 
-export default router;
+export const QuickSaleItemsRoutes = router;

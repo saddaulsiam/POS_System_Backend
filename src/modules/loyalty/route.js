@@ -100,3 +100,4 @@ router.post(
 router.get("/statistics", authenticateToken, authorizeRoles("ADMIN", "MANAGER"), loyaltyController.getStatistics);
 
 export default router;
+export const LoyaltyRoutes = router;

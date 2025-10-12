@@ -52,4 +52,4 @@ router.get(
 // Deactivate employee (soft delete)
 router.delete("/:id", [authenticateToken, authorizeRoles("ADMIN")], employeesController.deactivateEmployee);
 
-export default router;
+export const EmployeeRoutes = router;

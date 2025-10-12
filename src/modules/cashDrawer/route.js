@@ -14,4 +14,4 @@ router.get("/:id/reconciliation", authenticateToken, cashDrawerController.getRec
 
 router.get("/stats/summary", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], cashDrawerController.getSummary);
 
-export const CashDraRoutes = router;
+export const CashDrawerRoutes = router;

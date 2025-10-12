@@ -47,4 +47,4 @@ router.post(
 // Redeem loyalty points
 router.post("/:id/redeem", [authenticateToken, ...customerValidators.redeemLoyalty], redeemLoyaltyPoints);
 
-export default router;
+export const CustomerRoutes = router;

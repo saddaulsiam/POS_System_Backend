@@ -18,4 +18,4 @@ router.delete("/:id", parkedSaleIdParam, parkedSalesController.deleteParkedSale)
 
 router.delete("/cleanup/expired", parkedSalesController.cleanupExpiredParkedSales);
 
-export default router;
+export const ParkedSalesRoutes = router;

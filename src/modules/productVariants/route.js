@@ -38,4 +38,4 @@ router.delete(
 
 router.get("/lookup/:identifier", authenticateToken, productVariantsController.lookupVariant);
 
-export default router;
+export const ProductVariantRoutes = router;

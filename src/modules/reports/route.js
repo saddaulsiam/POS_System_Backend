@@ -62,4 +62,4 @@ router.get(
   reportsController.getCustomerAnalytics
 );
 
-export default router;
+export const ReportRoutes = router;

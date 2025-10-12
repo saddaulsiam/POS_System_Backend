@@ -1,23 +1,23 @@
 import { Router } from "express";
-import analyticsRoutes from "../modules/analytics/route.js";
-import auditLogsRoutes from "../modules/auditLogs/route.js";
+import { AnalyticsRoutes } from "../modules/analytics/route.js";
+import { AuditLogsRoutes } from "../modules/auditLogs/route.js";
 import { AuthRoutes } from "../modules/auth/route";
-import cashDrawerRoutes from "../modules/cashDrawer/route.js";
-import categoryRoutes from "../modules/categories/route.js";
-import customerRoutes from "../modules/customers/route.js";
-import employeeRoutes from "../modules/employees/route.js";
-import inventoryRoutes from "../modules/inventory/route.js";
-import loyaltyRoutes from "../modules/loyalty/route.js";
-import parkedSalesRoutes from "../modules/parkedSales/route.js";
-import posSettingsRoutes from "../modules/posSettings/route.js";
-import productRoutes from "../modules/products/route.js";
-import productVariantRoutes from "../modules/productVariants/route.js";
-import profileRoutes from "../modules/profile/route.js";
-import quickSaleItemsRoutes from "../modules/quickSaleItems/route.js";
-import receiptsRoutes from "../modules/receipts/route.js";
-import reportRoutes from "../modules/reports/route.js";
-import salesRoutes from "../modules/sales/route.js";
-import suppliersRoutes from "../modules/suppliers/route.js";
+import { CashDrawerRoutes } from "../modules/cashDrawer/route.js";
+import { CategoryRoutes } from "../modules/categories/route.js";
+import { CustomerRoutes } from "../modules/customers/route.js";
+import { EmployeeRoutes } from "../modules/employees/route.js";
+import { InventoryRoutes } from "../modules/inventory/route.js";
+import { LoyaltyRoutes } from "../modules/loyalty/route.js";
+import { ParkedSalesRoutes } from "../modules/parkedSales/route.js";
+import { PosSettingsRoutes } from "../modules/posSettings/route.js";
+import { ProductRoutes } from "../modules/products/route.js";
+import { ProductVariantRoutes } from "../modules/productVariants/route.js";
+import { ProfileRoutes } from "../modules/profile/route.js";
+import { QuickSaleItemsRoutes } from "../modules/quickSaleItems/route.js";
+import { ReceiptsRoutes } from "../modules/receipts/route.js";
+import { ReportRoutes } from "../modules/reports/route.js";
+import { SalesRoutes } from "../modules/sales/route.js";
+import { SuppliersRoutes } from "../modules/suppliers/route.js";
 
 const router = Router();
 
@@ -28,75 +28,75 @@ const moduleRoutes = [
   },
   {
     path: "/products",
-    route: productRoutes,
+    route: ProductRoutes,
   },
   {
     path: "/product-variants",
-    route: productVariantRoutes,
+    route: ProductVariantRoutes,
   },
   {
     path: "/categories",
-    route: categoryRoutes,
+    route: CategoryRoutes,
   },
   {
     path: "/customers",
-    route: customerRoutes,
+    route: CustomerRoutes,
   },
   {
     path: "/sales",
-    route: salesRoutes,
+    route: SalesRoutes,
   },
   {
     path: "/inventory",
-    route: inventoryRoutes,
+    route: InventoryRoutes,
   },
   {
     path: "/reports",
-    route: reportRoutes,
+    route: ReportRoutes,
   },
   {
     path: "/suppliers",
-    route: suppliersRoutes,
+    route: SuppliersRoutes,
   },
   {
     path: "/analytics",
-    route: analyticsRoutes,
+    route: AnalyticsRoutes,
   },
   {
     path: "/employees",
-    route: employeeRoutes,
+    route: EmployeeRoutes,
   },
   {
     path: "/profile",
-    route: profileRoutes,
+    route: ProfileRoutes,
   },
   {
     path: "/audit-logs",
-    route: auditLogsRoutes,
+    route: AuditLogsRoutes,
   },
   {
     path: "/parked-sales",
-    route: parkedSalesRoutes,
+    route: ParkedSalesRoutes,
   },
   {
     path: "/quick-sale-items",
-    route: quickSaleItemsRoutes,
+    route: QuickSaleItemsRoutes,
   },
   {
     path: "/loyalty",
-    route: loyaltyRoutes,
+    route: LoyaltyRoutes,
   },
   {
     path: "/receipts",
-    route: receiptsRoutes,
+    route: ReceiptsRoutes,
   },
   {
     path: "/pos-settings",
-    route: posSettingsRoutes,
+    route: PosSettingsRoutes,
   },
   {
     path: "/cash-drawer",
-    route: cashDrawerRoutes,
+    route: CashDrawerRoutes,
   },
 ];
 

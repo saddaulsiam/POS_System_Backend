@@ -13,4 +13,4 @@ router.put(
   posSettingsController.updateSettings
 );
 
-export default router;
+export const PosSettingsRoutes = router;

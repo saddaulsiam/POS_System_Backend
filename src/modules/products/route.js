@@ -77,4 +77,4 @@ router.post(
 // Get product by ID
 router.get("/:id", authenticateToken, getProductById);
 
-export default router;
+export const ProductRoutes = router;

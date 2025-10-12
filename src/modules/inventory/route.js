@@ -115,4 +115,4 @@ router.get(
   getPurchaseOrderStats
 );
 
-export default router;
+export const InventoryRoutes = router;

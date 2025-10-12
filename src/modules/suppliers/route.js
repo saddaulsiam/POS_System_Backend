@@ -28,4 +28,4 @@ router.put("/:id", authorizeRoles("ADMIN", "MANAGER"), updateSupplier);
 // DELETE /api/suppliers/:id
 router.delete("/:id", authorizeRoles("ADMIN"), deleteSupplier);
 
-export default router;
+export const SuppliersRoutes = router;

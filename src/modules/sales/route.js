@@ -27,4 +27,4 @@ router.get("/returns/all", [authorizeRoles("ADMIN", "MANAGER")], salesController
 router.get("/reports/summary", getSalesSummaryValidator, salesController.getSalesSummary);
 router.post("/:id/void", [authorizeRoles("ADMIN", "MANAGER"), ...voidSaleValidator], salesController.voidSale);
 
-export default router;
+export const SalesRoutes = router;
