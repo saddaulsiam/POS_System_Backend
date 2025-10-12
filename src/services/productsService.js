@@ -1,7 +1,8 @@
 import { PrismaClient } from "@prisma/client";
-import { Parser } from "json2csv";
-import ExcelJS from "exceljs";
 import bwipjs from "bwip-js";
+import ExcelJS from "exceljs";
+import { Parser } from "json2csv";
+
 const prisma = new PrismaClient();
 
 // Alerts for product status changes
