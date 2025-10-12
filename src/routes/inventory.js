@@ -1,4 +1,3 @@
-import { PrismaClient } from "@prisma/client";
 import express from "express";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 import { inventoryValidators } from "../validators/inventoryValidators.js";
@@ -22,7 +21,6 @@ import {
 } from "../controllers/inventoryController.js";
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Get stock movements with filtering
 router.get(
