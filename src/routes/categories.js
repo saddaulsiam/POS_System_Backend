@@ -1,13 +1,15 @@
-import { PrismaClient } from "@prisma/client";
 import express from "express";
 import { body } from "express-validator";
+import {
+  createCategory,
+  deleteCategory,
+  getCategories,
+  getCategoryById,
+  updateCategory,
+} from "../controllers/categoriesController.js";
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
 
 const router = express.Router();
-const prisma = new PrismaClient();
-
-import categoriesController from "../controllers/categoriesController.js";
-const { getCategories, getCategoryById, createCategory, updateCategory, deleteCategory } = categoriesController;
 
 // Get all categories
 router.get("/", authenticateToken, getCategories);

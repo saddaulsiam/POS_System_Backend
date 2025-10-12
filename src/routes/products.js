@@ -1,30 +1,30 @@
-const express = require("express");
-import { validationResult } from "express-validator";
+import express from "express";
+import multer from "multer";
+import ProductsController from "../controllers/productsController.js";
+import { authenticateToken, authorizeRoles } from "../middleware/auth.js";
+import { upload } from "../utils/upload.js";
 import productsValidator from "../validators/productsValidator.js";
-const { authenticateToken, authorizeRoles } = require("../middleware/auth");
-const { upload } = require("../utils/upload");
-const multer = require("multer");
+
 const router = express.Router();
 const csvUpload = multer({ storage: multer.memoryStorage() });
-const productsController = require("../controllers/productsController");
 
 // Get all products with pagination and filtering
-router.get("/", [authenticateToken, ...productsValidator.list], productsController.listProducts);
+router.get("/", [authenticateToken, ...productsValidator.list], ProductsController.listProducts);
 
 router.post(
   "/",
   [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...productsValidator.create],
-  productsController.createProduct
+  ProductsController.createProduct
 );
 
 router.put(
   "/:id",
   [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...productsValidator.update],
-  productsController.updateProduct
+  ProductsController.updateProduct
 );
 
 // Delete product
-router.delete("/:id", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], productsController.deleteProduct);
+router.delete("/:id", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], ProductsController.deleteProduct);
 
 // Upload product image
 router.post(
@@ -32,7 +32,7 @@ router.post(
   authenticateToken,
   authorizeRoles("ADMIN", "MANAGER"),
   upload.single("image"),
-  productsController.uploadProductImage
+  ProductsController.uploadProductImage
 );
 
 // Delete product image
@@ -40,44 +40,44 @@ router.delete(
   "/:id/image",
   authenticateToken,
   authorizeRoles("ADMIN", "MANAGER"),
-  productsController.deleteProductImage
+  ProductsController.deleteProductImage
 );
 
 // Export products as CSV
-router.get("/export", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], productsController.exportProductsCSV);
+router.get("/export", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], ProductsController.exportProductsCSV);
 
 // Import products from CSV
 router.post(
   "/import",
   [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), csvUpload.single("file")],
-  productsController.importProductsCSV
+  ProductsController.importProductsCSV
 );
 
 // Export products as Excel
 router.get(
   "/export/excel",
   [authenticateToken, authorizeRoles("ADMIN", "MANAGER")],
-  productsController.exportProductsExcel
+  ProductsController.exportProductsExcel
 );
 
 // Import products from Excel
 router.post(
   "/import/excel",
   [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), csvUpload.single("file")],
-  productsController.importProductsExcel
+  ProductsController.importProductsExcel
 );
 
 // Get product barcode
-router.get("/:id/barcode", productsController.getProductBarcode);
+router.get("/:id/barcode", ProductsController.getProductBarcode);
 
 // Regenerate product barcode
 router.post(
   "/:id/barcode/regenerate",
   [authenticateToken, authorizeRoles("ADMIN", "MANAGER")],
-  productsController.regenerateProductBarcode
+  ProductsController.regenerateProductBarcode
 );
 
 // Get product by ID
-router.get("/:id", authenticateToken, productsController.getProductById);
+router.get("/:id", authenticateToken, ProductsController.getProductById);
 
-module.exports = router;
+export default router;

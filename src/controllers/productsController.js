@@ -1,167 +1,20 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
-const { getProductsService, createProductService } = require("../services/productsService.js");
-const { validationResult } = require("express-validator");
-
-async function checkAndCreateAlerts(productId) {
-  const settings = await prisma.pOSSettings.findFirst();
-  const product = await prisma.product.findUnique({ where: { id: productId } });
-
-  // Low Stock Alert
-  if (settings?.enableLowStockAlerts && product.stockQuantity <= settings.lowStockThreshold) {
-    await prisma.notification.create({
-      data: {
-        type: "low_stock",
-        message: `Stock for ${product.name} is low (${product.stockQuantity} left)`,
-        productId: product.id,
-        isRead: false,
-      },
-    });
-  }
-
-  // High Stock Alert
-  if (settings?.enableHighStockAlerts && product.stockQuantity >= settings.highStockThreshold) {
-    await prisma.notification.create({
-      data: {
-        type: "high_stock",
-        message: `Stock for ${product.name} is high (${product.stockQuantity} units)`,
-        productId: product.id,
-        isRead: false,
-      },
-    });
-  }
-
-  // Expiry Alert
-  if (settings?.enableProductExpiryAlerts && product.expiryDate && new Date(product.expiryDate) < new Date()) {
-    await prisma.notification.create({
-      data: {
-        type: "expiry",
-        message: `Product ${product.name} has expired.`,
-        productId: product.id,
-        isRead: false,
-      },
-    });
-  }
-
-  // Inactive Product Alert
-  if (
-    settings?.inactiveProductAlertEnabled &&
-    product.lastSoldDate &&
-    (new Date() - new Date(product.lastSoldDate)) / (1000 * 60 * 60 * 24) > settings.inactiveProductDays
-  ) {
-    await prisma.notification.create({
-      data: {
-        type: "inactive",
-        message: `Product ${product.name} has not been sold for ${settings.inactiveProductDays} days.`,
-        productId: product.id,
-        isRead: false,
-      },
-    });
-  }
-
-  // System Error Alert
-  if (settings?.systemErrorAlertEnabled && product.hasError) {
-    await prisma.notification.create({
-      data: {
-        type: "system_error",
-        message: `System error detected for product ${product.name}.`,
-        productId: product.id,
-        isRead: false,
-      },
-    });
-  }
-
-  // Price Change Alert
-  if (settings?.priceChangeAlertEnabled && product.priceChanged) {
-    await prisma.notification.create({
-      data: {
-        type: "price_change",
-        message: `Price changed for product ${product.name}.`,
-        productId: product.id,
-        isRead: false,
-      },
-    });
-  }
-
-  // Supplier Delivery Alert
-  if (settings?.supplierDeliveryAlertEnabled && product.expectedDeliveryDate) {
-    const daysUntilDelivery = (new Date(product.expectedDeliveryDate) - new Date()) / (1000 * 60 * 60 * 24);
-    if (daysUntilDelivery < settings.expectedDeliveryDays) {
-      await prisma.notification.create({
-        data: {
-          type: "supplier_delivery",
-          message: `Supplier delivery for ${product.name} expected in ${Math.ceil(daysUntilDelivery)} days.`,
-          productId: product.id,
-          isRead: false,
-        },
-      });
-    }
-  }
-
-  // Low Balance Alert
-  if (
-    settings?.lowBalanceAlertEnabled &&
-    product.balance !== undefined &&
-    product.balance < settings.lowBalanceThreshold
-  ) {
-    await prisma.notification.create({
-      data: {
-        type: "low_balance",
-        message: `Balance for ${product.name} is low (${product.balance}).`,
-        productId: product.id,
-        isRead: false,
-      },
-    });
-  }
-
-  // Frequent Refunds Alert
-  if (
-    settings?.frequentRefundsAlertEnabled &&
-    product.refundCount !== undefined &&
-    product.refundCount > settings.frequentRefundsThreshold
-  ) {
-    await prisma.notification.create({
-      data: {
-        type: "frequent_refunds",
-        message: `Frequent refunds for ${product.name} (${product.refundCount} times).`,
-        productId: product.id,
-        isRead: false,
-      },
-    });
-  }
-
-  // Daily Sales Target Alert
-  if (
-    settings?.dailySalesTargetAlertEnabled &&
-    product.dailySales !== undefined &&
-    product.dailySales < settings.dailySalesTargetAmount
-  ) {
-    await prisma.notification.create({
-      data: {
-        type: "daily_sales_target",
-        message: `Daily sales for ${product.name} below target (${product.dailySales}/${settings.dailySalesTargetAmount}).`,
-        productId: product.id,
-        isRead: false,
-      },
-    });
-  }
-
-  // Loyalty Points Expiry Alert
-  if (
-    settings?.loyaltyPointsExpiryAlertEnabled &&
-    product.loyaltyPointsExpiryDate &&
-    new Date(product.loyaltyPointsExpiryDate) < new Date()
-  ) {
-    await prisma.notification.create({
-      data: {
-        type: "loyalty_points_expiry",
-        message: `Loyalty points for ${product.name} have expired.`,
-        productId: product.id,
-        isRead: false,
-      },
-    });
-  }
-}
+import { validationResult } from "express-validator";
+import {
+  checkAndCreateAlerts,
+  createProductService,
+  deleteProductImageService,
+  deleteProductService,
+  exportProductsCSVService,
+  exportProductsExcelService,
+  getProductBarcodeService,
+  getProductByIdService,
+  getProductsService,
+  importProductsCSVService,
+  importProductsExcelService,
+  regenerateProductBarcodeService,
+  updateProductService,
+  uploadProductImageService,
+} from "../services/productsService.js";
 
 // Modularized product listing
 async function listProducts(req, res) {
@@ -206,33 +59,12 @@ async function updateProduct(req, res) {
       return res.status(400).json({ errors: errors.array() });
     }
     const { id } = req.params;
-    const productId = parseInt(id);
-    const existingProduct = await prisma.product.findUnique({ where: { id: productId } });
-    if (!existingProduct) return res.status(404).json({ error: "Product not found" });
-    // Check for SKU/barcode conflicts if they're being updated
-    if (req.body.sku || req.body.barcode) {
-      const conflict = await prisma.product.findFirst({
-        where: {
-          OR: [
-            req.body.sku ? { sku: req.body.sku, id: { not: productId } } : {},
-            req.body.barcode ? { barcode: req.body.barcode, id: { not: productId } } : {},
-          ],
-        },
-      });
-      if (conflict) return res.status(409).json({ error: "SKU or barcode already exists" });
-    }
-    const product = await prisma.product.update({
-      where: { id: productId },
-      data: req.body,
-      include: { category: true, supplier: true },
-    });
-    // Log audit event for product update
-    // ...audit logic...
+    const product = await updateProductService(id, req.body);
     await checkAndCreateAlerts(product.id);
     res.json(product);
   } catch (error) {
     console.error("Update product error:", error);
-    res.status(500).json({ error: "Failed to update product" });
+    res.status(500).json({ error: error.message || "Failed to update product" });
   }
 }
 
@@ -240,15 +72,11 @@ async function updateProduct(req, res) {
 async function deleteProduct(req, res) {
   try {
     const { id } = req.params;
-    const productId = parseInt(id);
-    const product = await prisma.product.findUnique({ where: { id: productId } });
-    if (!product) return res.status(404).json({ error: "Product not found" });
-    await prisma.product.update({ where: { id: productId }, data: { isActive: false } });
-    // ...audit logic...
+    await deleteProductService(id);
     res.json({ message: "Product deleted successfully" });
   } catch (error) {
     console.error("Delete product error:", error);
-    res.status(500).json({ error: "Failed to delete product" });
+    res.status(500).json({ error: error.message || "Failed to delete product" });
   }
 }
 
@@ -256,15 +84,12 @@ async function deleteProduct(req, res) {
 async function getProductById(req, res) {
   try {
     const { id } = req.params;
-    const product = await prisma.product.findUnique({
-      where: { id: parseInt(id) },
-      include: { category: true, supplier: true },
-    });
+    const product = await getProductByIdService(id);
     if (!product) return res.status(404).json({ error: "Product not found" });
     res.json(product);
   } catch (error) {
     console.error("Get product error:", error);
-    res.status(500).json({ error: "Failed to fetch product" });
+    res.status(500).json({ error: error.message || "Failed to fetch product" });
   }
 }
 
@@ -276,24 +101,12 @@ async function uploadProductImage(req, res) {
       return res.status(400).json({ errors: errors.array() });
     }
     const { id } = req.params;
-    const productId = parseInt(id);
     if (!req.file) return res.status(400).json({ error: "No image uploaded" });
-    const product = await prisma.product.findUnique({ where: { id: productId } });
-    if (!product) return res.status(404).json({ error: "Product not found" });
-    // ...delete old image logic...
-    const imagePath = `/uploads/products/${req.file.filename}`;
-    const updatedProduct = await prisma.product.update({
-      where: { id: productId },
-      data: { image: imagePath },
-      include: { category: true, supplier: true },
-    });
+    const updatedProduct = await uploadProductImageService(id, req.file);
     res.json(updatedProduct);
   } catch (error) {
     console.error("Upload image error:", error);
-    if (req.file) {
-      /* delete uploaded file on error */
-    }
-    res.status(500).json({ error: "Failed to upload image" });
+    res.status(500).json({ error: error.message || "Failed to upload image" });
   }
 }
 
@@ -305,34 +118,24 @@ async function deleteProductImage(req, res) {
       return res.status(400).json({ errors: errors.array() });
     }
     const { id } = req.params;
-    const productId = parseInt(id);
-    const product = await prisma.product.findUnique({ where: { id: productId } });
-    if (!product) return res.status(404).json({ error: "Product not found" });
-    if (!product.image) return res.status(400).json({ error: "No image to delete" });
-    // ...delete image file logic...
-    const updatedProduct = await prisma.product.update({
-      where: { id: productId },
-      data: { image: null },
-      include: { category: true, supplier: true },
-    });
+    const updatedProduct = await deleteProductImageService(id);
     res.json(updatedProduct);
   } catch (error) {
     console.error("Delete image error:", error);
-    res.status(500).json({ error: "Failed to delete image" });
+    res.status(500).json({ error: error.message || "Failed to delete image" });
   }
 }
 
 //Export products to CSV
 async function exportProductsCSV(req, res) {
   try {
-    const products = await prisma.product.findMany({
-      include: { category: true, supplier: true },
-      orderBy: { id: "asc" },
-    });
-    // ...format and send CSV logic...
+    const csv = await exportProductsCSVService();
+    res.header("Content-Type", "text/csv");
+    res.attachment("products.csv");
+    res.send(csv);
   } catch (error) {
     console.error("Export error:", error);
-    res.status(500).json({ error: "Failed to export products" });
+    res.status(500).json({ error: error.message || "Failed to export products" });
   }
 }
 
@@ -344,24 +147,24 @@ async function importProductsCSV(req, res) {
       return res.status(400).json({ errors: errors.array() });
     }
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-    // ...parse and import logic...
+    await importProductsCSVService(req.file.buffer);
+    res.json({ success: true });
   } catch (error) {
     console.error("Import error:", error);
-    res.status(500).json({ error: "Failed to import products", details: error.message });
+    res.status(500).json({ error: error.message || "Failed to import products" });
   }
 }
 
 // Export products to Excel
 async function exportProductsExcel(req, res) {
   try {
-    const products = await prisma.product.findMany({
-      include: { category: true, supplier: true },
-      orderBy: { name: "asc" },
-    });
-    // ...format and send Excel logic...
+    const buffer = await exportProductsExcelService();
+    res.header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.attachment("products.xlsx");
+    res.send(buffer);
   } catch (error) {
     console.error("Export Excel error:", error);
-    res.status(500).json({ error: "Failed to export products to Excel" });
+    res.status(500).json({ error: error.message || "Failed to export products to Excel" });
   }
 }
 
@@ -373,10 +176,11 @@ async function importProductsExcel(req, res) {
       return res.status(400).json({ errors: errors.array() });
     }
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-    // ...parse and import logic...
+    await importProductsExcelService(req.file.buffer);
+    res.json({ success: true });
   } catch (error) {
     console.error("Excel import error:", error);
-    res.status(500).json({ error: "Failed to import Excel file", details: error.message });
+    res.status(500).json({ error: error.message || "Failed to import Excel file" });
   }
 }
 
@@ -384,12 +188,11 @@ async function importProductsExcel(req, res) {
 async function getProductBarcode(req, res) {
   try {
     const { id } = req.params;
-    const product = await prisma.product.findUnique({ where: { id: parseInt(id) } });
-    if (!product) return res.status(404).json({ error: "Product not found" });
-    if (!product.barcode) return res.status(400).json({ error: "No barcode for product" });
-    // ...barcode image logic...
+    const result = await getProductBarcodeService(id);
+    res.header("Content-Type", "image/png");
+    res.send(result.image);
   } catch (error) {
-    res.status(500).json({ error: "Failed to generate barcode" });
+    res.status(500).json({ error: error.message || "Failed to generate barcode" });
   }
 }
 
@@ -397,15 +200,14 @@ async function getProductBarcode(req, res) {
 async function regenerateProductBarcode(req, res) {
   try {
     const { id } = req.params;
-    // ...regenerate barcode logic...
-    res.json({ success: true });
+    const result = await regenerateProductBarcodeService(id);
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ error: "Failed to regenerate barcode" });
+    res.status(500).json({ error: error.message || "Failed to regenerate barcode" });
   }
 }
 
-module.exports = {
-  checkAndCreateAlerts,
+export default {
   listProducts,
   createProduct,
   updateProduct,
