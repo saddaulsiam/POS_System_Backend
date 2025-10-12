@@ -1,6 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { getProductsService, createProductService } = require("../services/productsService.js");
+const { validationResult } = require("express-validator");
 
 async function checkAndCreateAlerts(productId) {
   const settings = await prisma.pOSSettings.findFirst();
@@ -165,6 +166,10 @@ async function checkAndCreateAlerts(productId) {
 // Modularized product listing
 async function listProducts(req, res) {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const search = req.query.search;
@@ -182,6 +187,10 @@ async function listProducts(req, res) {
 // Modularized product creation
 async function createProduct(req, res) {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     const result = await createProductService(req.body, req.user.id);
     res.status(201).json(result);
   } catch (error) {
@@ -192,6 +201,10 @@ async function createProduct(req, res) {
 
 async function updateProduct(req, res) {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     const { id } = req.params;
     const productId = parseInt(id);
     const existingProduct = await prisma.product.findUnique({ where: { id: productId } });
@@ -258,6 +271,10 @@ async function getProductById(req, res) {
 // Upload product image
 async function uploadProductImage(req, res) {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     const { id } = req.params;
     const productId = parseInt(id);
     if (!req.file) return res.status(400).json({ error: "No image uploaded" });
@@ -283,6 +300,10 @@ async function uploadProductImage(req, res) {
 // Delete product image
 async function deleteProductImage(req, res) {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     const { id } = req.params;
     const productId = parseInt(id);
     const product = await prisma.product.findUnique({ where: { id: productId } });
@@ -318,6 +339,10 @@ async function exportProductsCSV(req, res) {
 // Import products from CSV
 async function importProductsCSV(req, res) {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
     // ...parse and import logic...
   } catch (error) {
@@ -343,6 +368,10 @@ async function exportProductsExcel(req, res) {
 // Import products from Excel
 async function importProductsExcel(req, res) {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
     // ...parse and import logic...
   } catch (error) {
