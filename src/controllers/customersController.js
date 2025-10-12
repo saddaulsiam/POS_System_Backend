@@ -13,13 +13,14 @@ import {
   searchCustomers,
   updateCustomerService,
 } from "../services/customersService.js";
+const { validationResult } = require("express-validator");
 
 // Get all customers with pagination and search
 async function getCustomers(req, res) {
   try {
-    const errors = req.validationResult ? req.validationResult() : [];
-    if (errors && errors.length > 0) {
-      return res.status(400).json({ errors });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -107,9 +108,9 @@ async function getCustomerById(req, res) {
 // Create new customer
 async function createCustomer(req, res) {
   try {
-    const errors = req.validationResult ? req.validationResult() : [];
-    if (errors && errors.length > 0) {
-      return res.status(400).json({ errors });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
     const { name, phoneNumber, email, dateOfBirth, address } = req.body;
     if (phoneNumber || email) {
@@ -135,9 +136,9 @@ async function createCustomer(req, res) {
 // Update customer
 async function updateCustomer(req, res) {
   try {
-    const errors = req.validationResult ? req.validationResult() : [];
-    if (errors && errors.length > 0) {
-      return res.status(400).json({ errors });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
     const { id } = req.params;
     const customerId = parseInt(id);
@@ -186,9 +187,9 @@ async function deactivateCustomer(req, res) {
 // Add loyalty points
 async function addLoyaltyPoints(req, res) {
   try {
-    const errors = req.validationResult ? req.validationResult() : [];
-    if (errors && errors.length > 0) {
-      return res.status(400).json({ errors });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
     const { id } = req.params;
     const { points } = req.body;
@@ -215,9 +216,9 @@ async function addLoyaltyPoints(req, res) {
 // Redeem loyalty points
 async function redeemLoyaltyPoints(req, res) {
   try {
-    const errors = req.validationResult ? req.validationResult() : [];
-    if (errors && errors.length > 0) {
-      return res.status(400).json({ errors });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
     const { id } = req.params;
     const { points } = req.body;
