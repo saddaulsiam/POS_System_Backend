@@ -1,33 +1,36 @@
-const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-const morgan = require("morgan");
-const rateLimit = require("express-rate-limit");
-const path = require("path");
-require("dotenv").config();
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
+import rateLimit from "express-rate-limit";
+import path from "path";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+import dotenv from "dotenv";
+dotenv.config();
+import { PrismaClient } from "@prisma/client";
+import authRoutes from "./routes/auth.js";
+import productRoutes from "./routes/products.js";
+import productVariantRoutes from "./routes/productVariants.js";
+import categoryRoutes from "./routes/categories.js";
+import customerRoutes from "./routes/customers.js";
+import salesRoutes from "./routes/sales.js";
+import inventoryRoutes from "./routes/inventory.js";
+import reportRoutes from "./routes/reports.js";
+import suppliersRoutes from "./routes/suppliers.js";
+import analyticsRoutes from "./routes/analytics.js";
+import employeeRoutes from "./routes/employees.js";
+import profileRoutes from "./routes/profile.js";
+import auditLogsRoutes from "./routes/auditLogs.js";
+import parkedSalesRoutes from "./routes/parkedSales.js";
+import quickSaleItemsRoutes from "./routes/quickSaleItems.js";
+import loyaltyRoutes from "./routes/loyalty.js";
+import receiptsRoutes from "./routes/receipts.js";
+import posSettingsRoutes from "./routes/posSettings.js";
 
-const { PrismaClient } = require("@prisma/client");
-const authRoutes = require("./routes/auth");
-const productRoutes = require("./routes/products");
-const productVariantRoutes = require("./routes/productVariants");
-const categoryRoutes = require("./routes/categories");
-const customerRoutes = require("./routes/customers");
-const salesRoutes = require("./routes/sales");
-const inventoryRoutes = require("./routes/inventory");
-const reportRoutes = require("./routes/reports");
-const suppliersRoutes = require("./routes/suppliers");
-const analyticsRoutes = require("./routes/analytics");
-
-const employeeRoutes = require("./routes/employees");
-const profileRoutes = require("./routes/profile");
-const auditLogsRoutes = require("./routes/auditLogs");
-const parkedSalesRoutes = require("./routes/parkedSales");
-const quickSaleItemsRoutes = require("./routes/quickSaleItems");
-const loyaltyRoutes = require("./routes/loyalty");
-const receiptsRoutes = require("./routes/receipts");
-const posSettingsRoutes = require("./routes/posSettings");
-const cashDrawerRoutes = require("./routes/cashDrawer");
-const { startScheduler, stopScheduler } = require("./scheduler");
+import cashDrawerRoutes from "./routes/cashDrawer.js";
+import { startScheduler, stopScheduler } from "./scheduler.js";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -116,3 +119,5 @@ app.listen(PORT, async () => {
   // Start birthday rewards automation
   startScheduler();
 });
+
+export default app;

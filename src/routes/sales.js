@@ -15,6 +15,8 @@ const calculateTier = (lifetimePoints) => {
   return "BRONZE";
 };
 
+const { getSales } = require("../controllers/salesController");
+
 // Get all sales with pagination and filtering
 router.get(
   "/",
@@ -28,63 +30,7 @@ router.get(
     query("customerId").optional().isInt().withMessage("Customer ID must be an integer"),
     query("paymentMethod").optional().isString().withMessage("Payment method must be a string"),
   ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 20;
-      const skip = (page - 1) * limit;
-
-      const where = {};
-
-      if (req.query.startDate || req.query.endDate) {
-        where.createdAt = {};
-        if (req.query.startDate) where.createdAt.gte = new Date(req.query.startDate);
-        if (req.query.endDate) where.createdAt.lte = new Date(req.query.endDate);
-      }
-
-      if (req.query.employeeId) where.employeeId = parseInt(req.query.employeeId);
-      if (req.query.customerId) where.customerId = parseInt(req.query.customerId);
-      if (req.query.paymentMethod) where.paymentMethod = req.query.paymentMethod;
-
-      const [sales, total] = await Promise.all([
-        prisma.sale.findMany({
-          where,
-          include: {
-            employee: { select: { id: true, name: true, username: true } },
-            customer: { select: { id: true, name: true, phoneNumber: true } },
-            saleItems: {
-              include: {
-                product: { select: { id: true, name: true, sku: true } },
-                productVariant: { select: { id: true, name: true, sku: true } },
-              },
-            },
-          },
-          orderBy: { createdAt: "desc" },
-          skip,
-          take: limit,
-        }),
-        prisma.sale.count({ where }),
-      ]);
-
-      res.json({
-        data: sales,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit),
-        },
-      });
-    } catch (error) {
-      console.error("Get sales error:", error);
-      res.status(500).json({ error: "Failed to fetch sales" });
-    }
-  }
+  getSales
 );
 
 // Get sale by ID or receipt ID
