@@ -16,10 +16,10 @@ export const getSales = async (req, res) => {
 export const getSaleById = async (req, res) => {
   try {
     const result = await salesService.getSaleById(req.params.identifier);
-    if (!result) return sendError(res, 404, "Sale not found");
+    if (!result) return sendError(res, "Sale not found", 404);
     sendSuccess(res, result);
   } catch (error) {
-    sendError(res, 500, "Failed to fetch sale", error);
+    sendError(res, error.message || "Failed to fetch sale", 500, error);
   }
 };
 
