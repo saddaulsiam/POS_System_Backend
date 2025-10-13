@@ -133,32 +133,24 @@ function generateThermalReceipt(saleData, settings = {}) {
 
   receipt += "-".repeat(width) + "\n";
 
+  const nameWidth = 30;
+  const qtyWidth = 10;
+  const totalWidth = width - nameWidth - qtyWidth;
+
   // Items header
-  receipt += padRight("Item", 24) + padRight("Qty", 8) + padLeft("Total", 16) + "\n";
+  receipt += padRight("Item", nameWidth) + padRight("Qty", qtyWidth) + padLeft("Total", totalWidth) + "\n";
   receipt += "-".repeat(width) + "\n";
 
   saleData.saleItems.forEach((item) => {
-    const itemName = item.productVariant ? `${item.product.name}-${item.productVariant.name}` : item.product.name;
-    // Item name (may wrap)
-    let nameLines = [];
-    let name = itemName;
-    while (name.length > width) {
-      nameLines.push(name.slice(0, width));
-      name = name.slice(width);
-    }
-    if (name.length > 0) nameLines.push(name);
-    nameLines.forEach((line, idx) => {
-      receipt += truncate(line, width) + "\n";
-    });
-
-    // Quantity and price on same line, indented for clarity
-    const qtyStr = `${item.quantity} x ${currency}${item.priceAtSale.toFixed(2)}`;
-    const totalStr = `${currency}${item.subtotal.toFixed(2)}`;
-    receipt += padRight("  " + qtyStr, width - totalStr.length) + totalStr + "\n";
+    const itemName = item.productVariant ? `${item.product.name} - ${item.productVariant.name}` : item.product.name;
+    const nameStr = padRight(itemName, nameWidth);
+    const qtyStr = padRight(`${item.priceAtSale.toFixed(2)} x ${item.quantity}`, qtyWidth);
+    const totalStr = padLeft(`${currency}${item.subtotal.toFixed(2)}`, totalWidth);
+    receipt += nameStr + qtyStr + totalStr + "\n";
   });
 
   // Add spacing before totals
-  receipt += "\n" + "=".repeat(width) + "\n";
+  receipt += "\n" + "-".repeat(width) + "\n";
 
   // Totals section
   receipt += formatLine("Subtotal:", `${currency}${saleData.subtotal.toFixed(2)}`, width) + "\n";
@@ -169,8 +161,7 @@ function generateThermalReceipt(saleData, settings = {}) {
   receipt += "-".repeat(width) + "\n";
 
   // Centered and bold TOTAL
-  const totalLine = formatLine("TOTAL:", `${currency}${saleData.finalAmount.toFixed(2)}`, width / 2);
-  receipt += center(totalLine, width) + "\n";
+  receipt += formatLine("TOTAL:", `${currency}${saleData.finalAmount.toFixed(2)}`, width) + "\n";
   receipt += "=".repeat(width) + "\n";
 
   // Payment
@@ -187,7 +178,7 @@ function generateThermalReceipt(saleData, settings = {}) {
   // Loyalty points
   if (saleData.pointsEarned && saleData.pointsEarned > 0) {
     receipt += "-".repeat(width) + "\n";
-    receipt += center(`Points Earned: ${saleData.pointsEarned}`, width) + "\n";
+    receipt += center(`🎉 You earned ${saleData.pointsEarned} loyalty points!`, width) + "\n";
   }
 
   // Footer
@@ -270,6 +261,7 @@ function generateHTMLReceipt(saleData, settings = {}) {
   let cashierName = getValidName(saleData.employee);
   let customerName = getValidName(saleData.customer);
 
+  const currency = settings.currencySymbol || "$";
   return `
 <!DOCTYPE html>
 <html>
@@ -331,8 +323,8 @@ function generateHTMLReceipt(saleData, settings = {}) {
         <tr>
           <td>${itemName}</td>
           <td style="text-align: center;">${item.quantity}</td>
-          <td style="text-align: right;">$${item.priceAtSale.toFixed(2)}</td>
-          <td style="text-align: right;">$${item.subtotal.toFixed(2)}</td>
+          <td style="text-align: right;">${currency}${item.priceAtSale.toFixed(2)}</td>
+          <td style="text-align: right;">${currency}${item.subtotal.toFixed(2)}</td>
         </tr>
         `;
         })
@@ -343,14 +335,14 @@ function generateHTMLReceipt(saleData, settings = {}) {
   <div class="totals">
     <div class="totals-row">
       <div class="totals-label">Subtotal:</div>
-      <div>$${saleData.subtotal.toFixed(2)}</div>
+  <div>${currency}${saleData.subtotal.toFixed(2)}</div>
     </div>
     ${
       saleData.discountAmount > 0
         ? `
     <div class="totals-row">
       <div class="totals-label">Discount:</div>
-      <div>-$${saleData.discountAmount.toFixed(2)}</div>
+  <div>-${currency}${saleData.discountAmount.toFixed(2)}</div>
     </div>
     ${saleData.discountReason ? `<div style="font-size: 12px; color: #666;">(${saleData.discountReason})</div>` : ""}
     `
@@ -358,11 +350,11 @@ function generateHTMLReceipt(saleData, settings = {}) {
     }
     <div class="totals-row">
       <div class="totals-label">Tax:</div>
-      <div>$${saleData.taxAmount.toFixed(2)}</div>
+  <div>${currency}${saleData.taxAmount.toFixed(2)}</div>
     </div>
     <div class="totals-row total-final">
       <div class="totals-label">TOTAL:</div>
-      <div>$${saleData.finalAmount.toFixed(2)}</div>
+  <div>${currency}${saleData.finalAmount.toFixed(2)}</div>
     </div>
   </div>
 
@@ -370,8 +362,10 @@ function generateHTMLReceipt(saleData, settings = {}) {
     <strong>Payment Details:</strong><br>
     ${
       saleData.paymentSplits && saleData.paymentSplits.length > 0
-        ? saleData.paymentSplits.map((split) => `${split.paymentMethod}: $${split.amount.toFixed(2)}`).join("<br>")
-        : `${saleData.paymentMethod}: $${saleData.finalAmount.toFixed(2)}`
+        ? saleData.paymentSplits
+            .map((split) => `${split.paymentMethod}: ${currency}${split.amount.toFixed(2)}`)
+            .join("<br>")
+        : `${saleData.paymentMethod}: ${currency}${saleData.finalAmount.toFixed(2)}`
     }
     <br>
     Status: ${saleData.paymentStatus === "COMPLETED" ? "PAID IN FULL" : saleData.paymentStatus}
