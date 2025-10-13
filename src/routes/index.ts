@@ -8,6 +8,7 @@ import { CustomerRoutes } from "../modules/customers/route.js";
 import { EmployeeRoutes } from "../modules/employees/route.js";
 import { InventoryRoutes } from "../modules/inventory/route.js";
 import { LoyaltyRoutes } from "../modules/loyalty/route.js";
+import { NotificationRoutes } from "../modules/notifications/route.js";
 import { ParkedSalesRoutes } from "../modules/parkedSales/route.js";
 import { PosSettingsRoutes } from "../modules/posSettings/route.js";
 import { ProductRoutes } from "../modules/products/route.js";
@@ -22,6 +23,10 @@ import { SuppliersRoutes } from "../modules/suppliers/route.js";
 const router = Router();
 
 const moduleRoutes = [
+  {
+    path: "/notification",
+    route: NotificationRoutes,
+  },
   {
     path: "/auth",
     route: AuthRoutes,

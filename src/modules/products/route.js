@@ -1,5 +1,7 @@
 import express from "express";
 import multer from "multer";
+import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
+import { upload } from "../../utils/upload.js";
 import {
   createProduct,
   deleteProduct,
@@ -15,8 +17,6 @@ import {
   updateProduct,
   uploadProductImage,
 } from "./productsController.js";
-import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
-import { upload } from "../../utils/upload.js";
 import productsValidator from "./productsValidator.js";
 
 const router = express.Router();

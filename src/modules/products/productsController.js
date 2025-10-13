@@ -1,4 +1,6 @@
 import { validationResult } from "express-validator";
+import { sendError, sendSuccess } from "../../utils/response.js";
+import { getNotificationsService } from "../notifications/notificationService.js";
 import {
   checkAndCreateAlerts,
   createProductService,
@@ -15,7 +17,6 @@ import {
   updateProductService,
   uploadProductImageService,
 } from "./productsService.js";
-import { sendError, sendSuccess } from "../../utils/response.js";
 
 // Modularized product listing
 async function listProducts(req, res) {
@@ -46,9 +47,9 @@ async function createProduct(req, res) {
       return sendError(res, errors.array(), 400);
     }
     const result = await createProductService(req.body, req.user.id);
+    await checkAndCreateAlerts(result.id);
     sendSuccess(res, result, 201);
   } catch (error) {
-    console.error("Create product error:", error);
     sendError(res, error.message || "Failed to create product", 500);
   }
 }
@@ -62,7 +63,6 @@ async function updateProduct(req, res) {
     const { id } = req.params;
     const product = await updateProductService(id, req.body);
     await checkAndCreateAlerts(product.id);
-    sendSuccess(res, product);
   } catch (error) {
     console.error("Update product error:", error);
     sendError(res, error.message || "Failed to update product", 500);
@@ -76,7 +76,6 @@ async function deleteProduct(req, res) {
     await deleteProductService(id);
     sendSuccess(res, { message: "Product deleted successfully" });
   } catch (error) {
-    console.error("Delete product error:", error);
     sendError(res, error.message || "Failed to delete product", 500);
   }
 }
@@ -104,6 +103,7 @@ async function uploadProductImage(req, res) {
     const { id } = req.params;
     if (!req.file) return sendError(res, "No image uploaded", 400);
     const updatedProduct = await uploadProductImageService(id, req.file);
+    await checkAndCreateAlerts(updatedProduct.id);
     sendSuccess(res, updatedProduct);
   } catch (error) {
     console.error("Upload image error:", error);
@@ -208,18 +208,29 @@ async function regenerateProductBarcode(req, res) {
   }
 }
 
+async function getProductNotifications(req, res) {
+  try {
+    const notifications = await getNotificationsService();
+    res.json(notifications);
+  } catch (error) {
+    console.error("Get product notifications error:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch product notifications" });
+  }
+}
+
 export {
-  listProducts,
   createProduct,
-  updateProduct,
   deleteProduct,
-  getProductById,
-  uploadProductImage,
   deleteProductImage,
   exportProductsCSV,
-  importProductsCSV,
   exportProductsExcel,
-  importProductsExcel,
   getProductBarcode,
+  getProductById,
+  getProductNotifications,
+  importProductsCSV,
+  importProductsExcel,
+  listProducts,
   regenerateProductBarcode,
+  updateProduct,
+  uploadProductImage,
 };
