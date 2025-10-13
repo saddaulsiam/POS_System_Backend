@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
-import { checkAndCreateAlerts } from "../notifications/notificationService.js";
 import { calculateTax, generateReceiptId, logAudit } from "../../utils/helpers.js";
+import { handleLoyaltyAfterSale } from "../loyalty/loyaltyService.js";
+import { checkAndCreateAlerts } from "../notifications/notificationService.js";
 
 const prisma = new PrismaClient();
 
@@ -208,58 +209,7 @@ export const createSale = async (body, user, ip, userAgent) => {
       },
     });
     if (customerId) {
-      const customer = await tx.customer.findUnique({
-        where: { id: customerId },
-        select: { loyaltyTier: true, loyaltyPoints: true },
-      });
-      if (customer) {
-        const settings = await tx.pOSSettings.findFirst({ select: { loyaltyPointsPerUnit: true } });
-        const pointsPerUnit = settings?.loyaltyPointsPerUnit || 10;
-        const tierConfig = await tx.loyaltyTierConfig.findUnique({ where: { tier: customer.loyaltyTier } });
-        const defaultMultipliers = { BRONZE: 1.0, SILVER: 1.25, GOLD: 1.5, PLATINUM: 2.0 };
-        const multiplier = tierConfig?.pointsMultiplier || defaultMultipliers[customer.loyaltyTier] || 1.0;
-        const basePoints = Math.floor(finalAmount / pointsPerUnit);
-        const bonusPoints = Math.floor(basePoints * (multiplier - 1));
-        const totalPoints = basePoints + bonusPoints;
-        await tx.customer.update({ where: { id: customerId }, data: { loyaltyPoints: { increment: totalPoints } } });
-        await tx.pointsTransaction.create({
-          data: {
-            customerId,
-            saleId: sale.id,
-            type: "EARNED",
-            points: totalPoints,
-            description: `Purchase ${sale.receiptId}: ${basePoints} base points${
-              bonusPoints > 0 ? ` + ${bonusPoints} ${customer.loyaltyTier} tier bonus` : ""
-            }`,
-          },
-        });
-        const earnedPointsSum = await tx.pointsTransaction.aggregate({
-          where: { customerId, points: { gt: 0 } },
-          _sum: { points: true },
-        });
-        const lifetimePoints = earnedPointsSum._sum.points || 0;
-        const tierOrder = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
-        const calculateTier = (lifetimePoints) => {
-          if (lifetimePoints >= 3000) return "PLATINUM";
-          if (lifetimePoints >= 1500) return "GOLD";
-          if (lifetimePoints >= 500) return "SILVER";
-          return "BRONZE";
-        };
-        const qualifiedTier = calculateTier(lifetimePoints);
-        const currentTierIndex = tierOrder.indexOf(customer.loyaltyTier);
-        const qualifiedTierIndex = tierOrder.indexOf(qualifiedTier);
-        if (qualifiedTierIndex > currentTierIndex) {
-          await tx.customer.update({ where: { id: customerId }, data: { loyaltyTier: qualifiedTier } });
-          await tx.pointsTransaction.create({
-            data: {
-              customerId,
-              type: "ADJUSTED",
-              points: 0,
-              description: `🎉 Tier upgraded from ${customer.loyaltyTier} to ${qualifiedTier}! You've earned ${lifetimePoints} lifetime points.`,
-            },
-          });
-        }
-      }
+      await handleLoyaltyAfterSale({ customerId, finalAmount, saleId: sale.id });
     }
     return sale;
   });
