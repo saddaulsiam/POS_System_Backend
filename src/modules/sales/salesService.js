@@ -1,6 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 import { calculateTax, generateReceiptId, logAudit } from "../../utils/helpers.js";
-import { handleLoyaltyAfterSale } from "../loyalty/loyaltyService.js";
 import { checkAndCreateAlerts } from "../notifications/notificationService.js";
 
 const prisma = new PrismaClient();
@@ -179,6 +178,25 @@ export const createSale = async (body, user, ip, userAgent) => {
         throw new Error(`Payment splits total (${totalSplitAmount}) must equal final amount (${finalAmount})`);
       }
     }
+    // --- Loyalty points calculation ---
+    let pointsEarned = 0;
+    let qualifiedTier = null;
+    if (customerId) {
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+        select: { loyaltyTier: true, loyaltyPoints: true },
+      });
+      if (customer) {
+        const settings = await tx.pOSSettings.findFirst({ select: { loyaltyPointsPerUnit: true } });
+        const pointsPerUnit = settings?.loyaltyPointsPerUnit || 10;
+        const tierConfig = await tx.loyaltyTierConfig.findUnique({ where: { tier: customer.loyaltyTier } });
+        const defaultMultipliers = { BRONZE: 1.0, SILVER: 1.25, GOLD: 1.5, PLATINUM: 2.0 };
+        const multiplier = tierConfig?.pointsMultiplier || defaultMultipliers[customer.loyaltyTier] || 1.0;
+        const basePoints = Math.floor(finalAmount / pointsPerUnit);
+        const bonusPoints = Math.floor(basePoints * (multiplier - 1));
+        pointsEarned = basePoints + bonusPoints;
+      }
+    }
     const sale = await tx.sale.create({
       data: {
         receiptId,
@@ -195,6 +213,7 @@ export const createSale = async (body, user, ip, userAgent) => {
         notes,
         saleItems: { create: saleItemsData },
         paymentSplits: paymentMethod === "MIXED" ? { create: paymentSplits } : undefined,
+        pointsEarned,
       },
       include: {
         employee: { select: { id: true, name: true, username: true } },
@@ -208,14 +227,57 @@ export const createSale = async (body, user, ip, userAgent) => {
         paymentSplits: paymentMethod === "MIXED",
       },
     });
+    // --- Update customer points, tier, and create points transaction ---
+    if (customerId && pointsEarned > 0) {
+      await tx.customer.update({ where: { id: customerId }, data: { loyaltyPoints: { increment: pointsEarned } } });
+      await tx.pointsTransaction.create({
+        data: {
+          customerId,
+          saleId: sale.id,
+          type: "EARNED",
+          points: pointsEarned,
+          description: `Purchase ${sale.receiptId}: ${pointsEarned} points earned`,
+        },
+      });
+      // Calculate lifetime points and tier
+      const earnedPointsSum = await tx.pointsTransaction.aggregate({
+        where: { customerId, points: { gt: 0 } },
+        _sum: { points: true },
+      });
+      const lifetimePoints = earnedPointsSum._sum.points || 0;
+      const TIER_ORDER = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
+      const LOYALTY_TIERS = {
+        BRONZE: { min: 0 },
+        SILVER: { min: 500 },
+        GOLD: { min: 1500 },
+        PLATINUM: { min: 3000 },
+      };
+      const customerTier = sale.customer?.loyaltyTier || "BRONZE";
+      const currentTierIndex = TIER_ORDER.indexOf(customerTier);
+      qualifiedTier = (() => {
+        if (lifetimePoints >= LOYALTY_TIERS.PLATINUM.min) return "PLATINUM";
+        if (lifetimePoints >= LOYALTY_TIERS.GOLD.min) return "GOLD";
+        if (lifetimePoints >= LOYALTY_TIERS.SILVER.min) return "SILVER";
+        return "BRONZE";
+      })();
+      const qualifiedTierIndex = TIER_ORDER.indexOf(qualifiedTier);
+      if (qualifiedTierIndex > currentTierIndex) {
+        await tx.customer.update({ where: { id: customerId }, data: { loyaltyTier: qualifiedTier } });
+        await tx.pointsTransaction.create({
+          data: {
+            customerId,
+            type: "ADJUSTED",
+            points: 0,
+            description: `🎉 Tier upgraded from ${customerTier} to ${qualifiedTier}! You've earned ${lifetimePoints} lifetime points.`,
+          },
+        });
+      }
+    }
     return { sale, finalAmount };
   });
-  // Run alerts and loyalty logic outside transaction
+  // Run alerts outside transaction
   for (const pid of alertProductIds) {
     checkAndCreateAlerts(pid);
-  }
-  if (customerId) {
-    handleLoyaltyAfterSale({ customerId, finalAmount: result.finalAmount, saleId: result.sale.id });
   }
   logAudit({
     userId: user.id,
