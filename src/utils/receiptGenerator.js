@@ -1,6 +1,32 @@
 const PDFDocument = require("pdfkit");
 
 /**
+ * Helper to get a valid name from firstName/lastName or name field
+ */
+function getValidName(obj) {
+  if (!obj) return "N/A";
+  let first = obj.firstName && obj.firstName !== "undefined" ? obj.firstName.trim() : "";
+  let last = obj.lastName && obj.lastName !== "undefined" ? obj.lastName.trim() : "";
+  let full = "";
+  if (first && last) {
+    full = `${first} ${last}`.trim();
+  } else if (first) {
+    full = first;
+  } else if (last) {
+    full = last;
+  }
+  if (!full || full.toLowerCase().includes("undefined")) {
+    if (obj.name && obj.name !== "undefined" && obj.name.trim() !== "") {
+      full = obj.name.trim();
+    }
+  }
+  if (!full || full.toLowerCase().includes("undefined") || full === "") {
+    return "N/A";
+  }
+  return full;
+}
+
+/**
  * Generate a PDF receipt for a sale
  * @param {Object} saleData - Complete sale data with items, customer, employee
  * @param {Object} settings - Store settings (name, address, etc.)
@@ -41,12 +67,16 @@ function generatePDFReceipt(saleData, settings = {}) {
     .text(`Receipt #: ${saleData.id}`, 50, doc.y)
     .text(`Date: ${receiptDate.toLocaleDateString()} ${receiptDate.toLocaleTimeString()}`, { align: "right" });
 
+  let cashierName = "N/A";
   if (saleData.employee) {
-    doc.text(`Cashier: ${saleData.employee.firstName} ${saleData.employee.lastName}`, 50, doc.y);
+    cashierName = getValidName(saleData.employee);
   }
+  doc.text(`Cashier: ${cashierName}`, 50, doc.y);
 
+  let customerName = "N/A";
   if (saleData.customer) {
-    doc.text(`Customer: ${saleData.customer.firstName} ${saleData.customer.lastName}`, 50, doc.y);
+    customerName = getValidName(saleData.customer);
+    doc.text(`Customer: ${customerName}`, 50, doc.y);
     if (saleData.customer.phone) {
       doc.text(`Phone: ${saleData.customer.phone}`, 50, doc.y);
     }
@@ -94,33 +124,11 @@ function generateThermalReceipt(saleData, settings = {}) {
   receipt += `Time: ${receiptDate.toLocaleTimeString()}\n`;
 
   // Cashier name fallback (always show)
-  let cashierName = "N/A";
-  if (saleData.employee) {
-    const first = saleData.employee.firstName || "";
-    const last = saleData.employee.lastName || "";
-    let full = `${first} ${last}`.trim();
-    if ((!full || full === "undefined undefined" || full === "") && saleData.employee.name) {
-      full = saleData.employee.name;
-    }
-    if (full && full !== "undefined undefined" && full !== "") {
-      cashierName = full;
-    }
-  }
+  let cashierName = getValidName(saleData.employee);
   receipt += `Cashier: ${cashierName}\n`;
 
   // Customer name fallback (always show)
-  let customerName = "N/A";
-  if (saleData.customer) {
-    const first = saleData.customer.firstName || "";
-    const last = saleData.customer.lastName || "";
-    let full = `${first} ${last}`.trim();
-    if ((!full || full === "undefined undefined" || full === "") && saleData.customer.name) {
-      full = saleData.customer.name;
-    }
-    if (full && full !== "undefined undefined" && full !== "") {
-      customerName = full;
-    }
-  }
+  let customerName = getValidName(saleData.customer);
   receipt += `Customer: ${customerName}\n`;
 
   receipt += "-".repeat(width) + "\n";
@@ -259,6 +267,9 @@ function generateHTMLReceipt(saleData, settings = {}) {
 
   const receiptDate = new Date(saleData.createdAt);
 
+  let cashierName = getValidName(saleData.employee);
+  let customerName = getValidName(saleData.customer);
+
   return `
 <!DOCTYPE html>
 <html>
@@ -297,8 +308,8 @@ function generateHTMLReceipt(saleData, settings = {}) {
   <div class="receipt-info">
     <strong>Receipt #${saleData.id}</strong><br>
     Date: ${receiptDate.toLocaleDateString()} ${receiptDate.toLocaleTimeString()}<br>
-    ${saleData.employee ? `Cashier: ${saleData.employee.firstName} ${saleData.employee.lastName}<br>` : ""}
-    ${saleData.customer ? `Customer: ${saleData.customer.firstName} ${saleData.customer.lastName}<br>` : ""}
+    Cashier: ${cashierName}<br>
+    Customer: ${customerName}<br>
   </div>
 
   <table class="items-table">
@@ -377,7 +388,7 @@ function generateHTMLReceipt(saleData, settings = {}) {
   }
 
   <div class="footer">
-    <p><strong>${settings.receiptFooterText || "Thank you for your business!"}</strong></p>
+    <p><strong>${settings.receiptFooterText || "Thank you for your shopping!"}</strong></p>
     <p>Please keep this receipt for your records</p>
     ${
       settings.returnPolicy
