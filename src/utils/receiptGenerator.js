@@ -119,7 +119,7 @@ function generateThermalReceipt(saleData, settings = {}) {
 
   // Receipt info (left aligned)
   const receiptDate = new Date(saleData.createdAt);
-  receipt += `Receipt #: ${saleData.id}\n`;
+  receipt += `Receipt #: ${saleData.receiptId}\n`;
   receipt += `Date: ${receiptDate.toLocaleDateString()}\n`;
   receipt += `Time: ${receiptDate.toLocaleTimeString()}\n`;
 
@@ -298,7 +298,7 @@ function generateHTMLReceipt(saleData, settings = {}) {
   </div>
 
   <div class="receipt-info">
-    <strong>Receipt #${saleData.id}</strong><br>
+    <strong>Receipt #${saleData.receiptId}</strong><br>
     Date: ${receiptDate.toLocaleDateString()} ${receiptDate.toLocaleTimeString()}<br>
     Cashier: ${cashierName}<br>
     Customer: ${customerName}<br>
