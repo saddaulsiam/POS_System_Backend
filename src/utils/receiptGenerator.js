@@ -186,7 +186,7 @@ function generateThermalReceipt(saleData, settings = {}) {
   if (settings.receiptFooterText) {
     receipt += center(settings.receiptFooterText, width) + "\n";
   } else {
-    receipt += center("Thank you for your shopping!", width) + "\n";
+    receipt += center("Thank you for shopping with us!", width) + "\n";
   }
 
   if (settings.returnPolicy) {
@@ -382,7 +382,7 @@ function generateHTMLReceipt(saleData, settings = {}) {
   }
 
   <div class="footer">
-    <p><strong>${settings.receiptFooterText || "Thank you for your shopping!"}</strong></p>
+    <p><strong>${settings.receiptFooterText || "Thank you for shopping with us!"}</strong></p>
     <p>Please keep this receipt for your records</p>
     ${
       settings.returnPolicy
