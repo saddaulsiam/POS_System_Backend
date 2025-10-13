@@ -7,8 +7,10 @@ import {
 // Get all notifications
 export async function getAllNotifications(req, res) {
   try {
-    const notifications = await getNotificationsService();
-    res.json({ data: notifications });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const result = await getNotificationsService(page, limit);
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message || "Failed to fetch notifications" });
   }

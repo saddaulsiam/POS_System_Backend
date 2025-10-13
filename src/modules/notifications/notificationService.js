@@ -2,16 +2,31 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 // Get All notifications
-export async function getNotificationsService() {
-  return await prisma.notification.findMany({
-    where: { productId: { not: null } },
-    orderBy: { createdAt: "desc" },
-    include: {
-      product: {
-        select: { id: true, name: true, sku: true },
+export async function getNotificationsService(page = 1, limit = 10) {
+  const skip = Math.max(0, (page - 1) * limit);
+  const [notifications, total] = await Promise.all([
+    prisma.notification.findMany({
+      where: { productId: { not: null } },
+      orderBy: { createdAt: "desc" },
+      include: {
+        product: {
+          select: { id: true, name: true, sku: true },
+        },
       },
+      skip,
+      take: limit,
+    }),
+    prisma.notification.count({ where: { productId: { not: null } } }),
+  ]);
+  return {
+    data: notifications,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.max(1, Math.ceil(total / limit)),
     },
-  });
+  };
 }
 
 // Mark notification as read
