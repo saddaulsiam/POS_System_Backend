@@ -333,7 +333,7 @@ model POSSettings {
   storeName                       String    @default("POS System")
   storeAddress                    String    @default("123 Main St, City, Country")
   storePhone                      String    @default("(123) 456-7890")
-  // storeEmail field removed
+  storeEmail                      String?   @unique
   taxId                           String?
   taxRate                         Float     @default(0)
   currencyCode                    String    @default("USD")
@@ -342,7 +342,7 @@ model POSSettings {
   receiptFooterText               String?
   returnPolicy                    String?
   printReceiptAuto                Boolean   @default(false)
-  autoPrintThermal                Boolean   @default(false)
+  autoPrintThermal                Boolean   @default(true)
   enableLowStockAlerts            Boolean   @default(true)
   lowStockThreshold               Int       @default(10)
   enableHighStockAlerts           Boolean   @default(false)
