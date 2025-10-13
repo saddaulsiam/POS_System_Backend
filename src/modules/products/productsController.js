@@ -1,8 +1,7 @@
 import { validationResult } from "express-validator";
 import { sendError, sendSuccess } from "../../utils/response.js";
-import { getNotificationsService } from "../notifications/notificationService.js";
+import { checkAndCreateAlerts, getNotificationsService } from "../notifications/notificationService.js";
 import {
-  checkAndCreateAlerts,
   createProductService,
   deleteProductImageService,
   deleteProductService,

@@ -105,11 +105,11 @@ export const createSale = async (body, user, ip, userAgent) => {
   }
 
   // Start transaction
+  let subtotal = 0;
+  let totalTax = 0;
+  const saleItemsData = [];
+  const alertProductIds = [];
   const result = await prisma.$transaction(async (tx) => {
-    let subtotal = 0;
-    let totalTax = 0;
-    const saleItemsData = [];
-
     for (const item of items) {
       const product = await tx.product.findUnique({
         where: { id: item.productId, isActive: true },
@@ -152,13 +152,13 @@ export const createSale = async (body, user, ip, userAgent) => {
           where: { id: variant.id },
           data: { stockQuantity: { decrement: item.quantity } },
         });
-        await checkAndCreateAlerts(variant.id);
+        alertProductIds.push(variant.id);
       } else {
         await tx.product.update({
           where: { id: item.productId },
           data: { stockQuantity: { decrement: item.quantity } },
         });
-        await checkAndCreateAlerts(item.productId);
+        alertProductIds.push(item.productId);
       }
       await tx.stockMovement.create({
         data: {
@@ -208,21 +208,24 @@ export const createSale = async (body, user, ip, userAgent) => {
         paymentSplits: paymentMethod === "MIXED",
       },
     });
-    if (customerId) {
-      await handleLoyaltyAfterSale({ customerId, finalAmount, saleId: sale.id });
-    }
-    return sale;
+    return { sale, finalAmount };
   });
-
+  // Run alerts and loyalty logic outside transaction
+  for (const pid of alertProductIds) {
+    checkAndCreateAlerts(pid);
+  }
+  if (customerId) {
+    handleLoyaltyAfterSale({ customerId, finalAmount: result.finalAmount, saleId: result.sale.id });
+  }
   logAudit({
     userId: user.id,
     action: "CREATE",
     entity: "Sale",
-    entityId: result.id,
+    entityId: result.sale.id,
     details: JSON.stringify({
-      receiptId: result.receiptId,
+      receiptId: result.sale.receiptId,
       itemCount: items.length,
-      finalAmount: result.finalAmount,
+      finalAmount: result.sale.finalAmount,
       paymentMethod,
       splitPayments: paymentMethod === "MIXED" ? paymentSplits.length : 0,
     }),
@@ -230,7 +233,7 @@ export const createSale = async (body, user, ip, userAgent) => {
     userAgent: userAgent || "",
   });
 
-  return result;
+  return result.sale;
 };
 
 export const processReturn = async (id, body, user) => {
