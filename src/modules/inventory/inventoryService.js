@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { checkAndCreateAlerts } from "../notifications/notificationService.js";
 import { logAudit } from "../../utils/auditLogger.js";
 const prisma = new PrismaClient();
 
@@ -44,6 +45,7 @@ export async function createStockAdjustmentService(data, userId) {
         product: { select: { id: true, name: true, sku: true } },
       },
     });
+    await checkAndCreateAlerts(productId);
     return { movement, updatedStock: updatedProduct.stockQuantity };
   });
 }
@@ -86,6 +88,7 @@ export async function bulkStockUpdateService(updates, reason, userId) {
           },
         });
       }
+      await checkAndCreateAlerts(update.productId);
       results.push({
         productId: update.productId,
         productName: product.name,
@@ -174,6 +177,7 @@ export async function receivePurchaseOrderService(data, userId) {
         where: { id: receivedItem.productId },
         data: { stockQuantity: { increment: receivedItem.receivedQuantity } },
       });
+      await checkAndCreateAlerts(receivedItem.productId);
       await tx.stockMovement.create({
         data: {
           productId: receivedItem.productId,

@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { checkAndCreateAlerts } from "../notifications/notificationService.js";
 import { calculateTax, generateReceiptId, logAudit } from "../../utils/helpers.js";
 
 const prisma = new PrismaClient();
@@ -150,11 +151,13 @@ export const createSale = async (body, user, ip, userAgent) => {
           where: { id: variant.id },
           data: { stockQuantity: { decrement: item.quantity } },
         });
+        await checkAndCreateAlerts(variant.id);
       } else {
         await tx.product.update({
           where: { id: item.productId },
           data: { stockQuantity: { decrement: item.quantity } },
         });
+        await checkAndCreateAlerts(item.productId);
       }
       await tx.stockMovement.create({
         data: {
@@ -260,6 +263,7 @@ export const createSale = async (body, user, ip, userAgent) => {
     }
     return sale;
   });
+
   logAudit({
     userId: user.id,
     action: "CREATE",
@@ -275,55 +279,7 @@ export const createSale = async (body, user, ip, userAgent) => {
     ipAddress: ip,
     userAgent: userAgent || "",
   });
-  // Notification logic
-  try {
-    // Notify employee (creator)
-    await prisma.notification.create({
-      data: {
-        userId: user.id,
-        type: "SALE_CREATED",
-        title: `Sale Created: ${result.receiptId}`,
-        message: `Sale of $${result.finalAmount.toFixed(2)} for ${items.length} item(s) was successfully processed.`,
-        entityType: "Sale",
-        entityId: result.id,
-      },
-    });
-    // Notify customer (if present)
-    if (result.customerId) {
-      await prisma.notification.create({
-        data: {
-          userId: result.customerId,
-          type: "SALE_RECEIPT",
-          title: `Thank you for your purchase!`,
-          message: `Your purchase (${result.receiptId}) of $${result.finalAmount.toFixed(
-            2
-          )} is complete. Loyalty points have been updated.`,
-          entityType: "Sale",
-          entityId: result.id,
-        },
-      });
-    }
-    // Notify admin for high-value sales
-    const ADMIN_THRESHOLD = 1000; // Example threshold
-    if (result.finalAmount >= ADMIN_THRESHOLD) {
-      const admins = await prisma.employee.findMany({ where: { role: "ADMIN" } });
-      for (const admin of admins) {
-        await prisma.notification.create({
-          data: {
-            userId: admin.id,
-            type: "HIGH_VALUE_SALE",
-            title: `High Value Sale: ${result.receiptId}`,
-            message: `A sale of $${result.finalAmount.toFixed(2)} was processed by ${user.name || user.username}.`,
-            entityType: "Sale",
-            entityId: result.id,
-          },
-        });
-      }
-    }
-  } catch (notifyErr) {
-    // Log but do not block sale completion
-    console.error("Notification error:", notifyErr);
-  }
+
   return result;
 };
 
