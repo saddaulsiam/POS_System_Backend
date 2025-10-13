@@ -186,7 +186,7 @@ function generateThermalReceipt(saleData, settings = {}) {
   if (settings.receiptFooterText) {
     receipt += center(settings.receiptFooterText, width) + "\n";
   } else {
-    receipt += center("Thank you for your business!", width) + "\n";
+    receipt += center("Thank you for your shopping!", width) + "\n";
   }
 
   if (settings.returnPolicy) {
