@@ -26,7 +26,7 @@ export async function getStockMovementsService({ page, limit, productId, movemen
 
 export async function createStockAdjustmentService(data, userId) {
   const { productId, quantity, movementType, reason } = data;
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const product = await tx.product.findUnique({ where: { id: productId } });
     if (!product) throw new Error("Product not found");
     const updatedProduct = await tx.product.update({
@@ -45,9 +45,16 @@ export async function createStockAdjustmentService(data, userId) {
         product: { select: { id: true, name: true, sku: true } },
       },
     });
-    await checkAndCreateAlerts(productId);
     return { movement, updatedStock: updatedProduct.stockQuantity };
   });
+
+  try {
+    await checkAndCreateAlerts(productId);
+  } catch (err) {
+    console.error("Failed to check/create alerts after stock adjustment:", err);
+  }
+
+  return result;
 }
 
 export async function getInventorySummaryService() {
@@ -70,7 +77,8 @@ export async function getInventorySummaryService() {
 }
 
 export async function bulkStockUpdateService(updates, reason, userId) {
-  return prisma.$transaction(async (tx) => {
+  // Perform DB updates inside a transaction, but defer alert checks until after the transaction
+  const res = await prisma.$transaction(async (tx) => {
     const results = [];
     for (const update of updates) {
       const product = await tx.product.findUnique({ where: { id: update.productId } });
@@ -88,7 +96,6 @@ export async function bulkStockUpdateService(updates, reason, userId) {
           },
         });
       }
-      await checkAndCreateAlerts(update.productId);
       results.push({
         productId: update.productId,
         productName: product.name,
@@ -99,6 +106,15 @@ export async function bulkStockUpdateService(updates, reason, userId) {
     }
     return { message: `Updated stock for ${results.length} products`, updates: results };
   });
+
+  // Run alerts after transaction completes
+  try {
+    await Promise.all(res.updates.map((u) => checkAndCreateAlerts(u.productId)));
+  } catch (err) {
+    console.error("Failed to check/create alerts after bulk stock update:", err);
+  }
+
+  return res;
 }
 
 export async function stockTransferService(data, userId) {
@@ -163,7 +179,11 @@ export async function resolveStockAlertService(id, userId) {
 
 export async function receivePurchaseOrderService(data, userId) {
   const { purchaseOrderId, items } = data;
-  return prisma.$transaction(async (tx) => {
+
+  // Collect productIds to check alerts after transaction
+  const productIdsToCheck = new Set();
+
+  const result = await prisma.$transaction(async (tx) => {
     const po = await tx.purchaseOrder.findUnique({ where: { id: purchaseOrderId }, include: { items: true } });
     if (!po) throw new Error("Purchase order not found");
     for (const receivedItem of items) {
@@ -177,7 +197,8 @@ export async function receivePurchaseOrderService(data, userId) {
         where: { id: receivedItem.productId },
         data: { stockQuantity: { increment: receivedItem.receivedQuantity } },
       });
-      await checkAndCreateAlerts(receivedItem.productId);
+      // mark for alert check after transaction
+      productIdsToCheck.add(receivedItem.productId);
       await tx.stockMovement.create({
         data: {
           productId: receivedItem.productId,
@@ -199,6 +220,15 @@ export async function receivePurchaseOrderService(data, userId) {
       include: { supplier: true, items: { include: { product: true } } },
     });
   });
+
+  // Run alert checks after the transaction completes
+  try {
+    await Promise.all(Array.from(productIdsToCheck).map((pid) => checkAndCreateAlerts(pid)));
+  } catch (err) {
+    console.error("Failed to check/create alerts after receiving purchase order:", err);
+  }
+
+  return result;
 }
 
 export async function getPurchaseOrdersService(query) {

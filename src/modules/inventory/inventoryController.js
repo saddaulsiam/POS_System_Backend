@@ -17,7 +17,7 @@ export async function getStockMovements(req, res) {
       startDate,
       endDate,
     });
-    sendSuccess(res, movements);
+    sendSuccess(res, { movements });
   } catch (err) {
     console.error("Get stock movements error:", err);
     sendError(res, "Failed to fetch stock movements", 500, err.message);
