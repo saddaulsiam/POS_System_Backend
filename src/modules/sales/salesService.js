@@ -93,6 +93,7 @@ export const createSale = async (body, user, ip, userAgent) => {
     discountReason,
     paymentSplits,
     notes,
+    loyaltyDiscount = 0,
   } = body;
   const employeeId = user.id;
 
@@ -170,7 +171,7 @@ export const createSale = async (body, user, ip, userAgent) => {
         },
       });
     }
-    const finalAmount = subtotal + totalTax - discountAmount;
+    const finalAmount = subtotal + totalTax - discountAmount - loyaltyDiscount;
     const receiptId = generateReceiptId();
     if (paymentMethod === "MIXED") {
       const totalSplitAmount = paymentSplits.reduce((sum, split) => sum + split.amount, 0);
@@ -205,6 +206,7 @@ export const createSale = async (body, user, ip, userAgent) => {
         subtotal,
         taxAmount: totalTax,
         discountAmount,
+        loyaltyDiscount,
         discountReason,
         finalAmount,
         paymentMethod,
@@ -616,6 +618,7 @@ export const voidSale = async (id, body, user) => {
       for (const item of sale.items) {
         if (item.variantId) {
           await tx.productVariant.update({
+            loyaltyDiscount,
             where: { id: item.variantId },
             data: { stock: { increment: item.quantity } },
           });

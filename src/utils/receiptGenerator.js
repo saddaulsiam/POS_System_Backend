@@ -1,8 +1,5 @@
-const PDFDocument = require("pdfkit");
+import PDFDocument from "pdfkit";
 
-/**
- * Helper to get a valid name from firstName/lastName or name field
- */
 function getValidName(obj) {
   if (!obj) return "N/A";
   let first = obj.firstName && obj.firstName !== "undefined" ? obj.firstName.trim() : "";
@@ -26,12 +23,6 @@ function getValidName(obj) {
   return full;
 }
 
-/**
- * Generate a PDF receipt for a sale
- * @param {Object} saleData - Complete sale data with items, customer, employee
- * @param {Object} settings - Store settings (name, address, etc.)
- * @returns {PDFDocument} PDF document stream
- */
 function generatePDFReceipt(saleData, settings = {}) {
   const doc = new PDFDocument({ size: "A4", margin: 50 });
 
@@ -87,15 +78,72 @@ function generatePDFReceipt(saleData, settings = {}) {
   doc.moveDown();
 
   // ...existing code...
+  // Totals
+  doc.moveDown();
+  doc
+    .fontSize(12)
+    .font("Helvetica-Bold")
+    .text(`Subtotal: ${storeSettings.currencySymbol || "$"}${saleData.subtotal.toFixed(2)}`);
+  if (saleData.loyaltyDiscount && saleData.loyaltyDiscount > 0) {
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .text(`Loyalty Discount: -${storeSettings.currencySymbol || "$"}${saleData.loyaltyDiscount.toFixed(2)}`);
+  }
+  if (saleData.discountAmount > 0) {
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .text(`Discount: -${storeSettings.currencySymbol || "$"}${saleData.discountAmount.toFixed(2)}`);
+  }
+  doc
+    .fontSize(12)
+    .font("Helvetica-Bold")
+    .text(`Tax: ${storeSettings.currencySymbol || "$"}${saleData.taxAmount.toFixed(2)}`);
+  doc
+    .fontSize(14)
+    .font("Helvetica-Bold")
+    .text(`TOTAL: ${storeSettings.currencySymbol || "$"}${saleData.finalAmount.toFixed(2)}`);
+
+  // Payment section (same logic as thermal)
+  doc.moveDown();
+  let cashPayment = null;
+  if (saleData.paymentSplits && saleData.paymentSplits.length > 0) {
+    doc.fontSize(12).font("Helvetica-Bold").text("Payment:");
+    saleData.paymentSplits.forEach((split) => {
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(`${split.paymentMethod}: ${storeSettings.currencySymbol || "$"}${split.amount.toFixed(2)}`);
+      if (split.paymentMethod === "CASH") cashPayment = split;
+    });
+  } else {
+    if (saleData.paymentMethod === "CARD") {
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(
+          `${saleData.paymentMethod} PAID: ${storeSettings.currencySymbol || "$"}${saleData.finalAmount.toFixed(2)}`
+        );
+      if (saleData.paymentMethod === "CASH") cashPayment = { amount: saleData.finalAmount };
+    }
+  }
+  if ((saleData.paymentMethod === "CASH" || cashPayment) && saleData.cashReceived != null) {
+    doc
+      .fontSize(12)
+      .font("Helvetica")
+      .text(`Cash Received: ${storeSettings.currencySymbol || "$"}${Number(saleData.cashReceived).toFixed(2)}`);
+    if (saleData.changeGiven != null) {
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(`Change Amount: ${storeSettings.currencySymbol || "$"}${Number(saleData.changeGiven).toFixed(2)}`);
+    }
+  }
+  // ...existing code...
   return doc;
 }
 
-/**
- * Generate thermal receipt (80mm format) for direct printing
- * @param {Object} saleData - Complete sale data
- * @param {Object} settings - Store settings
- * @returns {string} ESC/POS formatted text
- */
 function generateThermalReceipt(saleData, settings = {}) {
   // Use dynamic currency symbol
   const currency = settings.currencySymbol || "$";
@@ -154,6 +202,10 @@ function generateThermalReceipt(saleData, settings = {}) {
 
   // Totals section
   receipt += formatLine("Subtotal:", `${currency}${saleData.subtotal.toFixed(2)}`, width) + "\n";
+  // Show loyalty discount as a separate line if present
+  if (saleData.loyaltyDiscount && saleData.loyaltyDiscount > 0) {
+    receipt += formatLine("Loyalty Discount:", `(-)${currency}${saleData.loyaltyDiscount.toFixed(2)}`, width) + "\n";
+  }
   if (saleData.discountAmount > 0) {
     receipt += formatLine("Discount:", `-${currency}${saleData.discountAmount.toFixed(2)}`, width) + "\n";
   }
@@ -165,14 +217,27 @@ function generateThermalReceipt(saleData, settings = {}) {
   receipt += "=".repeat(width) + "\n";
 
   // Payment
+  let cashPayment = null;
   if (saleData.paymentSplits && saleData.paymentSplits.length > 0) {
     receipt += "Payment:\n";
     saleData.paymentSplits.forEach((split) => {
-      receipt += formatLine(`  ${split.paymentMethod}`, `${currency}${split.amount.toFixed(2)}`, width) + "\n";
+      receipt += formatLine(`${split.paymentMethod}`, `${currency}${split.amount.toFixed(2)}`, width) + "\n";
+      if (split.paymentMethod === "CASH") cashPayment = split;
     });
   } else {
-    receipt +=
-      formatLine(`Payment (${saleData.paymentMethod}):`, `${currency}${saleData.finalAmount.toFixed(2)}`, width) + "\n";
+    if (saleData.paymentMethod === "CARD") {
+      receipt +=
+        formatLine(`${saleData.paymentMethod} PAID:`, `${currency}${saleData.finalAmount.toFixed(2)}`, width) + "\n";
+      if (saleData.paymentMethod === "CASH") cashPayment = { amount: saleData.finalAmount };
+    }
+  }
+
+  // Show cash received and change if payment is/was CASH
+  if ((saleData.paymentMethod === "CASH" || cashPayment) && saleData.cashReceived != null) {
+    receipt += formatLine("Cash Received:", `${currency}${Number(saleData.cashReceived).toFixed(2)}`, width) + "\n";
+    if (saleData.changeGiven != null) {
+      receipt += formatLine("Change Amount:", `${currency}${Number(saleData.changeGiven).toFixed(2)}`, width) + "\n";
+    }
   }
 
   // Loyalty points
@@ -242,12 +307,6 @@ function truncate(str, length) {
   return str.length > length ? str.substring(0, length - 3) + "..." : str;
 }
 
-/**
- * Generate HTML receipt for email
- * @param {Object} saleData - Complete sale data
- * @param {Object} settings - Store settings
- * @returns {string} HTML content
- */
 function generateHTMLReceipt(saleData, settings = {}) {
   const storeSettings = {
     name: settings.storeName || "POS System",
@@ -337,6 +396,16 @@ function generateHTMLReceipt(saleData, settings = {}) {
       <div class="totals-label">Subtotal:</div>
   <div>${currency}${saleData.subtotal.toFixed(2)}</div>
     </div>
+      ${
+        saleData.loyaltyDiscount && saleData.loyaltyDiscount > 0
+          ? `
+      <div class="totals-row">
+        <div class="totals-label">Loyalty Discount:</div>
+    <div>-${currency}${saleData.loyaltyDiscount.toFixed(2)}</div>
+      </div>
+      `
+          : ""
+      }
     ${
       saleData.discountAmount > 0
         ? `
@@ -360,13 +429,28 @@ function generateHTMLReceipt(saleData, settings = {}) {
 
   <div class="payment-info">
     <strong>Payment Details:</strong><br>
-    ${
-      saleData.paymentSplits && saleData.paymentSplits.length > 0
-        ? saleData.paymentSplits
-            .map((split) => `${split.paymentMethod}: ${currency}${split.amount.toFixed(2)}`)
-            .join("<br>")
-        : `${saleData.paymentMethod}: ${currency}${saleData.finalAmount.toFixed(2)}`
-    }
+    ${(() => {
+      let cashPayment = null;
+      let lines = [];
+      if (saleData.paymentSplits && saleData.paymentSplits.length > 0) {
+        saleData.paymentSplits.forEach((split) => {
+          lines.push(`${split.paymentMethod}: ${currency}${split.amount.toFixed(2)}`);
+          if (split.paymentMethod === "CASH") cashPayment = split;
+        });
+      } else {
+        if (saleData.paymentMethod === "CARD") {
+          lines.push(`${saleData.paymentMethod} PAID: ${currency}${saleData.finalAmount.toFixed(2)}`);
+          if (saleData.paymentMethod === "CASH") cashPayment = { amount: saleData.finalAmount };
+        }
+      }
+      if ((saleData.paymentMethod === "CASH" || cashPayment) && saleData.cashReceived != null) {
+        lines.push(`Cash Received: ${currency}${Number(saleData.cashReceived).toFixed(2)}`);
+        if (saleData.changeGiven != null) {
+          lines.push(`Change Amount: ${currency}${Number(saleData.changeGiven).toFixed(2)}`);
+        }
+      }
+      return lines.join("<br>");
+    })()}
     <br>
     Status: ${saleData.paymentStatus === "COMPLETED" ? "PAID IN FULL" : saleData.paymentStatus}
   </div>
@@ -395,8 +479,4 @@ function generateHTMLReceipt(saleData, settings = {}) {
   `.trim();
 }
 
-module.exports = {
-  generatePDFReceipt,
-  generateThermalReceipt,
-  generateHTMLReceipt,
-};
+export { generatePDFReceipt, generateThermalReceipt, generateHTMLReceipt };
