@@ -62,6 +62,7 @@ async function updateProduct(req, res) {
     const { id } = req.params;
     const product = await updateProductService(id, req.body);
     await checkAndCreateAlerts(product.id);
+    sendSuccess(res, product);
   } catch (error) {
     console.error("Update product error:", error);
     sendError(res, error.message || "Failed to update product", 500);
