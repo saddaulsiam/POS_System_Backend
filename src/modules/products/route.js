@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
-import { upload } from "../../utils/upload.js";
+import { uploadMemory } from "../../utils/upload.js";
 import {
   createProduct,
   deleteProduct,
@@ -37,7 +37,7 @@ router.post(
   "/:id/image",
   authenticateToken,
   authorizeRoles("ADMIN", "MANAGER"),
-  upload.single("image"),
+  uploadMemory.single("image"),
   uploadProductImage
 );
 

@@ -33,12 +33,22 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Create multer instance
+// Create multer instance (disk storage)
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB max file size
+  },
+});
+
+// Create memory-storage multer for direct uploads (e.g., Cloudinary)
+const memoryStorage = multer.memoryStorage();
+const uploadMemory = multer({
+  storage: memoryStorage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
   },
 });
 
@@ -60,5 +70,6 @@ const deleteImage = (imagePath) => {
 
 module.exports = {
   upload,
+  uploadMemory,
   deleteImage,
 };

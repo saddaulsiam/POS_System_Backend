@@ -2,6 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import bwipjs from "bwip-js";
 import ExcelJS from "exceljs";
 import { Parser } from "json2csv";
+import cloudinary from "../../utils/cloudinary.js";
+import { deleteImage } from "../../utils/upload.js";
 
 const prisma = new PrismaClient();
 
@@ -96,11 +98,53 @@ export async function uploadProductImageService(id, file) {
   if (!file) throw new Error("No image uploaded");
   const product = await prisma.product.findUnique({ where: { id: productId } });
   if (!product) throw new Error("Product not found");
-  // ...delete old image logic if needed...
-  const imagePath = `/uploads/products/${file.filename}`;
+  // If previous image was stored locally, delete it
+  try {
+    if (product.image && product.image.startsWith("/uploads")) {
+      deleteImage(product.image);
+    }
+  } catch (err) {
+    console.error("Error deleting old image:", err);
+  }
+
+  let imageUrl = null;
+
+  // If file.buffer exists, upload directly to Cloudinary
+  if (file.buffer) {
+    try {
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "pos/products", resource_type: "image" },
+          (error, res) => {
+            if (error) return reject(error);
+            resolve(res);
+          }
+        );
+        stream.end(file.buffer);
+      });
+      imageUrl = result.secure_url;
+    } catch (err) {
+      console.error("Cloudinary upload error:", err);
+      throw new Error("Failed to upload image to Cloudinary");
+    }
+  } else if (file.path) {
+    // If multer saved to disk (fallback), upload the file path to Cloudinary
+    try {
+      const res = await cloudinary.uploader.upload(file.path, { folder: "pos/products", resource_type: "image" });
+      imageUrl = res.secure_url;
+    } catch (err) {
+      console.error("Cloudinary upload error from path:", err);
+      // Fallback to local path if Cloudinary fails
+      imageUrl = `/uploads/products/${file.filename}`;
+    }
+  } else if (file.filename) {
+    // Fallback: keep local path
+    imageUrl = `/uploads/products/${file.filename}`;
+  }
+
   return await prisma.product.update({
     where: { id: productId },
-    data: { image: imagePath },
+    data: { image: imageUrl },
     include: { category: true, supplier: true },
   });
 }
