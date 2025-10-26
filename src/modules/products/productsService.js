@@ -33,10 +33,25 @@ export async function getProductsService({ page, limit, search, categoryId, isAc
 
 // Create a new product
 export async function createProductService(data, userId) {
+  // Auto-generate barcode if not provided
+  let barcode = data.barcode;
+  if (!barcode) {
+    let unique = false;
+    let attempt = 0;
+    while (!unique && attempt < 10) {
+      // Generate a random 12-digit numeric barcode
+      barcode = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join("");
+      const exists = await prisma.product.findUnique({ where: { barcode } });
+      if (!exists) unique = true;
+      attempt++;
+    }
+    if (!unique) throw new Error("Failed to generate unique barcode");
+    data.barcode = barcode;
+  }
   // Check for duplicate SKU/barcode
   const existing = await prisma.product.findFirst({
     where: {
-      OR: [{ sku: data.sku }, data.barcode ? { barcode: data.barcode } : {}],
+      OR: [{ sku: data.sku }, { barcode: data.barcode }],
     },
   });
   if (existing) throw new Error("SKU or barcode already exists");
