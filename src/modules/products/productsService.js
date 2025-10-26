@@ -10,7 +10,11 @@ const prisma = new PrismaClient();
 // Get paginated, filtered products
 export async function getProductsService({ page, limit, search, categoryId, isActive }) {
   const skip = (page - 1) * limit;
-  const where = { isDeleted: false };
+  const where = {};
+  // Only filter out deleted if showDeleted is not true
+  if (!arguments[0].showDeleted) {
+    where.isDeleted = false;
+  }
   if (search) {
     where.OR = [{ name: { contains: search } }, { sku: { contains: search } }, { barcode: { contains: search } }];
   }

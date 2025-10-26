@@ -30,7 +30,8 @@ async function listProducts(req, res) {
     const categoryId = req.query.categoryId ? parseInt(req.query.categoryId) : undefined;
     const isActive =
       req.query.isActive !== undefined ? req.query.isActive === "true" || req.query.isActive === true : undefined;
-    const result = await getProductsService({ page, limit, search, categoryId, isActive });
+    const showDeleted = req.query.showDeleted === "true" || req.query.showDeleted === true;
+    const result = await getProductsService({ page, limit, search, categoryId, isActive, showDeleted });
     sendSuccess(res, result);
   } catch (error) {
     console.error("List products error:", error);
