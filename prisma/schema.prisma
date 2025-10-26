@@ -55,6 +55,7 @@ model Product {
   lowStockThreshold Int                 @default(10)
   isWeighted        Boolean             @default(false)
   isActive          Boolean             @default(true)
+  isDeleted         Boolean             @default(false)
   taxRate           Float               @default(0)
   image             String?
   unit              String?             @default("pcs")

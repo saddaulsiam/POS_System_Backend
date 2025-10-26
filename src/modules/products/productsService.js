@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 // Get paginated, filtered products
 export async function getProductsService({ page, limit, search, categoryId, isActive }) {
   const skip = (page - 1) * limit;
-  const where = {};
+  const where = { isDeleted: false };
   if (search) {
     where.OR = [{ name: { contains: search } }, { sku: { contains: search } }, { barcode: { contains: search } }];
   }
@@ -95,7 +95,7 @@ export async function deleteProductService(id) {
   if (!product) throw new Error("Product not found");
   return await prisma.product.update({
     where: { id: productId },
-    data: { isActive: false },
+    data: { isActive: false, isDeleted: true },
   });
 }
 
