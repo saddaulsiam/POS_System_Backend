@@ -15,8 +15,10 @@ export async function getAllEmployees(req, res) {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return sendError(res, 400, errors.array());
     const includeInactive = req.query.includeInactive === "true";
-    const employees = await getAllEmployeesService(includeInactive);
-    sendSuccess(res, employees);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const result = await getAllEmployeesService({ includeInactive, page, limit });
+    sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to fetch employees");
   }

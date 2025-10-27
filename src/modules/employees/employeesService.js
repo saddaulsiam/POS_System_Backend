@@ -2,21 +2,36 @@ import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../../utils/helpers.js";
 const prisma = new PrismaClient();
 
-export async function getAllEmployeesService(includeInactive) {
+export async function getAllEmployeesService({ includeInactive, page = 1, limit = 20 }) {
   const where = includeInactive ? {} : { isActive: true };
-  return prisma.employee.findMany({
-    where,
-    select: {
-      id: true,
-      name: true,
-      username: true,
-      role: true,
-      isActive: true,
-      createdAt: true,
-      updatedAt: true,
+  const skip = (page - 1) * limit;
+  const [employees, total] = await Promise.all([
+    prisma.employee.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { name: "asc" },
+      skip,
+      take: limit,
+    }),
+    prisma.employee.count({ where }),
+  ]);
+  return {
+    data: employees,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     },
-    orderBy: { name: "asc" },
-  });
+  };
 }
 
 export async function getEmployeeByIdService(id) {
