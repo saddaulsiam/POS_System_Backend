@@ -13,7 +13,7 @@ async function getAll(req, res) {
 async function getCurrent(req, res) {
   try {
     const result = await cashDrawerService.getCurrent(req.user);
-    res.json(result);
+    res.json({ drawer: result });
   } catch (error) {
     console.error("Error fetching current drawer:", error);
     res.status(500).json({ error: "Failed to fetch current drawer" });

@@ -2,7 +2,6 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function getAll(query) {
-  // Fetch all cash drawers with optional pagination and filters
   const { page = 1, limit = 20, status, employeeId } = query;
   const where = {};
   if (status) where.status = status;
@@ -14,10 +13,29 @@ async function getAll(query) {
       skip,
       take: Number(limit),
       orderBy: { openedAt: "desc" },
+      include: { employee: true },
     }),
     prisma.cashDrawer.count({ where }),
   ]);
-  return { cashDrawers, total, page: Number(page), limit: Number(limit) };
+  const cashDrawersWithDifference = cashDrawers.map((drawer) => ({
+    ...drawer,
+    difference:
+      drawer.closingBalance !== null && drawer.openingBalance !== null
+        ? drawer.closingBalance - drawer.openingBalance
+        : null,
+  }));
+  return {
+    cashDrawers: cashDrawersWithDifference,
+    total,
+    page: Number(page),
+    limit: Number(limit),
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      pages: Math.ceil(total / limit),
+      total,
+    },
+  };
 }
 
 async function getCurrent(user) {
@@ -27,6 +45,7 @@ async function getCurrent(user) {
       employeeId: user.id,
       status: "OPEN",
     },
+    include: { employee: true },
     orderBy: { openedAt: "desc" },
   });
 }
@@ -44,7 +63,7 @@ async function openDrawer(user, body) {
   return await prisma.cashDrawer.create({
     data: {
       employeeId: user.id,
-      openingAmount: body.openingAmount,
+      openingBalance: body.openingBalance,
       openedAt: new Date(),
       status: "OPEN",
     },
@@ -60,10 +79,9 @@ async function closeDrawer(user, params, body) {
   return await prisma.cashDrawer.update({
     where: { id: Number(id) },
     data: {
-      closingAmount: body.closingAmount,
+      closingBalance: body.closingBalance,
       closedAt: new Date(),
       status: "CLOSED",
-      notes: body.notes || null,
     },
   });
 }
@@ -80,18 +98,52 @@ async function getById(user, params) {
 async function getReconciliation(user, params) {
   // Fetch reconciliation details for a drawer
   const { id } = params;
-  // Example: fetch transactions, calculate expected vs actual
   const drawer = await prisma.cashDrawer.findUnique({ where: { id: Number(id) } });
   if (!drawer) throw new Error("Cash drawer not found.");
-  // Assume transactions are linked to drawerId
-  const transactions = await prisma.transaction.findMany({ where: { drawerId: Number(id) } });
-  const expectedTotal = drawer.openingAmount + transactions.reduce((sum, t) => sum + t.amount, 0);
+
+  // Fetch sales for this employee during the drawer's shift
+  const sales = await prisma.sale.findMany({
+    where: {
+      employeeId: drawer.employeeId,
+      createdAt: {
+        gte: drawer.openedAt,
+        lte: drawer.closedAt ?? new Date(),
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Calculate totals and payment breakdown
+  const totalSales = sales.reduce((sum, sale) => sum + sale.finalAmount, 0);
+  const paymentBreakdown = {
+    cash: sales.filter((s) => s.paymentMethod === "CASH").reduce((sum, s) => sum + s.finalAmount, 0),
+    card: sales.filter((s) => s.paymentMethod === "CARD").reduce((sum, s) => sum + s.finalAmount, 0),
+    mobile: sales.filter((s) => s.paymentMethod === "MOBILE").reduce((sum, s) => sum + s.finalAmount, 0),
+    other: sales
+      .filter((s) => !["CASH", "CARD", "MOBILE"].includes(s.paymentMethod))
+      .reduce((sum, s) => sum + s.finalAmount, 0),
+  };
+
+  // Expected cash balance = openingBalance + cash sales
+  const expectedCashBalance = drawer.openingBalance + paymentBreakdown.cash;
+
+  // Recent transactions (last 5 sales)
+  const recentTransactions = sales.slice(0, 5).map((sale) => ({
+    receiptId: sale.receiptId,
+    finalAmount: sale.finalAmount,
+    paymentMethod: sale.paymentMethod,
+    createdAt: sale.createdAt,
+  }));
+
   return {
     drawer,
-    transactions,
-    expectedTotal,
-    actualTotal: drawer.closingAmount || null,
-    discrepancy: drawer.closingAmount ? drawer.closingAmount - expectedTotal : null,
+    sales: sales.length,
+    totalSales,
+    paymentBreakdown,
+    expectedCashBalance,
+    actualBalance: drawer.closingBalance || null,
+    difference: drawer.closingBalance !== null ? drawer.closingBalance - expectedCashBalance : null,
+    recentTransactions,
   };
 }
 
@@ -104,7 +156,7 @@ async function getSummary(query) {
   // Discrepancy: count drawers with nonzero discrepancy
   const drawers = await prisma.cashDrawer.findMany({ where: { status: "CLOSED" } });
   const discrepancies = drawers.filter(
-    (d) => d.closingAmount !== null && d.openingAmount !== null && d.closingAmount !== d.openingAmount
+    (d) => d.closingBalance !== null && d.openingBalance !== null && d.closingBalance !== d.openingBalance
   ).length;
   return {
     totalOpened,
