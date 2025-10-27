@@ -1,6 +1,6 @@
 import express from "express";
-import * as productVariantsController from "./productVariantsController.js";
 import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
+import * as productVariantsController from "./productVariantsController.js";
 import {
   createVariantValidator,
   deleteVariantValidator,
@@ -10,30 +10,30 @@ import {
 
 const router = express.Router();
 
-router.get("/", authenticateToken, productVariantsController.getAllVariants);
+router
+  .route("/")
+  .get(authenticateToken, productVariantsController.getAllVariants)
+  .post(
+    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...createVariantValidator],
+    productVariantsController.createVariant
+  );
+
+router
+  .route("/:id")
+  .get(authenticateToken, productVariantsController.getVariantById)
+  .put(
+    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...updateVariantValidator],
+    productVariantsController.updateVariant
+  )
+  .delete(
+    [authenticateToken, authorizeRoles("ADMIN"), ...deleteVariantValidator],
+    productVariantsController.deleteVariant
+  );
 
 router.get(
   "/product/:productId",
   [authenticateToken, ...productIdParamValidator],
   productVariantsController.getVariantsByProduct
-);
-
-router.post(
-  "/",
-  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...createVariantValidator],
-  productVariantsController.createVariant
-);
-
-router.put(
-  "/:id",
-  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...updateVariantValidator],
-  productVariantsController.updateVariant
-);
-
-router.delete(
-  "/:id",
-  [authenticateToken, authorizeRoles("ADMIN"), ...deleteVariantValidator],
-  productVariantsController.deleteVariant
 );
 
 router.get("/lookup/:identifier", authenticateToken, productVariantsController.lookupVariant);

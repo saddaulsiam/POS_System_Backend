@@ -1,6 +1,20 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
+export const getVariantById = async (id) => {
+  return await prisma.productVariant.findUnique({
+    where: { id },
+    include: {
+      product: {
+        include: {
+          category: true,
+          supplier: true,
+        },
+      },
+    },
+  });
+};
+
 export const getAllVariants = async () => {
   return await prisma.productVariant.findMany({
     include: {

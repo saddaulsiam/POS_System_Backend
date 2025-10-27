@@ -2,6 +2,20 @@ import { validationResult } from "express-validator";
 import { sendSuccess, sendError } from "../../utils/response.js";
 import * as productVariantsService from "./productVariantsService.js";
 
+export const getVariantById = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const variant = await productVariantsService.getVariantById(id);
+    if (!variant) {
+      return sendError(res, "Variant not found", 404);
+    }
+    sendSuccess(res, variant);
+  } catch (error) {
+    console.error("Get variant by ID error:", error);
+    sendError(res, "Failed to fetch variant", 500);
+  }
+};
+
 export const getAllVariants = async (req, res) => {
   try {
     const variants = await productVariantsService.getAllVariants();
