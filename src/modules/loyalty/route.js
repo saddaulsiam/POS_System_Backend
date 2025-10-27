@@ -1,6 +1,6 @@
 import express from "express";
-import * as loyaltyController from "./loyaltyController.js";
 import { authenticateToken, authorizeRoles, optionalAuth } from "../../middleware/auth.js";
+import * as loyaltyController from "./loyaltyController.js";
 import {
   awardPointsValidator,
   createOfferValidator,

@@ -1,6 +1,6 @@
 import express from "express";
-import * as reportsController from "./reportsController.js";
 import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
+import * as reportsController from "./reportsController.js";
 import {
   dailySalesValidator,
   employeePerformanceValidator,

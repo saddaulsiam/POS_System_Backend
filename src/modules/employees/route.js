@@ -1,6 +1,6 @@
 import express from "express";
-import * as employeesController from "./employeesController.js";
 import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
+import * as employeesController from "./employeesController.js";
 import {
   createEmployeeValidator,
   getAllEmployeesValidator,
@@ -11,29 +11,25 @@ import {
 
 const router = express.Router();
 
-// Get all employees
-router.get(
-  "/",
-  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...getAllEmployeesValidator],
-  employeesController.getAllEmployees
-);
+router
+  .route("/")
+  .post(
+    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...createEmployeeValidator],
+    employeesController.createEmployee
+  )
+  .get(
+    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...getAllEmployeesValidator],
+    employeesController.getAllEmployees
+  );
 
-// Get employee by ID
-router.get("/:id", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], employeesController.getEmployeeById);
-
-// Create new employee
-router.post(
-  "/",
-  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...createEmployeeValidator],
-  employeesController.createEmployee
-);
-
-// Update employee
-router.put(
-  "/:id",
-  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...updateEmployeeValidator],
-  employeesController.updateEmployee
-);
+router
+  .route("/:id")
+  .get([authenticateToken, authorizeRoles("ADMIN", "MANAGER")], employeesController.getEmployeeById)
+  .put(
+    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...updateEmployeeValidator],
+    employeesController.updateEmployee
+  )
+  .delete([authenticateToken, authorizeRoles("ADMIN", "MANAGER")], employeesController.deactivateEmployee);
 
 // Reset employee PIN
 router.put(
@@ -48,8 +44,5 @@ router.get(
   [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...getEmployeePerformanceValidator],
   employeesController.getEmployeePerformance
 );
-
-// Deactivate employee (soft delete)
-router.delete("/:id", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], employeesController.deactivateEmployee);
 
 export const EmployeeRoutes = router;

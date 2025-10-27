@@ -1,6 +1,6 @@
 import express from "express";
-import * as quickSaleItemsController from "./quickSaleItemsController.js";
 import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
+import * as quickSaleItemsController from "./quickSaleItemsController.js";
 import {
   createQuickSaleItemValidator,
   deleteQuickSaleItemValidator,
@@ -9,24 +9,23 @@ import {
 
 const router = express.Router();
 
-router.get("/", authenticateToken, quickSaleItemsController.getAllQuickSaleItems);
+router
+  .route("/")
+  .get(authenticateToken, quickSaleItemsController.getAllQuickSaleItems)
+  .post(
+    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...createQuickSaleItemValidator],
+    quickSaleItemsController.createQuickSaleItem
+  );
 
-router.post(
-  "/",
-  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...createQuickSaleItemValidator],
-  quickSaleItemsController.createQuickSaleItem
-);
-
-router.put(
-  "/:id",
-  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...updateQuickSaleItemValidator],
-  quickSaleItemsController.updateQuickSaleItem
-);
-
-router.delete(
-  "/:id",
-  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...deleteQuickSaleItemValidator],
-  quickSaleItemsController.deleteQuickSaleItem
-);
+router
+  .route("/:id")
+  .put(
+    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...updateQuickSaleItemValidator],
+    quickSaleItemsController.updateQuickSaleItem
+  )
+  .delete(
+    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...deleteQuickSaleItemValidator],
+    quickSaleItemsController.deleteQuickSaleItem
+  );
 
 export const QuickSaleItemsRoutes = router;

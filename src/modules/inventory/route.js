@@ -1,7 +1,5 @@
 import express from "express";
 import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
-import { inventoryValidators } from "./inventoryValidators.js";
-
 import {
   bulkStockUpdate,
   cancelPurchaseOrder,
@@ -19,6 +17,7 @@ import {
   stockTransfer,
   updatePurchaseOrder,
 } from "./inventoryController.js";
+import { inventoryValidators } from "./inventoryValidators.js";
 
 const router = express.Router();
 

@@ -1,18 +1,18 @@
 import express from "express";
+import { authenticateToken } from "../../middleware/auth.js";
 import { deleteNotification, getAllNotifications, markNotificationAsRead } from "./notificationController.js";
-// import { authenticateToken } from "../../middleware/auth.js";
 
 const router = express.Router();
 
-// router.use(authenticateToken);
+router.use(authenticateToken);
 
 // Get all notifications
 router.get("/", getAllNotifications);
 
-// Mark notification as read
-router.post("/:id/read", markNotificationAsRead);
-
 // Delete notification
 router.delete("/:id", deleteNotification);
+
+// Mark notification as read
+router.post("/:id/read", markNotificationAsRead);
 
 export const NotificationRoutes = router;

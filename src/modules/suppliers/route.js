@@ -1,4 +1,5 @@
 import express from "express";
+import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
 import {
   createSupplier,
   deleteSupplier,
@@ -6,26 +7,20 @@ import {
   getSuppliers,
   updateSupplier,
 } from "./suppliersController.js";
-import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
 
 const router = express.Router();
 
-// Apply authentication to all routes
 router.use(authenticateToken);
 
-// GET /api/suppliers
-router.get("/", authorizeRoles("ADMIN", "MANAGER"), getSuppliers);
+router
+  .route("/")
+  .get(authorizeRoles("ADMIN", "MANAGER"), getSuppliers)
+  .post(authorizeRoles("ADMIN", "MANAGER"), createSupplier);
 
-// GET /api/suppliers/:id
-router.get("/:id", authorizeRoles("ADMIN", "MANAGER"), getSupplierById);
-
-// POST /api/suppliers
-router.post("/", authorizeRoles("ADMIN", "MANAGER"), createSupplier);
-
-// PUT /api/suppliers/:id
-router.put("/:id", authorizeRoles("ADMIN", "MANAGER"), updateSupplier);
-
-// DELETE /api/suppliers/:id
-router.delete("/:id", authorizeRoles("ADMIN"), deleteSupplier);
+router
+  .route("/:id")
+  .get(authorizeRoles("ADMIN", "MANAGER"), getSupplierById)
+  .put(authorizeRoles("ADMIN", "MANAGER"), updateSupplier)
+  .delete(authorizeRoles("ADMIN"), deleteSupplier);
 
 export const SuppliersRoutes = router;

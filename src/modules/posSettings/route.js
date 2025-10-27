@@ -4,8 +4,9 @@ import * as posSettingsController from "./posSettingsController.js";
 
 const router = express.Router();
 
-router.get("/", authenticateToken, posSettingsController.getSettings);
-
-router.put("/", [authenticateToken, authorizeRoles("ADMIN")], posSettingsController.updateSettings);
+router
+  .route("/")
+  .get(authenticateToken, posSettingsController.getSettings)
+  .put([authenticateToken, authorizeRoles("ADMIN", "MANAGER")], posSettingsController.updateSettings);
 
 export const PosSettingsRoutes = router;

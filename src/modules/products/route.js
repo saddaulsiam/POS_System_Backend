@@ -22,27 +22,31 @@ import productsValidator from "./productsValidator.js";
 const router = express.Router();
 const csvUpload = multer({ storage: multer.memoryStorage() });
 
-// Get all products with pagination and filtering
-router.get("/", [authenticateToken, ...productsValidator.list], listProducts);
+router
+  .route("/")
+  .get([authenticateToken, ...productsValidator.list], listProducts)
+  .post([authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...productsValidator.create], createProduct);
 
-router.post("/", [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...productsValidator.create], createProduct);
+router
+  .route("/:id")
+  .get(authenticateToken, getProductById)
+  .put([authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...productsValidator.update], updateProduct)
+  .delete([authenticateToken, authorizeRoles("ADMIN", "MANAGER")], deleteProduct);
 
-router.put("/:id", [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...productsValidator.update], updateProduct);
+router
+  .route("/:id/image")
+  .post(authenticateToken, authorizeRoles("ADMIN", "MANAGER"), uploadMemory.single("image"), uploadProductImage)
+  .delete(authenticateToken, authorizeRoles("ADMIN", "MANAGER"), deleteProductImage);
 
-// Delete product
-router.delete("/:id", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], deleteProduct);
-
-// Upload product image
+// Regenerate product barcode
 router.post(
-  "/:id/image",
-  authenticateToken,
-  authorizeRoles("ADMIN", "MANAGER"),
-  uploadMemory.single("image"),
-  uploadProductImage
+  "/:id/barcode/regenerate",
+  [authenticateToken, authorizeRoles("ADMIN", "MANAGER")],
+  regenerateProductBarcode
 );
 
-// Delete product image
-router.delete("/:id/image", authenticateToken, authorizeRoles("ADMIN", "MANAGER"), deleteProductImage);
+// Get product barcode
+router.get("/:id/barcode", getProductBarcode);
 
 // Export products as CSV
 router.get("/export", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], exportProductsCSV);
@@ -63,18 +67,5 @@ router.post(
   [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), csvUpload.single("file")],
   importProductsExcel
 );
-
-// Get product barcode
-router.get("/:id/barcode", getProductBarcode);
-
-// Regenerate product barcode
-router.post(
-  "/:id/barcode/regenerate",
-  [authenticateToken, authorizeRoles("ADMIN", "MANAGER")],
-  regenerateProductBarcode
-);
-
-// Get product by ID
-router.get("/:id", authenticateToken, getProductById);
 
 export const ProductRoutes = router;
