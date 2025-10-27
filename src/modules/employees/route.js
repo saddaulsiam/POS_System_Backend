@@ -1,4 +1,5 @@
 import express from "express";
+import multer from "multer";
 import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
 import * as employeesController from "./employeesController.js";
 import {
@@ -10,6 +11,7 @@ import {
 } from "./employeesValidator.js";
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 router
   .route("/")
@@ -43,6 +45,15 @@ router.get(
   "/:id/performance",
   [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...getEmployeePerformanceValidator],
   employeesController.getEmployeePerformance
+);
+
+// Upload employee photo
+router.post(
+  "/:id/photo",
+  authenticateToken,
+  authorizeRoles("ADMIN", "MANAGER"),
+  upload.single("photo"),
+  employeesController.uploadEmployeePhoto
 );
 
 export const EmployeeRoutes = router;

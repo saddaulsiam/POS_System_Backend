@@ -5,6 +5,13 @@ export const createEmployeeValidator = [
   body("username").notEmpty().trim().withMessage("Username is required"),
   body("pinCode").isLength({ min: 4, max: 6 }).withMessage("PIN must be 4-6 digits"),
   body("role").isIn(["ADMIN", "MANAGER", "CASHIER", "STAFF"]).withMessage("Invalid role"),
+  body("email").optional().isEmail().withMessage("Invalid email address"),
+  body("phone").optional().isString().trim(),
+  body("photo").optional().isString().trim(),
+  body("joinedDate").optional().isISO8601().withMessage("Joined date must be a valid date"),
+  body("salary").optional().isFloat({ min: 0 }).withMessage("Salary must be a positive number"),
+  body("contractDetails").optional().isString().trim(),
+  body("notes").optional().isString().trim(),
 ];
 
 export const updateEmployeeValidator = [
@@ -12,6 +19,13 @@ export const updateEmployeeValidator = [
   body("username").optional().notEmpty().trim().withMessage("Username cannot be empty"),
   body("role").optional().isIn(["ADMIN", "MANAGER", "CASHIER", "STAFF"]).withMessage("Invalid role"),
   body("isActive").optional().isBoolean().withMessage("isActive must be a boolean"),
+  body("email").optional().isEmail().withMessage("Invalid email address"),
+  body("phone").optional().isString().trim(),
+  body("photo").optional().isString().trim(),
+  body("joinedDate").optional().isISO8601().withMessage("Joined date must be a valid date"),
+  body("salary").optional().isFloat({ min: 0 }).withMessage("Salary must be a positive number"),
+  body("contractDetails").optional().isString().trim(),
+  body("notes").optional().isString().trim(),
 ];
 
 export const resetPinValidator = [

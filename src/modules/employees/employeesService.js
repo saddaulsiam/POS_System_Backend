@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import cloudinary from "../../utils/cloudinary.js";
 import { hashPassword } from "../../utils/helpers.js";
 const prisma = new PrismaClient();
 
@@ -12,6 +13,13 @@ export async function getAllEmployeesService({ includeInactive, page = 1, limit 
         id: true,
         name: true,
         username: true,
+        email: true,
+        phone: true,
+        photo: true,
+        joinedDate: true,
+        salary: true,
+        contractDetails: true,
+        notes: true,
         role: true,
         isActive: true,
         createdAt: true,
@@ -42,6 +50,13 @@ export async function getEmployeeByIdService(id) {
       id: true,
       name: true,
       username: true,
+      email: true,
+      phone: true,
+      photo: true,
+      joinedDate: true,
+      salary: true,
+      contractDetails: true,
+      notes: true,
       role: true,
       isActive: true,
       createdAt: true,
@@ -77,7 +92,8 @@ export async function getEmployeeByIdService(id) {
   };
 }
 
-export async function createEmployeeService({ name, username, pinCode, role }) {
+export async function createEmployeeService(data) {
+  const { name, username, pinCode, role, email, phone, photo, joinedDate, salary, contractDetails, notes } = data;
   const existing = await prisma.employee.findUnique({ where: { username: username.trim() } });
   if (existing) throw new Error("Username already exists");
   const hashedPin = await hashPassword(pinCode);
@@ -87,11 +103,25 @@ export async function createEmployeeService({ name, username, pinCode, role }) {
       username: username.trim(),
       pinCode: hashedPin,
       role,
+      email,
+      phone,
+      photo,
+      joinedDate: joinedDate ? new Date(joinedDate) : undefined,
+      salary,
+      contractDetails,
+      notes,
     },
     select: {
       id: true,
       name: true,
       username: true,
+      email: true,
+      phone: true,
+      photo: true,
+      joinedDate: true,
+      salary: true,
+      contractDetails: true,
+      notes: true,
       role: true,
       isActive: true,
       createdAt: true,
@@ -118,6 +148,7 @@ export async function updateEmployeeService(id, data, user) {
   if (updateData.pinCode) {
     updateData.pinCode = await hashPassword(updateData.pinCode);
   }
+  if (updateData.joinedDate) updateData.joinedDate = new Date(updateData.joinedDate);
   return prisma.employee.update({
     where: { id: employeeId },
     data: updateData,
@@ -125,6 +156,13 @@ export async function updateEmployeeService(id, data, user) {
       id: true,
       name: true,
       username: true,
+      email: true,
+      phone: true,
+      photo: true,
+      joinedDate: true,
+      salary: true,
+      contractDetails: true,
+      notes: true,
       role: true,
       isActive: true,
       createdAt: true,
@@ -195,4 +233,29 @@ export async function deactivateEmployeeService(id, user) {
   const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
   if (!employee) throw new Error("Employee not found");
   await prisma.employee.update({ where: { id: employeeId }, data: { isActive: false } });
+}
+
+export async function uploadEmployeePhotoService(id, fileBuffer) {
+  const employeeId = parseInt(id);
+  if (!fileBuffer) throw new Error("No file buffer provided");
+  // Wrap Cloudinary upload_stream in a Promise
+  const url = await new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "employees",
+        resource_type: "image",
+      },
+      async (error, result) => {
+        if (error) return reject(error);
+        // Update employee photo URL in DB
+        await prisma.employee.update({
+          where: { id: employeeId },
+          data: { photo: result.secure_url },
+        });
+        resolve(result.secure_url);
+      }
+    );
+    stream.end(fileBuffer);
+  });
+  return url;
 }

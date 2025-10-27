@@ -1,14 +1,15 @@
 import { validationResult } from "express-validator";
+import { sendError, sendSuccess } from "../../utils/response.js";
 import {
+  createEmployeeService,
+  deactivateEmployeeService,
   getAllEmployeesService,
   getEmployeeByIdService,
-  createEmployeeService,
-  updateEmployeeService,
-  resetEmployeePinService,
   getEmployeePerformanceService,
-  deactivateEmployeeService,
+  resetEmployeePinService,
+  updateEmployeeService,
+  uploadEmployeePhotoService,
 } from "./employeesService.js";
-import { sendSuccess, sendError } from "../../utils/response.js";
 
 export async function getAllEmployees(req, res) {
   try {
@@ -86,5 +87,15 @@ export async function deactivateEmployee(req, res) {
     sendSuccess(res, { message: "Employee deactivated successfully" });
   } catch (error) {
     sendError(res, 500, error.message || "Failed to deactivate employee");
+  }
+}
+
+export async function uploadEmployeePhoto(req, res) {
+  try {
+    if (!req.file) return sendError(res, 400, "No file uploaded");
+    const url = await uploadEmployeePhotoService(req.params.id, req.file.buffer);
+    sendSuccess(res, { url });
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to upload photo");
   }
 }

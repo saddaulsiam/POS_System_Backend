@@ -162,20 +162,26 @@ model LoyaltyTierConfig {
 }
 
 model Employee {
-  id          Int           @id @default(autoincrement())
-  name        String
-  username    String        @unique
-  email       String?       @unique
-  pinCode     String
-  role        String        @default("CASHIER")
-  isActive    Boolean       @default(true)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  auditLogs   AuditLog[]
-  CashDrawer  CashDrawer[]
-  posSettings POSSettings[]
-  parkedSales ParkedSale[]
-  sales       Sale[]
+  id              Int           @id @default(autoincrement())
+  name            String
+  username        String        @unique
+  email           String?       @unique
+  phone           String?
+  photo           String?
+  joinedDate      DateTime?
+  salary          Float?
+  contractDetails String?
+  notes           String?
+  pinCode         String
+  role            String        @default("CASHIER")
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  auditLogs       AuditLog[]
+  CashDrawer      CashDrawer[]
+  posSettings     POSSettings[]
+  parkedSales     ParkedSale[]
+  sales           Sale[]
 }
 
 model Sale {
