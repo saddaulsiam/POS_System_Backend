@@ -1,5 +1,3 @@
-// Salary Sheet Service (migrated from employees module)
-
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
@@ -28,6 +26,31 @@ export async function createSalarySheetService({ employeeId, month, year, baseSa
   return prisma.salarySheet.create({
     data: { employeeId, month, year, baseSalary, bonus, deduction },
   });
+}
+
+export async function bulkGenerateSalarySheetsService({ employees, month, year }) {
+  const created = [];
+  for (const emp of employees) {
+    if (typeof emp.salary !== "number" || !emp.salary) continue;
+    // Check if salary sheet already exists for this employee/month/year
+    const exists = await prisma.salarySheet.findFirst({
+      where: { employeeId: emp.id, month, year },
+    });
+    if (!exists) {
+      const sheet = await prisma.salarySheet.create({
+        data: {
+          employeeId: emp.id,
+          month,
+          year,
+          baseSalary: emp.salary,
+          bonus: 0,
+          deduction: 0,
+        },
+      });
+      created.push(sheet);
+    }
+  }
+  return { createdCount: created.length, created };
 }
 
 export async function updateSalarySheetService(id, { baseSalary, bonus, deduction }) {

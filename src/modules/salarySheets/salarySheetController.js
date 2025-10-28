@@ -1,3 +1,45 @@
+import { getAllEmployeesService } from "../employees/employeesService.js";
+// Bulk generate salary sheets for all employees for a given month/year
+export async function bulkGenerateSalarySheets(req, res) {
+  try {
+    const { month, year } = req.body;
+    if (!month || !year) {
+      return sendError(res, 400, "Month and year are required");
+    }
+    // Only allow previous, current, or next month
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    let prevMonth = currentMonth - 1;
+    let prevYear = currentYear;
+    if (prevMonth === 0) {
+      prevMonth = 12;
+      prevYear = currentYear - 1;
+    }
+    let nextMonth = currentMonth + 1;
+    let nextYear = currentYear;
+    if (nextMonth === 13) {
+      nextMonth = 1;
+      nextYear = currentYear + 1;
+    }
+    const m = Number(month);
+    const y = Number(year);
+    const isAllowed =
+      (y === currentYear && m === currentMonth) ||
+      (y === prevYear && m === prevMonth) ||
+      (y === nextYear && m === nextMonth);
+    if (!isAllowed) {
+      return sendError(res, 400, "You can only generate salary sheets for the previous, current, or next month.");
+    }
+    // Get all active employees
+    const { data: employees } = await getAllEmployeesService({ includeInactive: false, limit: 1000 });
+    // Call service to bulk create salary sheets
+    const result = await bulkGenerateSalarySheetsService({ employees, month: m, year: y });
+    sendSuccess(res, result, 201);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to bulk generate salary sheets");
+  }
+}
 import { sendError, sendSuccess } from "../../utils/response.js";
 import {
   getAllSalarySheetsService,
@@ -6,6 +48,7 @@ import {
   updateSalarySheetService,
   markSalaryAsPaidService,
   deleteSalarySheetService,
+  bulkGenerateSalarySheetsService,
 } from "./salarySheetService.js";
 
 export async function getAllSalarySheets(req, res) {
@@ -40,6 +83,31 @@ export async function getEmployeeSalarySheets(req, res) {
 export async function createSalarySheet(req, res) {
   try {
     const { employeeId, month, year, baseSalary, bonus, deduction } = req.body;
+    // Validation: Only allow previous, current, or next month
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    let prevMonth = currentMonth - 1;
+    let prevYear = currentYear;
+    if (prevMonth === 0) {
+      prevMonth = 12;
+      prevYear = currentYear - 1;
+    }
+    let nextMonth = currentMonth + 1;
+    let nextYear = currentYear;
+    if (nextMonth === 13) {
+      nextMonth = 1;
+      nextYear = currentYear + 1;
+    }
+    const m = Number(month);
+    const y = Number(year);
+    const isAllowed =
+      (y === currentYear && m === currentMonth) ||
+      (y === prevYear && m === prevMonth) ||
+      (y === nextYear && m === nextMonth);
+    if (!isAllowed) {
+      return sendError(res, 400, "You can only create salary sheets for the previous, current, or next month.");
+    }
     const result = await createSalarySheetService({ employeeId, month, year, baseSalary, bonus, deduction });
     sendSuccess(res, result, 201);
   } catch (error) {

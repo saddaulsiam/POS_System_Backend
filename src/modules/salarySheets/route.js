@@ -9,6 +9,13 @@ router
   .post(authenticateToken, authorizeRoles("ADMIN", "MANAGER"), salarySheetController.createSalarySheet)
   .get(authenticateToken, authorizeRoles("ADMIN", "MANAGER"), salarySheetController.getAllSalarySheets);
 
+router.post(
+  "/bulk-generate",
+  authenticateToken,
+  authorizeRoles("ADMIN", "MANAGER"),
+  salarySheetController.bulkGenerateSalarySheets
+);
+
 router
   .route("/:id")
   .put(authenticateToken, authorizeRoles("ADMIN", "MANAGER"), salarySheetController.updateSalarySheet)
