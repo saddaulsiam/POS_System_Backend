@@ -17,6 +17,7 @@ import { ProfileRoutes } from "../modules/profile/route.js";
 import { QuickSaleItemsRoutes } from "../modules/quickSaleItems/route.js";
 import { ReceiptsRoutes } from "../modules/receipts/route.js";
 import { ReportRoutes } from "../modules/reports/route.js";
+import { SalarySheetsRoutes } from "../modules/salarySheets/route.js";
 import { SalesRoutes } from "../modules/sales/route.js";
 import { SuppliersRoutes } from "../modules/suppliers/route.js";
 
@@ -70,6 +71,10 @@ const moduleRoutes = [
   {
     path: "/employees",
     route: EmployeeRoutes,
+  },
+  {
+    path: "/salary-sheets",
+    route: SalarySheetsRoutes,
   },
   {
     path: "/profile",
