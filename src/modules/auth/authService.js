@@ -1,8 +1,8 @@
-const { PrismaClient } = require("@prisma/client");
-const { hashPassword, comparePassword, generateToken, logAudit } = require("../../utils/helpers");
+import { PrismaClient } from "@prisma/client";
+import { hashPassword, comparePassword, generateToken, logAudit } from "../../utils/helpers.js";
 const prisma = new PrismaClient();
 
-async function loginService(username, pinCode, req) {
+export async function loginService(username, pinCode, req) {
   const employee = await prisma.employee.findUnique({ where: { username } });
   if (!employee || !employee.isActive) {
     return { error: "Invalid credentials or inactive account", status: 401 };
@@ -31,14 +31,14 @@ async function loginService(username, pinCode, req) {
   };
 }
 
-async function getMeService(userId) {
+export async function getMeService(userId) {
   return await prisma.employee.findUnique({
     where: { id: userId },
     select: { id: true, name: true, username: true, role: true, isActive: true },
   });
 }
 
-async function changePinService(userId, currentPin, newPin) {
+export async function changePinService(userId, currentPin, newPin) {
   const employee = await prisma.employee.findUnique({ where: { id: userId } });
   if (!employee) {
     return { error: "User not found", status: 404 };
@@ -54,9 +54,3 @@ async function changePinService(userId, currentPin, newPin) {
   });
   return { message: "PIN changed successfully" };
 }
-
-module.exports = {
-  loginService,
-  getMeService,
-  changePinService,
-};

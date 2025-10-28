@@ -1,5 +1,5 @@
 import auditLogsService from "./auditLogsService.js";
-import { sendSuccess } from "../../utils/response.js";
+import { sendSuccess, sendError } from "../../utils/response.js";
 
 export async function getAuditLogs(req, res) {
   try {
@@ -7,7 +7,7 @@ export async function getAuditLogs(req, res) {
     sendSuccess(res, result);
   } catch (error) {
     console.error("Get audit logs error:", error);
-    res.status(500).json({ error: "Failed to fetch audit logs" });
+    sendError(res, 500, "Failed to fetch audit logs");
   }
 }
 

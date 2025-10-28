@@ -1,4 +1,4 @@
-import { sendSuccess } from "../../utils/response.js";
+import { sendSuccess, sendError } from "../../utils/response.js";
 import * as analyticsService from "./analyticsService.js";
 
 export async function overview(req, res) {
@@ -7,7 +7,7 @@ export async function overview(req, res) {
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching analytics overview:", error);
-    res.status(500).json({ error: "Failed to fetch analytics overview" });
+    sendError(res, 500, "Failed to fetch analytics overview");
   }
 }
 
@@ -17,7 +17,7 @@ export async function salesTrend(req, res) {
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching sales trend:", error);
-    res.status(500).json({ error: "Failed to fetch sales trend" });
+    sendError(res, 500, "Failed to fetch sales trend");
   }
 }
 
@@ -27,7 +27,7 @@ export async function topProducts(req, res) {
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching top products:", error);
-    res.status(500).json({ error: "Failed to fetch top products" });
+    sendError(res, 500, "Failed to fetch top products");
   }
 }
 
@@ -37,7 +37,7 @@ export async function categoryBreakdown(req, res) {
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching category breakdown:", error);
-    res.status(500).json({ error: "Failed to fetch category breakdown" });
+    sendError(res, 500, "Failed to fetch category breakdown");
   }
 }
 
@@ -47,7 +47,7 @@ export async function customerStats(req, res) {
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching customer stats:", error);
-    res.status(500).json({ error: "Failed to fetch customer statistics" });
+    sendError(res, 500, "Failed to fetch customer statistics");
   }
 }
 
@@ -57,6 +57,6 @@ export async function paymentMethods(req, res) {
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching payment methods:", error);
-    res.status(500).json({ error: "Failed to fetch payment method statistics" });
+    sendError(res, 500, "Failed to fetch payment method statistics");
   }
 }
