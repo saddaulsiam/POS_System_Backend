@@ -182,6 +182,22 @@ model Employee {
   posSettings     POSSettings[]
   parkedSales     ParkedSale[]
   sales           Sale[]
+  salarySheets    SalarySheet[]
+}
+
+model SalarySheet {
+  id         Int       @id @default(autoincrement())
+  employeeId Int
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  month      Int // 1-12
+  year       Int
+  baseSalary Float
+  bonus      Float? // Optional bonus
+  deduction  Float? // Optional deduction
+  paid       Boolean   @default(false)
+  paidAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model Sale {

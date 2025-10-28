@@ -56,4 +56,42 @@ router.post(
   employeesController.uploadEmployeePhoto
 );
 
+// --- Salary Sheet Management ---
+router.get(
+  "/salary-sheets",
+  authenticateToken,
+  authorizeRoles("ADMIN", "MANAGER"),
+  employeesController.getAllSalarySheets
+);
+router.get(
+  "/salary-sheets/:employeeId",
+  authenticateToken,
+  authorizeRoles("ADMIN", "MANAGER"),
+  employeesController.getEmployeeSalarySheets
+);
+router.post(
+  "/salary-sheets",
+  authenticateToken,
+  authorizeRoles("ADMIN", "MANAGER"),
+  employeesController.createSalarySheet
+);
+router.put(
+  "/salary-sheets/:id",
+  authenticateToken,
+  authorizeRoles("ADMIN", "MANAGER"),
+  employeesController.updateSalarySheet
+);
+router.post(
+  "/salary-sheets/:id/pay",
+  authenticateToken,
+  authorizeRoles("ADMIN", "MANAGER"),
+  employeesController.markSalaryAsPaid
+);
+router.delete(
+  "/salary-sheets/:id",
+  authenticateToken,
+  authorizeRoles("ADMIN", "MANAGER"),
+  employeesController.deleteSalarySheet
+);
+
 export const EmployeeRoutes = router;
