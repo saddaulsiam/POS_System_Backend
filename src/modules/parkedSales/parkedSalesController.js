@@ -1,3 +1,4 @@
+import { sendSuccess } from "../../utils/response.js";
 import { validationResult } from "express-validator";
 import { sendSuccess, sendError } from "../../utils/response.js";
 import * as parkedSalesService from "./parkedSalesService.js";
@@ -69,7 +70,7 @@ export const deleteParkedSale = async (req, res) => {
 export const cleanupExpiredParkedSales = async (req, res) => {
   try {
     const result = await parkedSalesService.cleanupExpiredParkedSalesService();
-    res.json({ message: `Deleted ${result.count} expired parked sales` });
+    sendSuccess(res, { message: `Deleted ${result.count} expired parked sales` });
     sendSuccess(res, { message: `Deleted ${result.count} expired parked sales` });
   } catch (error) {
     console.error("Cleanup expired sales error:", error);

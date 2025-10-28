@@ -9,14 +9,17 @@ import {
   deleteCategoryService,
 } from "./categoriesService.js";
 
+import { sendError } from "../../utils/response.js";
+import { sendSuccess } from "../../utils/response.js";
+
 // Get all categories
 async function getCategories(req, res) {
   try {
     const categories = await fetchCategories();
-    res.json(categories);
+  sendSuccess(res, categories);
   } catch (error) {
     console.error("Get categories error:", error);
-    res.status(500).json({ error: "Failed to fetch categories" });
+    sendError(res, 500, "Failed to fetch categories");
   }
 }
 
@@ -27,12 +30,12 @@ async function getCategoryById(req, res) {
     const categoryId = parseInt(id);
     const category = await fetchCategoryById(categoryId);
     if (!category) {
-      return res.status(404).json({ error: "Category not found" });
+      return sendError(res, 404, "Category not found");
     }
-    res.json(category);
+  sendSuccess(res, category);
   } catch (error) {
     console.error("Get category error:", error);
-    res.status(500).json({ error: "Failed to fetch category" });
+    sendError(res, 500, "Failed to fetch category");
   }
 }
 
@@ -41,18 +44,18 @@ async function createCategory(req, res) {
   try {
     const errors = req.validationResult ? req.validationResult() : [];
     if (errors && errors.length > 0) {
-      return res.status(400).json({ errors });
+      return sendError(res, 400, errors);
     }
     const { name } = req.body;
     const existing = await findCategoryByName(name);
     if (existing) {
-      return res.status(400).json({ error: "Category with this name already exists" });
+      return sendError(res, 400, "Category with this name already exists");
     }
     const category = await createCategoryService(name);
-    res.status(201).json(category);
+  sendSuccess(res, category, 201);
   } catch (error) {
     console.error("Create category error:", error);
-    res.status(500).json({ error: "Failed to create category" });
+    sendError(res, 500, "Failed to create category");
   }
 }
 
@@ -61,24 +64,24 @@ async function updateCategory(req, res) {
   try {
     const errors = req.validationResult ? req.validationResult() : [];
     if (errors && errors.length > 0) {
-      return res.status(400).json({ errors });
+      return sendError(res, 400, errors);
     }
     const { id } = req.params;
     const { name } = req.body;
     const categoryId = parseInt(id);
     const existingCategory = await findCategoryById(categoryId);
     if (!existingCategory) {
-      return res.status(404).json({ error: "Category not found" });
+      return sendError(res, 404, "Category not found");
     }
     const nameConflict = await findNameConflict(name, categoryId);
     if (nameConflict) {
-      return res.status(400).json({ error: "Another category with this name already exists" });
+      return sendError(res, 400, "Another category with this name already exists");
     }
     const category = await updateCategoryService(categoryId, name);
-    res.json(category);
+  sendSuccess(res, category);
   } catch (error) {
     console.error("Update category error:", error);
-    res.status(500).json({ error: "Failed to update category" });
+    sendError(res, 500, "Failed to update category");
   }
 }
 
@@ -89,18 +92,16 @@ async function deleteCategory(req, res) {
     const categoryId = parseInt(id);
     const category = await fetchCategoryById(categoryId);
     if (!category) {
-      return res.status(404).json({ error: "Category not found" });
+      return sendError(res, 404, "Category not found");
     }
     if (category._count.products > 0) {
-      return res.status(400).json({
-        error: "Cannot delete category that has products. Please reassign products first.",
-      });
+      return sendError(res, 400, "Cannot delete category that has products. Please reassign products first.");
     }
     await deleteCategoryService(categoryId);
-    res.json({ message: "Category deleted successfully" });
+  sendSuccess(res, { message: "Category deleted successfully" });
   } catch (error) {
     console.error("Delete category error:", error);
-    res.status(500).json({ error: "Failed to delete category" });
+    sendError(res, 500, "Failed to delete category");
   }
 }
 

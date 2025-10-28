@@ -8,7 +8,7 @@ export const getSettings = async (req, res) => {
     sendSuccess(res, settings);
   } catch (error) {
     console.error("Get POS settings error:", error);
-    sendError(res, "Failed to fetch POS settings", 500);
+    sendError(res, 500, "Failed to fetch POS settings");
   }
 };
 
@@ -16,13 +16,13 @@ export const updateSettings = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return sendError(res, errors.array(), 400);
+      return sendError(res, 400, errors.array());
     }
     const userId = req.user.id;
     const settings = await posSettingsService.updateSettings(req.body, userId);
     sendSuccess(res, settings);
   } catch (error) {
     console.error("Update POS settings error:", error);
-    sendError(res, "Failed to update POS settings", 500);
+    sendError(res, 500, "Failed to update POS settings");
   }
 };

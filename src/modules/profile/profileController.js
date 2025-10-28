@@ -7,7 +7,7 @@ export const updateProfile = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return sendError(res, errors.array(), 400);
+      return sendError(res, 400, errors.array());
     }
     const userId = req.user.id;
     const { name, username } = req.body;
@@ -16,7 +16,7 @@ export const updateProfile = async (req, res) => {
       ({ updated, updateData } = await profileService.updateProfile(userId, name, username, req));
     } catch (err) {
       if (err.status === 400) {
-        return sendError(res, err.message, 400);
+        return sendError(res, 400, err.message);
       }
       throw err;
     }
@@ -32,6 +32,6 @@ export const updateProfile = async (req, res) => {
     sendSuccess(res, updated);
   } catch (error) {
     console.error("Update profile error:", error);
-    sendError(res, "Failed to update profile", 500);
+    sendError(res, 500, "Failed to update profile");
   }
 };

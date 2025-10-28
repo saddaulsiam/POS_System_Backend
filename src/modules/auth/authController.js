@@ -1,3 +1,4 @@
+import { sendSuccess } from "../../utils/response.js";
 const { validationResult } = require("express-validator");
 const { loginService, getMeService, changePinService } = require("./authService");
 
@@ -13,7 +14,7 @@ async function login(req, res) {
     if (result.error) {
       return res.status(result.status || 400).json({ error: result.error });
     }
-    res.json(result);
+    sendSuccess(res, result);
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ error: "Login failed" });
@@ -27,7 +28,7 @@ async function getMe(req, res) {
     if (!employee) {
       return res.status(404).json({ error: "User not found" });
     }
-    res.json(employee);
+    sendSuccess(res, employee);
   } catch (error) {
     console.error("Get user error:", error);
     res.status(500).json({ error: "Failed to get user info" });
@@ -47,7 +48,7 @@ async function changePin(req, res) {
     if (result.error) {
       return res.status(result.status || 400).json({ error: result.error });
     }
-    res.json({ message: result.message });
+    sendSuccess(res, { message: result.message });
   } catch (error) {
     console.error("Change PIN error:", error);
     res.status(500).json({ error: "Failed to change PIN" });

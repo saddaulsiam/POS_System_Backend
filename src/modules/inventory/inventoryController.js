@@ -20,7 +20,7 @@ export async function getStockMovements(req, res) {
     sendSuccess(res, { movements });
   } catch (err) {
     console.error("Get stock movements error:", err);
-    sendError(res, "Failed to fetch stock movements", 500, err.message);
+    sendError(res, 500, "Failed to fetch stock movements", err.message);
   }
 }
 
@@ -30,7 +30,7 @@ export async function createStockAdjustment(req, res) {
     sendSuccess(res, result);
   } catch (err) {
     console.error("Stock adjustment error:", err);
-    sendError(res, err.message || "Failed to adjust stock", 500, err.message);
+    sendError(res, 500, err.message || "Failed to adjust stock", err.message);
   }
 }
 
@@ -40,7 +40,7 @@ export async function getInventorySummary(req, res) {
     sendSuccess(res, summary);
   } catch (err) {
     console.error("Inventory summary error:", err);
-    sendError(res, "Failed to generate inventory summary", 500, err.message);
+    sendError(res, 500, "Failed to generate inventory summary", err.message);
   }
 }
 
@@ -50,7 +50,7 @@ export async function bulkStockUpdate(req, res) {
     sendSuccess(res, result);
   } catch (err) {
     console.error("Bulk stock update error:", err);
-    sendError(res, err.message || "Failed to update stock", 500, err.message);
+    sendError(res, 500, err.message || "Failed to update stock", err.message);
   }
 }
 
@@ -60,7 +60,7 @@ export async function stockTransfer(req, res) {
     sendSuccess(res, result, 201);
   } catch (err) {
     console.error("Stock transfer error:", err);
-    sendError(res, err.message || "Failed to transfer stock", 500, err.message);
+    sendError(res, 500, err.message || "Failed to transfer stock", err.message);
   }
 }
 
@@ -70,7 +70,7 @@ export async function getStockAlerts(req, res) {
     sendSuccess(res, alerts);
   } catch (err) {
     console.error("Get alerts error:", err);
-    sendError(res, "Failed to fetch stock alerts", 500, err.message);
+    sendError(res, 500, "Failed to fetch stock alerts", err.message);
   }
 }
 
@@ -80,7 +80,7 @@ export async function resolveStockAlert(req, res) {
     sendSuccess(res, alert);
   } catch (err) {
     console.error("Resolve alert error:", err);
-    sendError(res, "Failed to resolve alert", 500, err.message);
+    sendError(res, 500, "Failed to resolve alert", err.message);
   }
 }
 
@@ -90,7 +90,7 @@ export async function receivePurchaseOrder(req, res) {
     sendSuccess(res, result);
   } catch (err) {
     console.error("Receive PO error:", err);
-    sendError(res, err.message || "Failed to receive purchase order", 500, err.message);
+    sendError(res, 500, err.message || "Failed to receive purchase order", err.message);
   }
 }
 
@@ -100,18 +100,18 @@ export async function getPurchaseOrders(req, res) {
     sendSuccess(res, result);
   } catch (err) {
     console.error("Error fetching purchase orders:", err);
-    sendError(res, "Failed to fetch purchase orders", 500, err.message);
+    sendError(res, 500, "Failed to fetch purchase orders", err.message);
   }
 }
 
 export async function getPurchaseOrderById(req, res) {
   try {
     const result = await inventoryService.getPurchaseOrderByIdService(parseInt(req.params.id));
-    if (!result) return sendError(res, "Purchase order not found", 404);
+    if (!result) return sendError(res, 404, "Purchase order not found");
     sendSuccess(res, result);
   } catch (err) {
     console.error("Error fetching purchase order:", err);
-    sendError(res, "Failed to fetch purchase order", 500, err.message);
+    sendError(res, 500, "Failed to fetch purchase order", err.message);
   }
 }
 
@@ -121,7 +121,7 @@ export async function createPurchaseOrder(req, res) {
     sendSuccess(res, result, 201);
   } catch (err) {
     console.error("Error creating purchase order:", err);
-    sendError(res, "Failed to create purchase order", 500, err.message);
+    sendError(res, 500, "Failed to create purchase order", err.message);
   }
 }
 
@@ -131,7 +131,7 @@ export async function updatePurchaseOrder(req, res) {
     sendSuccess(res, result);
   } catch (err) {
     console.error("Error updating purchase order:", err);
-    sendError(res, "Failed to update purchase order", 500, err.message);
+    sendError(res, 500, "Failed to update purchase order", err.message);
   }
 }
 
@@ -145,7 +145,7 @@ export async function receivePurchaseOrderItems(req, res) {
     sendSuccess(res, result);
   } catch (err) {
     console.error("Error receiving purchase order:", err);
-    sendError(res, "Failed to receive purchase order", 500, err.message);
+    sendError(res, 500, "Failed to receive purchase order", err.message);
   }
 }
 
@@ -155,7 +155,7 @@ export async function cancelPurchaseOrder(req, res) {
     sendSuccess(res, result);
   } catch (err) {
     console.error("Error cancelling purchase order:", err);
-    sendError(res, "Failed to cancel purchase order", 500, err.message);
+    sendError(res, 500, "Failed to cancel purchase order", err.message);
   }
 }
 
@@ -165,6 +165,6 @@ export async function getPurchaseOrderStats(req, res) {
     sendSuccess(res, result);
   } catch (err) {
     console.error("Error fetching PO statistics:", err);
-    sendError(res, "Failed to fetch statistics", 500, err.message);
+    sendError(res, 500, "Failed to fetch statistics", err.message);
   }
 }

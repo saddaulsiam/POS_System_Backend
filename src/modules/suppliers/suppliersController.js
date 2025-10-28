@@ -13,7 +13,7 @@ export const getSuppliers = async (req, res) => {
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching suppliers:", error);
-    sendError(res, "Failed to fetch suppliers", 500, error.message);
+    sendError(res, 500, "Failed to fetch suppliers", error.message);
   }
 };
 
@@ -21,12 +21,12 @@ export const getSupplierById = async (req, res) => {
   try {
     const result = await getSupplierByIdService(req.params.id);
     if (!result) {
-      return sendError(res, "Supplier not found", 404);
+      return sendError(res, 404, "Supplier not found");
     }
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching supplier:", error);
-    sendError(res, "Failed to fetch supplier", 500, error.message);
+    sendError(res, 500, "Failed to fetch supplier", error.message);
   }
 };
 
@@ -36,7 +36,7 @@ export const createSupplier = async (req, res) => {
     sendSuccess(res, result, 201);
   } catch (error) {
     console.error("Error creating supplier:", error);
-    sendError(res, error.message || "Failed to create supplier", 500);
+    sendError(res, 500, error.message || "Failed to create supplier");
   }
 };
 
@@ -46,7 +46,7 @@ export const updateSupplier = async (req, res) => {
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error updating supplier:", error);
-    sendError(res, error.message || "Failed to update supplier", 500);
+    sendError(res, 500, error.message || "Failed to update supplier");
   }
 };
 
@@ -56,6 +56,6 @@ export const deleteSupplier = async (req, res) => {
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error deleting supplier:", error);
-    sendError(res, error.message || "Failed to delete supplier", 500);
+    sendError(res, 500, error.message || "Failed to delete supplier");
   }
 };

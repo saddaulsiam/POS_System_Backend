@@ -1,3 +1,6 @@
+import { validationResult } from "express-validator";
+import { sendError } from "../../utils/response.js";
+import { sendSuccess } from "../../utils/response.js";
 import {
   addLoyaltyPointsService,
   aggregateTotalSpent,
@@ -13,14 +16,13 @@ import {
   searchCustomers,
   updateCustomerService,
 } from "./customersService.js";
-import { validationResult } from "express-validator";
 
 // Get all customers with pagination and search
 async function getCustomers(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return sendError(res, 400, errors.array());
     }
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -42,7 +44,7 @@ async function getCustomers(req, res) {
       };
     }
     const [customers, total] = await Promise.all([fetchCustomers(where, skip, limit), countCustomers(countWhere)]);
-    res.json({
+    sendSuccess(res, {
       data: customers,
       pagination: {
         page,
@@ -54,7 +56,7 @@ async function getCustomers(req, res) {
     });
   } catch (error) {
     console.error("Get customers error:", error);
-    res.status(500).json({ error: "Failed to fetch customers", data: error });
+    sendError(res, 500, "Failed to fetch customers", error);
   }
 }
 
@@ -64,12 +66,12 @@ async function getCustomerByPhone(req, res) {
     const { phone } = req.params;
     const customer = await findCustomerByPhone(phone);
     if (!customer) {
-      return res.status(404).json({ error: "Customer not found" });
+      return sendError(res, 404, "Customer not found");
     }
-    res.json(customer);
+    sendSuccess(res, customer);
   } catch (error) {
     console.error("Get customer by phone error:", error);
-    res.status(500).json({ error: "Failed to get customer" });
+    sendError(res, 500, "Failed to get customer");
   }
 }
 
@@ -78,10 +80,10 @@ async function searchCustomersController(req, res) {
   try {
     const { query } = req.params;
     const customers = await searchCustomers(query);
-    res.json(customers);
+    sendSuccess(res, customers);
   } catch (error) {
     console.error("Search customers error:", error);
-    res.status(500).json({ error: "Failed to search customers" });
+    sendError(res, 500, "Failed to search customers");
   }
 }
 
@@ -92,16 +94,16 @@ async function getCustomerById(req, res) {
     const customerId = parseInt(id);
     const customer = await findCustomerById(customerId);
     if (!customer) {
-      return res.status(404).json({ error: "Customer not found" });
+      return sendError(res, 404, "Customer not found");
     }
     const totalSpent = await aggregateTotalSpent(customerId);
-    res.json({
+    sendSuccess(res, {
       ...customer,
       totalSpent: totalSpent._sum.finalAmount || 0,
     });
   } catch (error) {
     console.error("Get customer error:", error);
-    res.status(500).json({ error: "Failed to fetch customer" });
+    sendError(res, 500, "Failed to fetch customer");
   }
 }
 
@@ -110,13 +112,13 @@ async function createCustomer(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return sendError(res, 400, errors.array());
     }
     const { name, phoneNumber, email, dateOfBirth, address } = req.body;
     if (phoneNumber || email) {
       const existing = await findExistingCustomer(phoneNumber, email);
       if (existing) {
-        return res.status(400).json({ error: "Customer with this phone number or email already exists" });
+        return sendError(res, 400, "Customer with this phone number or email already exists");
       }
     }
     const customer = await createCustomerService({
@@ -126,10 +128,10 @@ async function createCustomer(req, res) {
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
       address,
     });
-    res.status(201).json(customer);
+    sendSuccess(res, customer, 201);
   } catch (error) {
     console.error("Create customer error:", error);
-    res.status(500).json({ error: "Failed to create customer" });
+    sendError(res, 500, "Failed to create customer");
   }
 }
 
@@ -138,18 +140,18 @@ async function updateCustomer(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return sendError(res, 400, errors.array());
     }
     const { id } = req.params;
     const customerId = parseInt(id);
     const existingCustomer = await findCustomerById(customerId);
     if (!existingCustomer) {
-      return res.status(404).json({ error: "Customer not found" });
+      return sendError(res, 404, "Customer not found");
     }
     if (req.body.phoneNumber || req.body.email) {
       const conflicts = await findCustomerConflict(customerId, req.body.phoneNumber, req.body.email);
       if (conflicts) {
-        return res.status(400).json({ error: "Another customer with this phone number or email already exists" });
+        return sendError(res, 400, "Another customer with this phone number or email already exists");
       }
     }
     const updateData = { ...req.body };
@@ -160,10 +162,10 @@ async function updateCustomer(req, res) {
       updateData.dateOfBirth = new Date(updateData.dateOfBirth);
     }
     const customer = await updateCustomerService(customerId, updateData);
-    res.json(customer);
+    sendSuccess(res, customer);
   } catch (error) {
     console.error("Update customer error:", error);
-    res.status(500).json({ error: "Failed to update customer" });
+    sendError(res, 500, "Failed to update customer");
   }
 }
 
@@ -174,13 +176,13 @@ async function deactivateCustomer(req, res) {
     const customerId = parseInt(id);
     const customer = await findCustomerById(customerId);
     if (!customer) {
-      return res.status(404).json({ error: "Customer not found" });
+      return sendError(res, 404, "Customer not found");
     }
     await deactivateCustomerService(customerId);
-    res.json({ message: "Customer deactivated successfully" });
+    sendSuccess(res, { message: "Customer deactivated successfully" });
   } catch (error) {
     console.error("Delete customer error:", error);
-    res.status(500).json({ error: "Failed to deactivate customer" });
+    sendError(res, 500, "Failed to deactivate customer");
   }
 }
 
@@ -189,17 +191,17 @@ async function addLoyaltyPoints(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return sendError(res, 400, errors.array());
     }
     const { id } = req.params;
     const { points } = req.body;
     const customerId = parseInt(id);
     const customer = await findCustomerById(customerId);
     if (!customer) {
-      return res.status(404).json({ error: "Customer not found" });
+      return sendError(res, 404, "Customer not found");
     }
     const updatedCustomer = await addLoyaltyPointsService(customerId, points);
-    res.json({
+    sendSuccess(res, {
       message: `Added ${points} loyalty points`,
       customer: {
         id: updatedCustomer.id,
@@ -209,7 +211,7 @@ async function addLoyaltyPoints(req, res) {
     });
   } catch (error) {
     console.error("Add loyalty points error:", error);
-    res.status(500).json({ error: "Failed to add loyalty points" });
+    sendError(res, 500, "Failed to add loyalty points");
   }
 }
 
@@ -218,25 +220,24 @@ async function redeemLoyaltyPoints(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return sendError(res, 400, errors.array());
     }
     const { id } = req.params;
     const { points } = req.body;
     const customerId = parseInt(id);
     const customer = await findCustomerById(customerId);
     if (!customer) {
-      return res.status(404).json({ error: "Customer not found" });
+      return sendError(res, 404, "Customer not found");
     }
     if (customer.loyaltyPoints < points) {
-      return res.status(400).json({
-        error: "Insufficient loyalty points",
+      return sendError(res, 400, "Insufficient loyalty points", {
         availablePoints: customer.loyaltyPoints,
         requestedPoints: points,
       });
     }
     const updatedCustomer = await redeemLoyaltyPointsService(customerId, points);
     const discountAmount = points * 0.01;
-    res.json({
+    sendSuccess(res, {
       message: `Redeemed ${points} loyalty points`,
       discountAmount,
       customer: {
@@ -247,18 +248,18 @@ async function redeemLoyaltyPoints(req, res) {
     });
   } catch (error) {
     console.error("Redeem loyalty points error:", error);
-    res.status(500).json({ error: "Failed to redeem loyalty points" });
+    sendError(res, 500, "Failed to redeem loyalty points");
   }
 }
 
 export {
-  getCustomers,
-  getCustomerByPhone,
-  searchCustomersController,
-  getCustomerById,
-  createCustomer,
-  updateCustomer,
-  deactivateCustomer,
   addLoyaltyPoints,
+  createCustomer,
+  deactivateCustomer,
+  getCustomerById,
+  getCustomerByPhone,
+  getCustomers,
   redeemLoyaltyPoints,
+  searchCustomersController,
+  updateCustomer,
 };

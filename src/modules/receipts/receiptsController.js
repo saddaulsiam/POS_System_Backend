@@ -1,5 +1,7 @@
+import { sendSuccess } from "../../utils/response.js";
 import { PrismaClient } from "@prisma/client";
 import { generateHTMLReceipt, generatePDFReceipt, generateThermalReceipt } from "../../utils/receiptGenerator.js";
+import { sendError } from "../../utils/response.js";
 
 const prisma = new PrismaClient();
 
@@ -56,7 +58,7 @@ export const getPDFReceipt = async (req, res) => {
     pdfDoc.end();
   } catch (error) {
     console.error("Error generating PDF receipt:", error);
-    res.status(500).json({ error: "Failed to generate PDF receipt", details: error.message });
+    sendError(res, 500, "Failed to generate PDF receipt", error.message);
   }
 };
 
@@ -70,7 +72,7 @@ export const getHTMLReceipt = async (req, res) => {
     res.send(htmlContent);
   } catch (error) {
     console.error("Error generating HTML receipt:", error);
-    res.status(500).json({ error: "Failed to generate HTML receipt", details: error.message });
+    sendError(res, 500, "Failed to generate HTML receipt", error.message);
   }
 };
 
@@ -85,7 +87,7 @@ export const getThermalReceipt = async (req, res) => {
     res.send(thermalContent);
   } catch (error) {
     console.error("Error generating thermal receipt:", error);
-    res.status(500).json({ error: "Failed to generate thermal receipt", details: error.message });
+    sendError(res, 500, "Failed to generate thermal receipt", error.message);
   }
 };
 
@@ -95,7 +97,7 @@ export const resendReceipt = async (req, res) => {
     const { includePDF } = req.body;
     const saleData = await getSaleData(saleId);
     if (!saleData.customer || !saleData.customer.email) {
-      return res.status(400).json({ error: "No customer email found for this sale" });
+      return sendError(res, 400, "No customer email found for this sale");
     }
     const settings = await getStoreSettings();
     const htmlContent = generateHTMLReceipt(saleData, settings);
@@ -125,13 +127,17 @@ export const resendReceipt = async (req, res) => {
       );
     }
     if (result.success) {
-      res.json({ message: "Receipt resent successfully", messageId: result.messageId, previewUrl: result.previewUrl });
+      sendSuccess(res, {
+        message: "Receipt resent successfully",
+        messageId: result.messageId,
+        previewUrl: result.previewUrl,
+      });
     } else {
-      res.status(500).json({ error: "Failed to resend receipt", details: result.error });
+      sendError(res, 500, "Failed to resend receipt", result.error);
     }
   } catch (error) {
     console.error("Error resending receipt:", error);
-    res.status(500).json({ error: "Failed to resend receipt", details: error.message });
+    sendError(res, 500, "Failed to resend receipt", error.message);
   }
 };
 
@@ -140,10 +146,10 @@ export const getReceiptPreview = async (req, res) => {
     const { saleId } = req.params;
     const saleData = await getSaleData(saleId);
     const settings = await getStoreSettings();
-    res.json({ sale: saleData, settings });
+    sendSuccess(res, { sale: saleData, settings });
   } catch (error) {
     console.error("Error getting receipt preview:", error);
-    res.status(500).json({ error: "Failed to get receipt preview", details: error.message });
+    sendError(res, 500, "Failed to get receipt preview", error.message);
   }
 };
 
@@ -151,18 +157,18 @@ export const printThermalReceipt = async (req, res) => {
   try {
     const { saleId, printerName } = req.body;
     if (!saleId) {
-      return res.status(400).json({ error: "Sale ID is required" });
+      return sendError(res, 400, "Sale ID is required");
     }
     const saleData = await getSaleData(saleId);
     const settings = await getStoreSettings();
     const thermalContent = generateThermalReceipt(saleData, settings);
-    res.json({
+    sendSuccess(res, {
       message: "Thermal print initiated (mock)",
       content: thermalContent,
       note: "Actual printer integration requires additional setup",
     });
   } catch (error) {
     console.error("Error printing thermal receipt:", error);
-    res.status(500).json({ error: "Failed to print thermal receipt", details: error.message });
+    sendError(res, 500, "Failed to print thermal receipt", error.message);
   }
 };
