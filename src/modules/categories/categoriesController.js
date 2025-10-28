@@ -16,7 +16,7 @@ import { sendSuccess } from "../../utils/response.js";
 async function getCategories(req, res) {
   try {
     const categories = await fetchCategories();
-  sendSuccess(res, categories);
+    sendSuccess(res, categories);
   } catch (error) {
     console.error("Get categories error:", error);
     sendError(res, 500, "Failed to fetch categories");
@@ -32,7 +32,7 @@ async function getCategoryById(req, res) {
     if (!category) {
       return sendError(res, 404, "Category not found");
     }
-  sendSuccess(res, category);
+    sendSuccess(res, category);
   } catch (error) {
     console.error("Get category error:", error);
     sendError(res, 500, "Failed to fetch category");
@@ -52,7 +52,7 @@ async function createCategory(req, res) {
       return sendError(res, 400, "Category with this name already exists");
     }
     const category = await createCategoryService(name);
-  sendSuccess(res, category, 201);
+    sendSuccess(res, category, 201);
   } catch (error) {
     console.error("Create category error:", error);
     sendError(res, 500, "Failed to create category");
@@ -78,7 +78,7 @@ async function updateCategory(req, res) {
       return sendError(res, 400, "Another category with this name already exists");
     }
     const category = await updateCategoryService(categoryId, name);
-  sendSuccess(res, category);
+    sendSuccess(res, category);
   } catch (error) {
     console.error("Update category error:", error);
     sendError(res, 500, "Failed to update category");
@@ -98,7 +98,7 @@ async function deleteCategory(req, res) {
       return sendError(res, 400, "Cannot delete category that has products. Please reassign products first.");
     }
     await deleteCategoryService(categoryId);
-  sendSuccess(res, { message: "Category deleted successfully" });
+    sendSuccess(res, { message: "Category deleted successfully" });
   } catch (error) {
     console.error("Delete category error:", error);
     sendError(res, 500, "Failed to delete category");
