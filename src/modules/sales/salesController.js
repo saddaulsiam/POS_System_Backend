@@ -5,7 +5,13 @@ import { sendSuccess, sendError } from "../../utils/response.js";
 export const getSales = async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+    if (!errors.isEmpty()) {
+      const messages = errors
+        .array()
+        .map((e) => e.msg)
+        .join(", ");
+      return sendError(res, 400, messages);
+    }
     const result = await salesService.getSales(req.query);
     sendSuccess(res, result);
   } catch (error) {
@@ -26,7 +32,13 @@ export const getSaleById = async (req, res) => {
 export const createSale = async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+    if (!errors.isEmpty()) {
+      const messages = errors
+        .array()
+        .map((e) => e.msg)
+        .join(", ");
+      return sendError(res, 400, messages);
+    }
     const result = await salesService.createSale(req.body, req.user, req.ip, req.headers["user-agent"]);
     sendSuccess(res, result, 201);
   } catch (error) {
@@ -37,7 +49,13 @@ export const createSale = async (req, res) => {
 export const processReturn = async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+    if (!errors.isEmpty()) {
+      const messages = errors
+        .array()
+        .map((e) => e.msg)
+        .join(", ");
+      return sendError(res, 400, messages);
+    }
     const result = await salesService.processReturn(req.params.id, req.body, req.user);
     sendSuccess(res, result, 201);
   } catch (error) {
@@ -66,7 +84,13 @@ export const getAllReturns = async (req, res) => {
 export const getSalesSummary = async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+    if (!errors.isEmpty()) {
+      const messages = errors
+        .array()
+        .map((e) => e.msg)
+        .join(", ");
+      return sendError(res, 400, messages);
+    }
     const result = await salesService.getSalesSummary(req.query);
     sendSuccess(res, result);
   } catch (error) {

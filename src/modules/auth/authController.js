@@ -7,7 +7,11 @@ export async function login(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return sendError(res, 400, "Validation failed", errors.array());
+      const messages = errors
+        .array()
+        .map((e) => e.msg)
+        .join(", ");
+      return sendError(res, 400, messages);
     }
     const { username, pinCode } = req.body;
     const result = await loginService(username, pinCode, req);
@@ -40,7 +44,11 @@ export async function changePin(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return sendError(res, 400, "Validation failed", errors.array());
+      const messages = errors
+        .array()
+        .map((e) => e.msg)
+        .join(", ");
+      return sendError(res, 400, messages);
     }
     const { currentPin, newPin } = req.body;
     const userId = req.user.id;
