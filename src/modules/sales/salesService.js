@@ -94,6 +94,9 @@ export const createSale = async (body, user, ip, userAgent) => {
     paymentSplits,
     notes,
     loyaltyDiscount = 0,
+    offerId = null,
+    offerTitle = null,
+    offerDiscount = 0,
   } = body;
   const employeeId = user.id;
 
@@ -171,7 +174,7 @@ export const createSale = async (body, user, ip, userAgent) => {
         },
       });
     }
-    const finalAmount = subtotal + totalTax - discountAmount - loyaltyDiscount;
+    const finalAmount = subtotal + totalTax - discountAmount - loyaltyDiscount - (offerDiscount || 0);
     const receiptId = generateReceiptId();
     if (paymentMethod === "MIXED") {
       const totalSplitAmount = paymentSplits.reduce((sum, split) => sum + split.amount, 0);
@@ -208,6 +211,9 @@ export const createSale = async (body, user, ip, userAgent) => {
         discountAmount,
         loyaltyDiscount,
         discountReason,
+        offerId,
+        offerTitle,
+        offerDiscount,
         finalAmount,
         paymentMethod,
         cashReceived,

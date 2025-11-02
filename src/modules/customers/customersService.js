@@ -25,6 +25,7 @@ async function findCustomerByPhone(phone) {
       email: true,
       address: true,
       loyaltyPoints: true,
+      loyaltyTier: true,
       isActive: true,
       createdAt: true,
       updatedAt: true,

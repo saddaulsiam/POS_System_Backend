@@ -209,6 +209,9 @@ model Sale {
   taxAmount          Float               @default(0)
   discountAmount     Float               @default(0)
   loyaltyDiscount    Float               @default(0)
+  offerId            Int?
+  offerTitle         String?
+  offerDiscount      Float?              @default(0)
   finalAmount        Float
   paymentMethod      String
   paymentStatus      String              @default("COMPLETED")

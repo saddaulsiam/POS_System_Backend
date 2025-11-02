@@ -90,6 +90,16 @@ function generatePDFReceipt(saleData, settings = {}) {
       .font("Helvetica-Bold")
       .text(`Loyalty Discount: -${storeSettings.currencySymbol || "$"}${saleData.loyaltyDiscount.toFixed(2)}`);
   }
+  if (saleData.offerDiscount && saleData.offerDiscount > 0) {
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .text(
+        `Offer Discount${saleData.offerTitle ? ` (${saleData.offerTitle})` : ""}: -${
+          storeSettings.currencySymbol || "$"
+        }${saleData.offerDiscount.toFixed(2)}`
+      );
+  }
   if (saleData.discountAmount > 0) {
     doc
       .fontSize(12)
@@ -205,6 +215,14 @@ function generateThermalReceipt(saleData, settings = {}) {
   // Show loyalty discount as a separate line if present
   if (saleData.loyaltyDiscount && saleData.loyaltyDiscount > 0) {
     receipt += formatLine("Loyalty Discount:", `(-)${currency}${saleData.loyaltyDiscount.toFixed(2)}`, width) + "\n";
+  }
+  if (saleData.offerDiscount && saleData.offerDiscount > 0) {
+    receipt +=
+      formatLine(
+        `Offer Discount${saleData.offerTitle ? ` (${saleData.offerTitle})` : ""}:`,
+        `(-)${currency}${saleData.offerDiscount.toFixed(2)}`,
+        width
+      ) + "\n";
   }
   if (saleData.discountAmount > 0) {
     receipt += formatLine("Discount:", `-${currency}${saleData.discountAmount.toFixed(2)}`, width) + "\n";
@@ -328,27 +346,37 @@ function generateHTMLReceipt(saleData, settings = {}) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Receipt #${saleData.id}</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
-    .store-name { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
-    .store-info { font-size: 12px; color: #666; }
-    .receipt-info { margin-bottom: 20px; font-size: 14px; }
-    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    .items-table th { background: #f5f5f5; padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
-    .items-table td { padding: 8px; border-bottom: 1px solid #eee; }
-    .totals { text-align: right; margin-bottom: 20px; }
-    .totals-row { display: flex; justify-content: flex-end; margin: 5px 0; }
-    .totals-label { margin-right: 20px; min-width: 100px; }
-    .total-final { font-size: 18px; font-weight: bold; border-top: 2px solid #333; padding-top: 10px; margin-top: 10px; }
-    .payment-info { background: #f9f9f9; padding: 15px; margin-bottom: 20px; }
-    .footer { text-align: center; font-size: 12px; color: #666; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; }
-    .loyalty-points { background: #e8f5e9; padding: 10px; text-align: center; margin: 10px 0; border-radius: 5px; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div class="store-name">${storeSettings.name}</div>
+      ${
+        saleData.loyaltyDiscount && saleData.loyaltyDiscount > 0
+          ? `
+      <div class="totals-row">
+        <div class="totals-label">Loyalty Discount:</div>
+    <div>-${currency}${saleData.loyaltyDiscount.toFixed(2)}</div>
+      </div>
+      `
+          : ""
+      }
+      ${
+        saleData.offerDiscount && saleData.offerDiscount > 0
+          ? `
+      <div class="totals-row">
+        <div class="totals-label">Offer Discount${saleData.offerTitle ? ` (${saleData.offerTitle})` : ""}:</div>
+    <div>-${currency}${saleData.offerDiscount.toFixed(2)}</div>
+      </div>
+      `
+          : ""
+      }
+    ${
+      saleData.discountAmount > 0
+        ? `
+    <div class="totals-row">
+      <div class="totals-label">Discount:</div>
+  <div>-${currency}${saleData.discountAmount.toFixed(2)}</div>
+    </div>
+    ${saleData.discountReason ? `<div style="font-size: 12px; color: #666;">(${saleData.discountReason})</div>` : ""}
+    `
+        : ""
+    }
     <div class="store-info">
       ${storeSettings.address}<br>
   Phone: ${storeSettings.phone}
