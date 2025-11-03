@@ -3,7 +3,8 @@
  * Tests all aspects of the Customer Birthday & Loyalty System
  */
 
-const { PrismaClient } = require("@prisma/client");
+import { PrismaClient } from "@prisma/client";
+import fs from "fs";
 const prisma = new PrismaClient();
 
 async function comprehensiveCheck() {
@@ -233,7 +234,6 @@ async function comprehensiveCheck() {
     // Test 9: Backend Routes (customers.js)
     console.log("9️⃣  Checking Backend Customer Routes...");
     try {
-      const fs = require("fs");
       const customerRoutesPath = "./src/routes/customers.js";
 
       if (fs.existsSync(customerRoutesPath)) {
@@ -262,7 +262,6 @@ async function comprehensiveCheck() {
     // Test 10: Scheduler Module
     console.log("🔟 Checking Birthday Scheduler Module...");
     try {
-      const fs = require("fs");
       const schedulerPath = "./src/scheduler.js";
 
       if (fs.existsSync(schedulerPath)) {

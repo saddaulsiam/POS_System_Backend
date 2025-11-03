@@ -1,4 +1,4 @@
-const Papa = require("papaparse");
+import Papa from "papaparse";
 
 /**
  * Parse CSV data to JSON
@@ -120,8 +120,6 @@ const validateProductImport = (products) => {
   return { valid, invalid };
 };
 
-module.exports = {
-  parseCSV,
-  jsonToCSV,
-  validateProductImport,
-};
+export { parseCSV, jsonToCSV, validateProductImport };
+
+export default { parseCSV, jsonToCSV, validateProductImport };

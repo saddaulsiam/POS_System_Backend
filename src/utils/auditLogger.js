@@ -1,4 +1,3 @@
-// Audit logging helper
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 

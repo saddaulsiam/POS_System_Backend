@@ -1,7 +1,9 @@
-const { PrismaClient } = require("@prisma/client");
-const { hashPassword } = require("../utils/helpers");
+import { PrismaClient } from "@prisma/client";
+import { hashPassword } from "../utils/helpers.js";
+import { fileURLToPath } from "url";
 
 const prisma = new PrismaClient();
+const __filename = fileURLToPath(import.meta.url);
 
 async function main() {
   console.log("Starting database seeding...");
@@ -447,11 +449,13 @@ async function main() {
   }
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (process.argv[1] === __filename) {
+  main()
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

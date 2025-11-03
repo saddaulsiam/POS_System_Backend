@@ -1,5 +1,7 @@
-// Audit log helper
-const { PrismaClient } = require("@prisma/client");
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
 const prisma = new PrismaClient();
 
 /**
@@ -30,23 +32,20 @@ const logAudit = async ({ userId, action, entity, entityId, details, ipAddress, 
     console.error("Audit log error:", err);
   }
 };
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-
 const hashPassword = async (password) => {
   const saltRounds = 10;
   return await bcrypt.hash(password, saltRounds);
 };
 
-const comparePassword = async (password, hash) => {
+export const comparePassword = async (password, hash) => {
   return await bcrypt.compare(password, hash);
 };
 
-const generateToken = (userId, role) => {
+export const generateToken = (userId, role) => {
   return jwt.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: "24h" });
 };
 
-const generateReceiptId = () => {
+export const generateReceiptId = () => {
   const timestamp = Date.now().toString();
   const random = Math.floor(Math.random() * 1000)
     .toString()
@@ -54,18 +53,18 @@ const generateReceiptId = () => {
   return `R${timestamp.slice(-6)}${random}`;
 };
 
-const calculateTax = (amount, taxRate = 0) => {
+export const calculateTax = (amount, taxRate = 0) => {
   return amount * (taxRate / 100);
 };
 
-const formatCurrency = (amount) => {
+export const formatCurrency = (amount) => {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
   }).format(amount);
 };
 
-const generatePONumber = () => {
+export const generatePONumber = () => {
   const timestamp = Date.now().toString();
   const random = Math.floor(Math.random() * 100)
     .toString()
@@ -73,7 +72,9 @@ const generatePONumber = () => {
   return `PO${timestamp.slice(-6)}${random}`;
 };
 
-module.exports = {
+export { hashPassword, logAudit };
+
+export default {
   logAudit,
   hashPassword,
   comparePassword,

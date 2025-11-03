@@ -1,4 +1,4 @@
-const XLSX = require("xlsx");
+import XLSX from "xlsx";
 
 /**
  * Parse Excel file buffer to JSON
@@ -260,7 +260,16 @@ const validateVariantExcelData = (variants) => {
   return { valid, invalid };
 };
 
-module.exports = {
+export {
+  parseExcel,
+  jsonToExcel,
+  generateProductImportTemplate,
+  generateVariantImportTemplate,
+  validateProductExcelData,
+  validateVariantExcelData,
+};
+
+export default {
   parseExcel,
   jsonToExcel,
   generateProductImportTemplate,

@@ -4,7 +4,7 @@
  * This script creates a test product with multiple variants for testing the POS variant selection feature.
  */
 
-const { PrismaClient } = require("@prisma/client");
+import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function createTestProductWithVariants() {

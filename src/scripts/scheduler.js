@@ -3,9 +3,14 @@
  * Automatically awards birthday bonuses to customers daily
  */
 
-const cron = require("node-cron");
-const { PrismaClient } = require("@prisma/client");
+import cron from "node-cron";
+import { PrismaClient } from "@prisma/client";
+import { fileURLToPath } from "url";
+import path from "path";
+
 const prisma = new PrismaClient();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Tier birthday bonuses (same as in loyalty.js)
 const LOYALTY_TIERS = {
@@ -193,7 +198,7 @@ async function stopScheduler() {
 }
 
 // If running directly (for testing)
-if (require.main === module) {
+if (process.argv[1] === __filename) {
   console.log("🧪 Testing birthday rewards process...\n");
   processBirthdayRewards()
     .then((result) => {
@@ -207,8 +212,6 @@ if (require.main === module) {
     });
 }
 
-module.exports = {
-  startScheduler,
-  stopScheduler,
-  processBirthdayRewards,
-};
+export { startScheduler, stopScheduler, processBirthdayRewards };
+
+export default { startScheduler, stopScheduler, processBirthdayRewards };

@@ -1,4 +1,4 @@
-const bwipjs = require("bwip-js");
+import bwipjs from "bwip-js";
 
 /**
  * Generate a unique barcode for a product
@@ -51,8 +51,6 @@ const validateBarcode = (barcode) => {
   return /^[A-Z0-9]{6,}$/.test(barcode);
 };
 
-module.exports = {
-  generateBarcode,
-  generateBarcodeImage,
-  validateBarcode,
-};
+export { generateBarcode, generateBarcodeImage, validateBarcode };
+
+export default { generateBarcode, generateBarcodeImage, validateBarcode };

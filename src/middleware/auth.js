@@ -1,9 +1,9 @@
-const jwt = require("jsonwebtoken");
-const { PrismaClient } = require("@prisma/client");
+import jwt from "jsonwebtoken";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const authenticateToken = async (req, res, next) => {
+export const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
@@ -47,7 +47,7 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-const authorizeRoles = (...roles) => {
+export const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     console.log("🔒 Authorization check:", {
       requiredRoles: roles,
@@ -77,7 +77,7 @@ const authorizeRoles = (...roles) => {
 };
 
 // Optional authentication - doesn't fail if no token, just sets req.user if valid
-const optionalAuth = async (req, res, next) => {
+export const optionalAuth = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
@@ -105,4 +105,4 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
-module.exports = { authenticateToken, authorizeRoles, optionalAuth };
+export default { authenticateToken, authorizeRoles, optionalAuth };
