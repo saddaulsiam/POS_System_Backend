@@ -45,6 +45,11 @@ const limiter = rateLimit({
 });
 app.use("/api/", limiter);
 
+// Root route
+app.get("/", (req, res) => {
+  res.json({ message: "Welcome to the POS System API" });
+});
+
 // API routes
 app.use("/api", router);
 
