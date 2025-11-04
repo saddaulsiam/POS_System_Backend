@@ -95,7 +95,7 @@ export async function createProductWithVariants() {
     const product2 = await prisma.product.create({
       data: {
         name: "Cola Soft Drink",
-        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762253769/pos/products/pqwcgpasm8cumjco4bhp.jpg",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762191032/pos/products/n13tn9rgghzobryqossr.jpg",
         sku: "COLA-001",
         barcode: "890200" + Math.floor(Math.random() * 100000),
         description: "Refreshing cola drink in various sizes",
@@ -188,7 +188,7 @@ export async function createProductWithVariants() {
     const product3 = await prisma.product.create({
       data: {
         name: "Crispy Potato Chips",
-        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762253769/pos/products/pqwcgpasm8cumjco4bhp.jpg",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762190979/pos/products/naf97t4riuh1w4ckdnik.png",
         sku: "CHIPS-001",
         barcode: "8901234567910",
         description: "Delicious crispy potato chips in different flavors and sizes",
