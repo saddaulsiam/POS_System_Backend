@@ -94,7 +94,7 @@ export async function createProductWithVariants() {
     // Create second product - Soft Drinks
     const product2 = await prisma.product.create({
       data: {
-        name: "Cola Soft Drink",
+        name: "Mojo Soft Drink",
         image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762191032/pos/products/n13tn9rgghzobryqossr.jpg",
         sku: "COLA-001",
         barcode: "890200" + Math.floor(Math.random() * 100000),
