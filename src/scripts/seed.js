@@ -1,9 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../utils/helpers.js";
-import { fileURLToPath } from "url";
+import { createProductWithVariants } from "./create-product-variants.js";
 
 const prisma = new PrismaClient();
-const __filename = fileURLToPath(import.meta.url);
 
 async function main() {
   console.log("Starting database seeding...");
@@ -135,6 +134,7 @@ async function main() {
       // Dairy & Eggs
       {
         name: "Whole Milk (1 Gallon)",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762191098/pos/products/p3n3mvpweltmag1ebrjw.jpg",
         sku: "MILK001",
         barcode: "1234567890123",
         description: "Fresh whole milk",
@@ -148,6 +148,7 @@ async function main() {
       },
       {
         name: "Large Eggs (Dozen)",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762191091/pos/products/eaj1b9vzywb76pohdou3.webp",
         sku: "EGG001",
         barcode: "1234567890124",
         description: "Grade A large eggs",
@@ -161,6 +162,7 @@ async function main() {
       },
       {
         name: "Cheddar Cheese (8oz)",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762191084/pos/products/jvppyrnwzr1o86jrteaj.jpg",
         sku: "CHEESE001",
         barcode: "1234567890125",
         description: "Sharp cheddar cheese block",
@@ -175,6 +177,7 @@ async function main() {
       // Fruits & Vegetables
       {
         name: "Bananas",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762191075/pos/products/y8230lz36zf3crk5c91d.jpg",
         sku: "BANANA001",
         barcode: "1234567890126",
         description: "Fresh bananas",
@@ -189,6 +192,7 @@ async function main() {
       },
       {
         name: "Red Apples",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762191067/pos/products/tzo76mjttntidh4rjmbd.jpg",
         sku: "APPLE001",
         barcode: "1234567890127",
         description: "Fresh red apples",
@@ -203,6 +207,7 @@ async function main() {
       },
       {
         name: "Carrots (2lb bag)",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762191059/pos/products/k6fbuexqtyr8uanagthh.webp",
         sku: "CARROT001",
         barcode: "1234567890128",
         description: "Fresh carrots in 2lb bag",
@@ -217,6 +222,7 @@ async function main() {
       // Beverages
       {
         name: "Coca-Cola (2L)",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762191032/pos/products/n13tn9rgghzobryqossr.jpg",
         sku: "COKE001",
         barcode: "1234567890129",
         description: "Coca-Cola 2 liter bottle",
@@ -230,6 +236,7 @@ async function main() {
       },
       {
         name: "Orange Juice (64oz)",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762191024/pos/products/qkwrstqu1edfuxk3zq6p.jpg",
         sku: "OJ001",
         barcode: "1234567890130",
         description: "Fresh orange juice",
@@ -244,6 +251,7 @@ async function main() {
       // Bakery
       {
         name: "White Bread Loaf",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762191013/pos/products/mqwtgbwyyxyq9nj3tujb.jpg",
         sku: "BREAD001",
         barcode: "1234567890131",
         description: "Fresh white bread loaf",
@@ -257,6 +265,7 @@ async function main() {
       },
       {
         name: "Chocolate Chip Cookies",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762191004/pos/products/yduqfd9djthgrwp6rced.jpg",
         sku: "COOKIE001",
         barcode: "1234567890132",
         description: "Fresh baked chocolate chip cookies",
@@ -271,6 +280,7 @@ async function main() {
       // Snacks
       {
         name: "Potato Chips (Family Size)",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762190979/pos/products/naf97t4riuh1w4ckdnik.png",
         sku: "CHIPS001",
         barcode: "1234567890133",
         description: "Original flavor potato chips",
@@ -284,6 +294,7 @@ async function main() {
       },
       {
         name: "Chocolate Bar",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762190961/pos/products/cyc4cwpegajlswkstdgm.jpg",
         sku: "CHOCO001",
         barcode: "1234567890134",
         description: "Milk chocolate candy bar",
@@ -298,6 +309,7 @@ async function main() {
       // Pantry Staples
       {
         name: "Rice (5lb bag)",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762190952/pos/products/jcsceasb2anwt0sh13jb.jpg",
         sku: "RICE001",
         barcode: "1234567890135",
         description: "Long grain white rice",
@@ -311,6 +323,7 @@ async function main() {
       },
       {
         name: "Pasta (1lb box)",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762189688/pos/products/bnnyjlwh2snam5ywa7pu.jpg",
         sku: "PASTA001",
         barcode: "1234567890136",
         description: "Spaghetti pasta",
@@ -325,6 +338,7 @@ async function main() {
       // Frozen Foods
       {
         name: "Frozen Pizza",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1762189667/pos/products/pz1tnuan0puryzkxthf7.jpg",
         sku: "PIZZA001",
         barcode: "1234567890137",
         description: "Pepperoni frozen pizza",
@@ -341,6 +355,8 @@ async function main() {
     for (const productData of products) {
       await prisma.product.create({ data: productData });
     }
+
+    createProductWithVariants();
 
     // Create some sample sales
     console.log("Creating sample sales...");
@@ -449,13 +465,11 @@ async function main() {
   }
 }
 
-if (process.argv[1] === __filename) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(async () => {
-      await prisma.$disconnect();
-    });
-}
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

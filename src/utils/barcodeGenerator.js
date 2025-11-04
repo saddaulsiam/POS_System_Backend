@@ -52,5 +52,3 @@ const validateBarcode = (barcode) => {
 };
 
 export { generateBarcode, generateBarcodeImage, validateBarcode };
-
-export default { generateBarcode, generateBarcodeImage, validateBarcode };

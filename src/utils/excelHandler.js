@@ -268,12 +268,3 @@ export {
   validateProductExcelData,
   validateVariantExcelData,
 };
-
-export default {
-  parseExcel,
-  jsonToExcel,
-  generateProductImportTemplate,
-  generateVariantImportTemplate,
-  validateProductExcelData,
-  validateVariantExcelData,
-};

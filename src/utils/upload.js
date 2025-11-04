@@ -2,10 +2,10 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { dirname } from "path";
 
-// __dirname replacement for ESM
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(__filename);
 
 // Ensure upload directory exists
 const uploadDir = path.join(__dirname, "../../uploads/products");
@@ -58,7 +58,7 @@ const uploadMemory = multer({
 });
 
 // Helper function to delete old image
-export const deleteImage = (imagePath) => {
+const deleteImage = (imagePath) => {
   if (!imagePath) return;
 
   const fullPath = path.join(__dirname, "../../uploads/products", path.basename(imagePath));
@@ -73,6 +73,4 @@ export const deleteImage = (imagePath) => {
   }
 };
 
-export { upload, uploadMemory };
-
-export default { upload, uploadMemory, deleteImage };
+export { upload, uploadMemory, deleteImage };

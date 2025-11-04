@@ -18,6 +18,19 @@ export const getVariantById = async (req, res) => {
 
 export const getAllVariants = async (req, res) => {
   try {
+    const { productId } = req.query;
+    
+    // If productId is provided, filter by product
+    if (productId) {
+      const parsedProductId = parseInt(productId);
+      if (isNaN(parsedProductId)) {
+        return sendError(res, 400, "Invalid productId");
+      }
+      const variants = await productVariantsService.getVariantsByProduct(parsedProductId);
+      return sendSuccess(res, variants);
+    }
+    
+    // Otherwise, return all variants
     const variants = await productVariantsService.getAllVariants();
     sendSuccess(res, variants);
   } catch (error) {

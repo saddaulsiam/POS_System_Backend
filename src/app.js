@@ -7,8 +7,9 @@ import helmet from "helmet";
 import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
-import router from "./routes/index.js";
+import router from "./routes/index.ts";
 import { startScheduler, stopScheduler } from "./scripts/scheduler.js";
+import { initOnStartup } from "./scripts/seedDefaultEmployees.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,7 +25,7 @@ app.use(
     origin: [
       process.env.FRONTEND_URL || "http://localhost:3000",
       "http://localhost:3000",
-      "http://localhost:5000",
+      "https://pos-system-1sd9.onrender.com",
       "file://",
     ],
     credentials: true,
@@ -44,11 +45,6 @@ const limiter = rateLimit({
   message: "Too many requests from this IP, please try again later.",
 });
 app.use("/api/", limiter);
-
-// Root route
-app.get("/", (req, res) => {
-  res.json({ message: "Welcome to the POS System API" });
-});
 
 // API routes
 app.use("/api", router);
@@ -88,6 +84,9 @@ app.listen(PORT, async () => {
 
   // Start birthday rewards automation
   startScheduler();
+
+  // Perform any startup initialization (creates default employees, etc.)
+  await initOnStartup();
 });
 
 export default app;

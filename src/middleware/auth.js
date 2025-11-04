@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export const authenticateToken = async (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
@@ -47,7 +47,7 @@ export const authenticateToken = async (req, res, next) => {
   }
 };
 
-export const authorizeRoles = (...roles) => {
+const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     console.log("🔒 Authorization check:", {
       requiredRoles: roles,
@@ -77,7 +77,7 @@ export const authorizeRoles = (...roles) => {
 };
 
 // Optional authentication - doesn't fail if no token, just sets req.user if valid
-export const optionalAuth = async (req, res, next) => {
+const optionalAuth = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
@@ -105,4 +105,4 @@ export const optionalAuth = async (req, res, next) => {
   }
 };
 
-export default { authenticateToken, authorizeRoles, optionalAuth };
+export { authenticateToken, authorizeRoles, optionalAuth };

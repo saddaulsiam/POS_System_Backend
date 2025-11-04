@@ -17,6 +17,7 @@ export const createEmployeeValidator = [
 export const updateEmployeeValidator = [
   body("name").optional().notEmpty().trim().withMessage("Name cannot be empty"),
   body("username").optional().notEmpty().trim().withMessage("Username cannot be empty"),
+  body("pinCode").optional().isLength({ min: 4, max: 6 }).withMessage("PIN must be 4-6 digits"),
   body("role").optional().isIn(["ADMIN", "MANAGER", "CASHIER", "STAFF"]).withMessage("Invalid role"),
   body("isActive").optional().isBoolean().withMessage("isActive must be a boolean"),
   body("email").optional().isEmail().withMessage("Invalid email address"),

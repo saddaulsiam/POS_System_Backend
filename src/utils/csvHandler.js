@@ -121,5 +121,3 @@ const validateProductImport = (products) => {
 };
 
 export { parseCSV, jsonToCSV, validateProductImport };
-
-export default { parseCSV, jsonToCSV, validateProductImport };

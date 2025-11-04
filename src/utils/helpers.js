@@ -1,7 +1,5 @@
+// Audit log helper
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-
 const prisma = new PrismaClient();
 
 /**
@@ -32,7 +30,10 @@ const logAudit = async ({ userId, action, entity, entityId, details, ipAddress, 
     console.error("Audit log error:", err);
   }
 };
-const hashPassword = async (password) => {
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+export const hashPassword = async (password) => {
   const saltRounds = 10;
   return await bcrypt.hash(password, saltRounds);
 };
@@ -72,15 +73,4 @@ export const generatePONumber = () => {
   return `PO${timestamp.slice(-6)}${random}`;
 };
 
-export { hashPassword, logAudit };
-
-export default {
-  logAudit,
-  hashPassword,
-  comparePassword,
-  generateToken,
-  generateReceiptId,
-  calculateTax,
-  formatCurrency,
-  generatePONumber,
-};
+export { logAudit };

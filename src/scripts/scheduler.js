@@ -6,11 +6,9 @@
 import cron from "node-cron";
 import { PrismaClient } from "@prisma/client";
 import { fileURLToPath } from "url";
-import path from "path";
 
-const prisma = new PrismaClient();
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const prisma = new PrismaClient();
 
 // Tier birthday bonuses (same as in loyalty.js)
 const LOYALTY_TIERS = {
@@ -213,5 +211,3 @@ if (process.argv[1] === __filename) {
 }
 
 export { startScheduler, stopScheduler, processBirthdayRewards };
-
-export default { startScheduler, stopScheduler, processBirthdayRewards };
