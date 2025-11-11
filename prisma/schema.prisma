@@ -23,6 +23,7 @@ model AuditLog {
 model Category {
   id        Int       @id @default(autoincrement())
   name      String    @unique
+  icon      String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   products  Product[]

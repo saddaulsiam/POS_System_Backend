@@ -7,6 +7,7 @@ import {
   findNameConflict,
   updateCategoryService,
   deleteCategoryService,
+  uploadCategoryIconService,
 } from "./categoriesService.js";
 
 import { sendError } from "../../utils/response.js";
@@ -46,12 +47,12 @@ async function createCategory(req, res) {
     if (errors && errors.length > 0) {
       return sendError(res, 400, errors);
     }
-    const { name } = req.body;
+    const { name, icon } = req.body;
     const existing = await findCategoryByName(name);
     if (existing) {
       return sendError(res, 400, "Category with this name already exists");
     }
-    const category = await createCategoryService(name);
+    const category = await createCategoryService(name, icon);
     sendSuccess(res, category, 201);
   } catch (error) {
     console.error("Create category error:", error);
@@ -67,7 +68,7 @@ async function updateCategory(req, res) {
       return sendError(res, 400, errors);
     }
     const { id } = req.params;
-    const { name } = req.body;
+    const { name, icon } = req.body;
     const categoryId = parseInt(id);
     const existingCategory = await findCategoryById(categoryId);
     if (!existingCategory) {
@@ -77,7 +78,7 @@ async function updateCategory(req, res) {
     if (nameConflict) {
       return sendError(res, 400, "Another category with this name already exists");
     }
-    const category = await updateCategoryService(categoryId, name);
+    const category = await updateCategoryService(categoryId, name, icon);
     sendSuccess(res, category);
   } catch (error) {
     console.error("Update category error:", error);
@@ -105,4 +106,25 @@ async function deleteCategory(req, res) {
   }
 }
 
-export { getCategories, getCategoryById, createCategory, updateCategory, deleteCategory };
+// Upload category icon
+async function uploadCategoryIcon(req, res) {
+  try {
+    const { id } = req.params;
+    const categoryId = parseInt(id);
+
+    if (!req.file) {
+      return sendError(res, 400, "No image file provided");
+    }
+
+    const category = await uploadCategoryIconService(categoryId, req.file);
+    sendSuccess(res, category);
+  } catch (error) {
+    console.error("Upload category icon error:", error);
+    if (error.message === "Category not found") {
+      return sendError(res, 404, error.message);
+    }
+    sendError(res, 500, error.message || "Failed to upload icon");
+  }
+}
+
+export { getCategories, getCategoryById, createCategory, updateCategory, deleteCategory, uploadCategoryIcon };
