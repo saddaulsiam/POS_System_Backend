@@ -34,14 +34,27 @@ function generatePDFReceipt(saleData, settings = {}) {
     ...settings,
   };
 
-  // Header
-  doc.fontSize(20).font("Helvetica-Bold").text(storeSettings.name, { align: "center" });
+  // Header - make store name responsive by shrinking font size to fit page width
+  doc.font("Helvetica-Bold");
+  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  let titleSize = 20;
+  // Reduce font size until the text fits or a minimum size is reached
+  while (titleSize > 8) {
+    doc.fontSize(titleSize);
+    // widthOfString measures current font settings
+    const w = doc.widthOfString(storeSettings.name);
+    if (w <= usableWidth) break;
+    titleSize -= 1;
+  }
+  doc.fontSize(titleSize).text(storeSettings.name, { align: "center" });
   doc
     .fontSize(10)
     .font("Helvetica")
     .text(storeSettings.address, { align: "center" })
-    .text(`Phone: ${storeSettings.phone}`, { align: "center" })
-    .text(`Tax ID: ${storeSettings.taxId}`, { align: "center" });
+    .text(`Phone: ${storeSettings.phone}`, { align: "center" });
+  if (storeSettings.taxId) {
+    doc.text(`Tax ID: ${storeSettings.taxId}`, { align: "center" });
+  }
 
   doc.moveDown();
   doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
@@ -165,14 +178,43 @@ function generateThermalReceipt(saleData, settings = {}) {
 
   // Store header (centered, no ESC codes)
   const storeName = settings.storeName || "POS System";
-  receipt += center(storeName, width) + "\n";
   const address = settings.storeAddress || "123 Main St, City";
-  receipt += center(address, width) + "\n";
   const phone = settings.storePhone || "(123) 456-7890";
-  receipt += center(`Phone: ${phone}`, width) + "\n";
-  if (settings.taxId) {
-    receipt += center(`Tax ID: ${settings.taxId}`, width) + "\n";
+  const taxId = settings.taxId;
+
+  // Helper to wrap long strings into lines no longer than width
+  function wrapText(str, maxLen) {
+    if (!str) return [""];
+    const words = String(str).split(/\s+/);
+    const lines = [];
+    let current = "";
+    words.forEach((w) => {
+      if ((current + " " + w).trim().length > maxLen) {
+        if (current.trim().length > 0) lines.push(current.trim());
+        // If single word longer than maxLen, hard-split
+        if (w.length > maxLen) {
+          let i = 0;
+          while (i < w.length) {
+            lines.push(w.substr(i, maxLen));
+            i += maxLen;
+          }
+          current = "";
+        } else {
+          current = w;
+        }
+      } else {
+        current = (current + " " + w).trim();
+      }
+    });
+    if (current) lines.push(current.trim());
+    return lines.length ? lines : [""];
   }
+
+  // Center and append wrapped lines for header
+  wrapText(storeName, width).forEach((ln) => (receipt += center(ln, width) + "\n"));
+  wrapText(address, width).forEach((ln) => (receipt += center(ln, width) + "\n"));
+  wrapText(`Phone: ${phone}`, width).forEach((ln) => (receipt += center(ln, width) + "\n"));
+  if (taxId) wrapText(`Tax ID: ${taxId}`, width).forEach((ln) => (receipt += center(ln, width) + "\n"));
   receipt += "=".repeat(width) + "\n";
 
   // Receipt info (left aligned)
@@ -346,6 +388,26 @@ function generateHTMLReceipt(saleData, settings = {}) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Receipt #${saleData.id}</title>
+  <style>
+    /* Responsive header and receipt styles */
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin: 0; padding: 10px; color: #222; }
+    .store-header { text-align: center; max-width: 700px; margin: 0 auto 8px auto; word-wrap: break-word; white-space: normal; }
+    .store-header .name { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .store-header .meta { font-size: 12px; color: #444; }
+    .receipt-info { margin: 12px 0; font-size: 13px; }
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    .items-table th, .items-table td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    .items-table th { text-align: left; font-weight: 600; }
+    .totals { max-width: 420px; margin-left: auto; }
+    .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
+    .totals-label { color: #333; }
+    .total-final { font-size: 16px; font-weight: 700; }
+    .footer { text-align: center; margin-top: 14px; font-size: 13px; }
+    @media print {
+      body { margin: 0; }
+      .store-header .name { font-size: 18px; }
+    }
+  </style>
       ${
         saleData.loyaltyDiscount && saleData.loyaltyDiscount > 0
           ? `
@@ -377,10 +439,13 @@ function generateHTMLReceipt(saleData, settings = {}) {
     `
         : ""
     }
-    <div class="store-info">
-      ${storeSettings.address}<br>
-  Phone: ${storeSettings.phone}
-      ${storeSettings.taxId ? `<br>Tax ID: ${storeSettings.taxId}` : ""}
+    <div class="store-header">
+      <div class="name">${storeSettings.name}</div>
+      <div class="meta">
+        ${storeSettings.address}<br>
+        Phone: ${storeSettings.phone}
+        ${storeSettings.taxId ? `<br>Tax ID: ${storeSettings.taxId}` : ""}
+      </div>
     </div>
   </div>
 
