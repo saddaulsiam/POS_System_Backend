@@ -30,6 +30,10 @@ app.use(
       "file://",
     ],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    exposedHeaders: ["Content-Range", "X-Content-Range"],
+    optionsSuccessStatus: 200,
   })
 );
 app.use(morgan("combined"));
@@ -46,6 +50,9 @@ const limiter = rateLimit({
   message: "Too many requests from this IP, please try again later.",
 });
 app.use("/api/", limiter);
+
+// Handle preflight requests for all routes
+app.options("*", cors());
 
 // API routes
 app.use("/api", router);
