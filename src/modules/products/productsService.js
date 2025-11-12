@@ -16,7 +16,11 @@ export async function getProductsService({ page, limit, search, categoryId, isAc
     where.isDeleted = false;
   }
   if (search) {
-    where.OR = [{ name: { contains: search } }, { sku: { contains: search } }, { barcode: { contains: search } }];
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { sku: { contains: search, mode: "insensitive" } },
+      { barcode: { contains: search, mode: "insensitive" } },
+    ];
   }
   if (categoryId) where.categoryId = categoryId;
   if (isActive !== undefined) where.isActive = isActive;
