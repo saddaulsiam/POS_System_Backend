@@ -360,8 +360,8 @@ model POSSettings {
   loyaltyPointsPerUnit            Float     @default(10)
   pointsRedemptionRate            Float     @default(100)
   storeName                       String    @default("POS System")
-  storeAddress                    String    @default("123 Main St, City, Country")
-  storePhone                      String    @default("(123) 456-7890")
+  storeAddress                    String    @default("Chatmohar, Pabna, Dhaka, Bangladesh")
+  storePhone                      String    @default("+8801712345678")
   storeEmail                      String?   @unique
   taxId                           String?
   taxRate                         Float     @default(0)
