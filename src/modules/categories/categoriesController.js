@@ -1,17 +1,16 @@
+import { validationResult } from "express-validator";
+import { sendError, sendSuccess } from "../../utils/response.js";
 import {
+  createCategoryService,
+  deleteCategoryService,
   fetchCategories,
   fetchCategoryById,
-  createCategoryService,
-  findCategoryByName,
   findCategoryById,
+  findCategoryByName,
   findNameConflict,
   updateCategoryService,
-  deleteCategoryService,
   uploadCategoryIconService,
 } from "./categoriesService.js";
-
-import { sendError } from "../../utils/response.js";
-import { sendSuccess } from "../../utils/response.js";
 
 // Get all categories
 async function getCategories(req, res) {
@@ -43,16 +42,21 @@ async function getCategoryById(req, res) {
 // Create new category
 async function createCategory(req, res) {
   try {
-    const errors = req.validationResult ? req.validationResult() : [];
-    if (errors && errors.length > 0) {
-      return sendError(res, 400, errors);
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return sendError(res, 400, errors.array()[0].msg);
     }
-    const { name, icon } = req.body;
-    const existing = await findCategoryByName(name);
+
+    const { name } = req.body;
+
+    const existing = await findCategoryByName(name.trim());
     if (existing) {
       return sendError(res, 400, "Category with this name already exists");
     }
-    const category = await createCategoryService(name, icon);
+
+    // Create category with icon if file is uploaded
+    const category = await createCategoryService(name.trim(), req.file);
     sendSuccess(res, category, 201);
   } catch (error) {
     console.error("Create category error:", error);
@@ -63,22 +67,28 @@ async function createCategory(req, res) {
 // Update category
 async function updateCategory(req, res) {
   try {
-    const errors = req.validationResult ? req.validationResult() : [];
-    if (errors && errors.length > 0) {
-      return sendError(res, 400, errors);
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return sendError(res, 400, errors.array()[0].msg);
     }
+
     const { id } = req.params;
-    const { name, icon } = req.body;
+    const { name } = req.body;
     const categoryId = parseInt(id);
+
     const existingCategory = await findCategoryById(categoryId);
     if (!existingCategory) {
       return sendError(res, 404, "Category not found");
     }
-    const nameConflict = await findNameConflict(name, categoryId);
+
+    const nameConflict = await findNameConflict(name.trim(), categoryId);
     if (nameConflict) {
       return sendError(res, 400, "Another category with this name already exists");
     }
-    const category = await updateCategoryService(categoryId, name, icon);
+
+    // Update category with icon if file is uploaded
+    const category = await updateCategoryService(categoryId, name.trim(), req.file);
     sendSuccess(res, category);
   } catch (error) {
     console.error("Update category error:", error);
@@ -127,4 +137,4 @@ async function uploadCategoryIcon(req, res) {
   }
 }
 
-export { getCategories, getCategoryById, createCategory, updateCategory, deleteCategory, uploadCategoryIcon };
+export { createCategory, deleteCategory, getCategories, getCategoryById, updateCategory, uploadCategoryIcon };

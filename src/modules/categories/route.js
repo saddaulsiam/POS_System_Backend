@@ -16,12 +16,18 @@ const router = express.Router();
 router
   .route("/")
   .get(authenticateToken, getCategories)
-  .post([authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...categoryValidator.create], createCategory);
+  .post(
+    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), uploadMemory.single("icon"), ...categoryValidator.create],
+    createCategory
+  );
 
 router
   .route("/:id")
   .get(authenticateToken, getCategoryById)
-  .put([authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...categoryValidator.update], updateCategory)
+  .put(
+    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), uploadMemory.single("icon"), ...categoryValidator.update],
+    updateCategory
+  )
   .delete([authenticateToken, authorizeRoles("ADMIN", "MANAGER")], deleteCategory);
 
 router

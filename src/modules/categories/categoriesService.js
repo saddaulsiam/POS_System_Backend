@@ -20,9 +20,16 @@ export async function fetchCategoryById(categoryId) {
   });
 }
 
-export async function createCategoryService(name, icon = null) {
+export async function createCategoryService(name, file = null) {
+  let iconUrl = null;
+
+  // Upload icon to Cloudinary if file is provided
+  if (file) {
+    iconUrl = await uploadToCloudinary(file);
+  }
+
   return prisma.category.create({
-    data: { name: name.trim(), icon },
+    data: { name: name.trim(), icon: iconUrl },
     include: { _count: { select: { products: true } } },
   });
 }
@@ -41,11 +48,15 @@ export async function findNameConflict(name, categoryId) {
   });
 }
 
-export async function updateCategoryService(categoryId, name, icon = undefined) {
+export async function updateCategoryService(categoryId, name, file = null) {
   const data = { name: name.trim() };
-  if (icon !== undefined) {
-    data.icon = icon;
+
+  // Upload new icon to Cloudinary if file is provided
+  if (file) {
+    const iconUrl = await uploadToCloudinary(file);
+    data.icon = iconUrl;
   }
+
   return prisma.category.update({
     where: { id: categoryId },
     data,
@@ -57,11 +68,8 @@ export async function deleteCategoryService(categoryId) {
   return prisma.category.delete({ where: { id: categoryId } });
 }
 
-// Upload category icon to Cloudinary
-export async function uploadCategoryIconService(categoryId, file) {
-  const category = await prisma.category.findUnique({ where: { id: categoryId } });
-  if (!category) throw new Error("Category not found");
-
+// Helper function to upload to Cloudinary
+async function uploadToCloudinary(file) {
   let iconUrl = null;
 
   // Upload to Cloudinary from buffer (memory storage)
@@ -97,6 +105,16 @@ export async function uploadCategoryIconService(categoryId, file) {
   } else {
     throw new Error("No file provided");
   }
+
+  return iconUrl;
+}
+
+// Upload category icon to Cloudinary (kept for backward compatibility)
+export async function uploadCategoryIconService(categoryId, file) {
+  const category = await prisma.category.findUnique({ where: { id: categoryId } });
+  if (!category) throw new Error("Category not found");
+
+  const iconUrl = await uploadToCloudinary(file);
 
   return await prisma.category.update({
     where: { id: categoryId },
