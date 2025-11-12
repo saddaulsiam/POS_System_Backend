@@ -31,11 +31,9 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
-    "nodemailer": "^7.0.6",
     "papaparse": "^5.5.3",
     "pdfkit": "^0.17.2",
     "pg": "^8.16.3",
-    "uuid": "^9.0.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
