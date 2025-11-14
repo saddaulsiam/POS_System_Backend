@@ -23,10 +23,10 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(
   cors({
     origin: [
-      process.env.FRONTEND_URL || "http://localhost:3000",
+      process.env.FRONTEND_URL,
       "http://localhost:3000",
       "http://localhost:4173",
-      "https://pos-system-1sd9.onrender.com",
+      "https://pos-system-grocery.vercel.app",
       "file://",
     ],
     credentials: true,
