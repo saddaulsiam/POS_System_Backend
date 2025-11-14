@@ -3,8 +3,17 @@ import cloudinary from "../../utils/cloudinary.js";
 import { hashPassword } from "../../utils/helpers.js";
 const prisma = new PrismaClient();
 
-export async function getAllEmployeesService({ includeInactive, page = 1, limit = 20 }) {
+export async function getAllEmployeesService({ includeInactive, page = 1, limit = 20, search = "" }) {
   const where = includeInactive ? {} : { isActive: true };
+
+  // Add search condition
+  if (search && search.trim()) {
+    where.OR = [
+      { name: { contains: search.trim(), mode: "insensitive" } },
+      { username: { contains: search.trim(), mode: "insensitive" } },
+    ];
+  }
+
   const skip = (page - 1) * limit;
   const [employees, total] = await Promise.all([
     prisma.employee.findMany({
