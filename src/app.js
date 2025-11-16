@@ -26,7 +26,7 @@ app.use(
       process.env.FRONTEND_URL,
       "http://localhost:3000",
       "http://localhost:4173",
-      "https://pos-system-grocery.vercel.app",
+      "https://smart-pos-grocery.vercel.app",
       "file://",
     ],
     credentials: true,
