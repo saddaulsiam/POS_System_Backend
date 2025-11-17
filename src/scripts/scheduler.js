@@ -179,7 +179,6 @@ function startScheduler() {
   console.log("✅ Birthday rewards scheduler is running");
   console.log("📆 Schedule: Daily at 9:00 AM");
   console.log("🎂 Automatically checks for birthdays and awards bonuses");
-  console.log("");
 
   // Optional: Run once immediately on startup (for testing)
   // Uncomment the next line to test immediately when server starts:

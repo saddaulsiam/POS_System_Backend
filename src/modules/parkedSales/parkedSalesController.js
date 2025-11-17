@@ -2,6 +2,7 @@ import { validationResult } from "express-validator";
 import { sendError, sendSuccess } from "../../utils/response.js";
 import * as parkedSalesService from "./parkedSalesService.js";
 
+export async function getAllParkedSales(req, res) {
   try {
     const employeeId = req.user.id;
     const storeId = req.user.storeId;
@@ -11,8 +12,9 @@ import * as parkedSalesService from "./parkedSalesService.js";
     console.error("Get parked sales error:", error);
     sendError(res, 500, "Failed to fetch parked sales");
   }
-};
+}
 
+export async function parkSale(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -26,8 +28,9 @@ import * as parkedSalesService from "./parkedSalesService.js";
     console.error("Park sale error:", error);
     sendError(res, 500, "Failed to park sale");
   }
-};
+}
 
+export async function getParkedSale(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -45,8 +48,9 @@ import * as parkedSalesService from "./parkedSalesService.js";
     console.error("Get parked sale error:", error);
     sendError(res, 500, "Failed to fetch parked sale");
   }
-};
+}
 
+export async function deleteParkedSale(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -64,8 +68,9 @@ import * as parkedSalesService from "./parkedSalesService.js";
     console.error("Delete parked sale error:", error);
     sendError(res, 500, "Failed to delete parked sale");
   }
-};
+}
 
+export async function cleanupExpiredParkedSales(req, res) {
   try {
     const storeId = req.user.storeId;
     const result = await parkedSalesService.cleanupExpiredParkedSalesService(storeId);
@@ -74,4 +79,4 @@ import * as parkedSalesService from "./parkedSalesService.js";
     console.error("Cleanup expired sales error:", error);
     sendError(res, 500, "Failed to cleanup expired sales");
   }
-};
+}
