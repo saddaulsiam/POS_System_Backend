@@ -267,7 +267,7 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
           notes,
           saleItems: { create: saleItemsData },
           paymentSplits:
-            paymentMethod === "MIXED" ? { create: paymentSplits.map((split) => ({ ...split, storeId })) } : undefined,
+            paymentMethod === "MIXED" ? { create: paymentSplits.map(({ storeId, ...split }) => split) } : undefined,
           pointsEarned,
         },
         include: {
