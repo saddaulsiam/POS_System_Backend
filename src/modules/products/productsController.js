@@ -31,7 +31,8 @@ async function listProducts(req, res) {
     const isActive =
       req.query.isActive !== undefined ? req.query.isActive === "true" || req.query.isActive === true : undefined;
     const showDeleted = req.query.showDeleted === "true" || req.query.showDeleted === true;
-    const result = await getProductsService({ page, limit, search, categoryId, isActive, showDeleted });
+    const storeId = req.user.storeId;
+    const result = await getProductsService({ page, limit, search, categoryId, isActive, showDeleted, storeId });
     sendSuccess(res, result);
   } catch (error) {
     console.error("List products error:", error);
@@ -46,7 +47,8 @@ async function createProduct(req, res) {
     if (!errors.isEmpty()) {
       return sendError(res, 400, errors.array());
     }
-    const result = await createProductService(req.body, req.user.id);
+    const storeId = req.user.storeId;
+    const result = await createProductService(req.body, req.user.id, storeId);
     await checkAndCreateAlerts(result.id);
     sendSuccess(res, result, 201);
   } catch (error) {
@@ -61,7 +63,8 @@ async function updateProduct(req, res) {
       return sendError(res, 400, errors.array());
     }
     const { id } = req.params;
-    const product = await updateProductService(id, req.body);
+    const storeId = req.user.storeId;
+    const product = await updateProductService(id, req.body, storeId);
     await checkAndCreateAlerts(product.id);
     sendSuccess(res, product);
   } catch (error) {
@@ -74,7 +77,8 @@ async function updateProduct(req, res) {
 async function deleteProduct(req, res) {
   try {
     const { id } = req.params;
-    await deleteProductService(id);
+    const storeId = req.user.storeId;
+    await deleteProductService(id, storeId);
     sendSuccess(res, { message: "Product deleted successfully" });
   } catch (error) {
     sendError(res, 500, error.message || "Failed to delete product");
@@ -85,7 +89,8 @@ async function deleteProduct(req, res) {
 async function getProductById(req, res) {
   try {
     const { id } = req.params;
-    const product = await getProductByIdService(id);
+    const storeId = req.user.storeId;
+    const product = await getProductByIdService(id, storeId);
     if (!product) return sendError(res, 404, "Product not found");
     sendSuccess(res, product);
   } catch (error) {
@@ -102,8 +107,9 @@ async function uploadProductImage(req, res) {
       return sendError(res, 400, errors.array());
     }
     const { id } = req.params;
+    const storeId = req.user.storeId;
     if (!req.file) return sendError(res, 400, "No image uploaded");
-    const updatedProduct = await uploadProductImageService(id, req.file);
+    const updatedProduct = await uploadProductImageService(id, req.file, storeId);
     await checkAndCreateAlerts(updatedProduct.id);
     sendSuccess(res, updatedProduct);
   } catch (error) {
@@ -120,7 +126,8 @@ async function deleteProductImage(req, res) {
       return sendError(res, 400, errors.array());
     }
     const { id } = req.params;
-    const updatedProduct = await deleteProductImageService(id);
+    const storeId = req.user.storeId;
+    const updatedProduct = await deleteProductImageService(id, storeId);
     sendSuccess(res, updatedProduct);
   } catch (error) {
     console.error("Delete image error:", error);
@@ -131,7 +138,8 @@ async function deleteProductImage(req, res) {
 //Export products to CSV
 async function exportProductsCSV(req, res) {
   try {
-    const csv = await exportProductsCSVService();
+    const storeId = req.user.storeId;
+    const csv = await exportProductsCSVService(storeId);
     res.header("Content-Type", "text/csv");
     res.attachment("products.csv");
     res.send(csv);
@@ -149,7 +157,8 @@ async function importProductsCSV(req, res) {
       return sendError(res, 400, errors.array());
     }
     if (!req.file) return sendError(res, 400, "No file uploaded");
-    await importProductsCSVService(req.file.buffer);
+    const storeId = req.user.storeId;
+    await importProductsCSVService(req.file.buffer, storeId);
     sendSuccess(res, { success: true });
   } catch (error) {
     console.error("Import error:", error);
@@ -160,7 +169,8 @@ async function importProductsCSV(req, res) {
 // Export products to Excel
 async function exportProductsExcel(req, res) {
   try {
-    const buffer = await exportProductsExcelService();
+    const storeId = req.user.storeId;
+    const buffer = await exportProductsExcelService(storeId);
     res.header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.attachment("products.xlsx");
     res.send(buffer);
@@ -178,7 +188,8 @@ async function importProductsExcel(req, res) {
       return sendError(res, 400, errors.array());
     }
     if (!req.file) return sendError(res, 400, "No file uploaded");
-    await importProductsExcelService(req.file.buffer);
+    const storeId = req.user.storeId;
+    await importProductsExcelService(req.file.buffer, storeId);
     sendSuccess(res, { success: true });
   } catch (error) {
     console.error("Excel import error:", error);
@@ -190,7 +201,8 @@ async function importProductsExcel(req, res) {
 async function getProductBarcode(req, res) {
   try {
     const { id } = req.params;
-    const result = await getProductBarcodeService(id);
+    const storeId = req.user.storeId;
+    const result = await getProductBarcodeService(id, storeId);
     res.header("Content-Type", "image/png");
     res.send(result.image);
   } catch (error) {
@@ -202,7 +214,8 @@ async function getProductBarcode(req, res) {
 async function regenerateProductBarcode(req, res) {
   try {
     const { id } = req.params;
-    const result = await regenerateProductBarcodeService(id);
+    const storeId = req.user.storeId;
+    const result = await regenerateProductBarcodeService(id, storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to regenerate barcode");

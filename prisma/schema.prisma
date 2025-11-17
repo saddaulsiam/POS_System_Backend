@@ -7,6 +7,35 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// =========================
+// Core Multi-Tenancy Models
+// =========================
+model Store {
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  ownerId            Int
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  owner              Employee            @relation("StoreOwner", fields: [ownerId], references: [id])
+  // Multi-tenancy relations
+  categories         Category[]
+  suppliers          Supplier[]
+  products           Product[]
+  customers          Customer[]
+  employees          Employee[]
+  sales              Sale[]
+  parkedSales        ParkedSale[]
+  quickSaleItems     QuickSaleItem[]
+  saleItems          SaleItem[]
+  stockMovements     StockMovement[]
+  stockAlerts        StockAlert[]
+  purchaseOrders     PurchaseOrder[]
+  purchaseOrderItems PurchaseOrderItem[]
+  cashDrawers        CashDrawer[]
+  posSettings        POSSettings[]
+  notifications      Notification[]
+}
+
 model AuditLog {
   id        Int      @id @default(autoincrement())
   userId    Int
@@ -27,6 +56,8 @@ model Category {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   products  Product[]
+  storeId   Int
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model Supplier {
@@ -40,10 +71,13 @@ model Supplier {
   updatedAt     DateTime        @updatedAt
   products      Product[]
   PurchaseOrder PurchaseOrder[]
+  storeId       Int
+  store         Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model Product {
   id                Int                 @id @default(autoincrement())
+  storeId           Int
   name              String
   sku               String              @unique
   barcode           String?             @unique
@@ -67,6 +101,7 @@ model Product {
   lastSoldDate      DateTime?
   supplier          Supplier?           @relation(fields: [supplierId], references: [id])
   category          Category            @relation(fields: [categoryId], references: [id])
+  store             Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
   variants          ProductVariant[]
   PurchaseOrderItem PurchaseOrderItem[]
   quickSaleItems    QuickSaleItem[]
@@ -95,6 +130,7 @@ model ProductVariant {
 
 model Customer {
   id                 Int                 @id @default(autoincrement())
+  storeId            Int
   name               String
   phoneNumber        String?             @unique
   email              String?             @unique
@@ -109,6 +145,7 @@ model Customer {
   parkedSales        ParkedSale[]
   pointsTransactions PointsTransaction[]
   sales              Sale[]
+  store              Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model PointsTransaction {
@@ -164,6 +201,7 @@ model LoyaltyTierConfig {
 
 model Employee {
   id              Int           @id @default(autoincrement())
+  storeId         Int
   name            String
   username        String        @unique
   email           String?       @unique
@@ -184,6 +222,9 @@ model Employee {
   parkedSales     ParkedSale[]
   sales           Sale[]
   salarySheets    SalarySheet[]
+  // Store(s) this employee owns (for Store.owner relation)
+  storesOwned     Store[]       @relation("StoreOwner")
+  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model SalarySheet {
@@ -203,6 +244,7 @@ model SalarySheet {
 
 model Sale {
   id                 Int                 @id @default(autoincrement())
+  storeId            Int
   receiptId          String              @unique
   employeeId         Int
   customerId         Int?
@@ -227,6 +269,7 @@ model Sale {
   pointsTransactions PointsTransaction[]
   customer           Customer?           @relation(fields: [customerId], references: [id])
   employee           Employee            @relation(fields: [employeeId], references: [id])
+  store              Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
   saleItems          SaleItem[]
 }
 
@@ -243,6 +286,7 @@ model ParkedSale {
   id             Int       @id @default(autoincrement())
   employeeId     Int
   customerId     Int?
+  storeId        Int
   items          String
   subtotal       Float
   taxAmount      Float     @default(0)
@@ -252,16 +296,19 @@ model ParkedSale {
   expiresAt      DateTime?
   customer       Customer? @relation(fields: [customerId], references: [id])
   employee       Employee  @relation(fields: [employeeId], references: [id])
+  store          Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model QuickSaleItem {
   id          Int     @id @default(autoincrement())
   productId   Int
+  storeId     Int
   displayName String
   color       String  @default("#3B82F6")
   sortOrder   Int     @default(0)
   isActive    Boolean @default(true)
   product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store       Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model SaleItem {
@@ -269,6 +316,7 @@ model SaleItem {
   saleId           Int
   productId        Int
   productVariantId Int?
+  storeId          Int
   quantity         Float
   priceAtSale      Float
   discount         Float           @default(0)
@@ -276,12 +324,14 @@ model SaleItem {
   productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
   product          Product         @relation(fields: [productId], references: [id])
   sale             Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  store            Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model StockMovement {
   id               Int             @id @default(autoincrement())
   productId        Int
   productVariantId Int?
+  storeId          Int
   movementType     String
   quantity         Float
   reason           String?
@@ -292,11 +342,13 @@ model StockMovement {
   toLocation       String?
   productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
   product          Product         @relation(fields: [productId], references: [id])
+  store            Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model StockAlert {
   id         Int       @id @default(autoincrement())
   productId  Int
+  storeId    Int
   alertType  String
   message    String
   isResolved Boolean   @default(false)
@@ -304,12 +356,14 @@ model StockAlert {
   resolvedBy Int?
   createdAt  DateTime  @default(now())
   product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store      Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model PurchaseOrder {
   id           Int                 @id @default(autoincrement())
   poNumber     String              @unique
   supplierId   Int
+  storeId      Int
   status       String              @default("PENDING")
   orderDate    DateTime            @default(now())
   expectedDate DateTime?
@@ -320,23 +374,27 @@ model PurchaseOrder {
   updatedAt    DateTime            @updatedAt
   supplier     Supplier            @relation(fields: [supplierId], references: [id])
   items        PurchaseOrderItem[]
+  store        Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model PurchaseOrderItem {
   id               Int           @id @default(autoincrement())
   purchaseOrderId  Int
   productId        Int
+  storeId          Int
   quantity         Float
   unitCost         Float
   totalCost        Float
   receivedQuantity Float         @default(0)
   product          Product       @relation(fields: [productId], references: [id])
   purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  store            Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model CashDrawer {
   id              Int       @id @default(autoincrement())
   employeeId      Int
+  storeId         Int
   openingBalance  Float
   closingBalance  Float?
   expectedBalance Float?
@@ -345,12 +403,14 @@ model CashDrawer {
   openedAt        DateTime  @default(now())
   closedAt        DateTime?
   employee        Employee  @relation(fields: [employeeId], references: [id])
+  store           Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model POSSettings {
   systemErrorAlertEnabled         Boolean   @default(false)
   priceChangeAlertEnabled         Boolean   @default(false)
   id                              Int       @id @default(autoincrement())
+  storeId                         Int
   enableQuickSale                 Boolean   @default(true)
   enableSplitPayment              Boolean   @default(true)
   enableParkSale                  Boolean   @default(true)
@@ -399,14 +459,17 @@ model POSSettings {
   updatedAt                       DateTime  @updatedAt
   updatedBy                       Int?
   updatedByEmployee               Employee? @relation(fields: [updatedBy], references: [id])
+  store                           Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model Notification {
   id        Int      @id @default(autoincrement())
+  storeId   Int
   type      String // e.g., 'expiry', 'inactive', etc.
   message   String
   productId Int?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   product   Product? @relation(fields: [productId], references: [id])
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }

@@ -23,7 +23,7 @@ const authenticateToken = async (req, res, next) => {
 
     const employee = await prisma.employee.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, name: true, username: true, role: true, isActive: true },
+      select: { id: true, name: true, username: true, role: true, isActive: true, storeId: true },
     });
 
     console.log("👤 Employee found:", {

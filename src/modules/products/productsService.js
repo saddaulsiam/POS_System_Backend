@@ -7,19 +7,20 @@ import { deleteImage } from "../../utils/upload.js";
 
 const prisma = new PrismaClient();
 
-// Get paginated, filtered products
-export async function getProductsService({ page, limit, search, categoryId, isActive }) {
+// Get paginated, filtered products (store isolated)
+export async function getProductsService({ page, limit, search, categoryId, isActive, showDeleted, storeId }) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const skip = (page - 1) * limit;
-  const where = {};
+  const where = { storeId };
   // Only filter out deleted if showDeleted is not true
-  if (!arguments[0].showDeleted) {
+  if (!showDeleted) {
     where.isDeleted = false;
   }
   if (search) {
     where.OR = [
-      { name: { contains: search, mode: "insensitive" } },
-      { sku: { contains: search, mode: "insensitive" } },
-      { barcode: { contains: search, mode: "insensitive" } },
+      { name: { contains: search, mode: "insensitive" }, storeId },
+      { sku: { contains: search, mode: "insensitive" }, storeId },
+      { barcode: { contains: search, mode: "insensitive" }, storeId },
     ];
   }
   if (categoryId) where.categoryId = categoryId;
@@ -40,7 +41,10 @@ export async function getProductsService({ page, limit, search, categoryId, isAc
 }
 
 // Create a new product
-export async function createProductService(data, userId) {
+
+// Create a new product (store isolated)
+export async function createProductService(data, userId, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   // Auto-generate barcode if not provided
   let barcode = data.barcode;
   if (!barcode) {
@@ -49,20 +53,23 @@ export async function createProductService(data, userId) {
     while (!unique && attempt < 10) {
       // Generate a random 12-digit numeric barcode
       barcode = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join("");
-      const exists = await prisma.product.findUnique({ where: { barcode } });
+      const exists = await prisma.product.findFirst({ where: { barcode, storeId } });
       if (!exists) unique = true;
       attempt++;
     }
     if (!unique) throw new Error("Failed to generate unique barcode");
     data.barcode = barcode;
   }
-  // Check for duplicate SKU/barcode
+  // Check for duplicate SKU/barcode scoped to storeId
   const existing = await prisma.product.findFirst({
     where: {
+      storeId,
       OR: [{ sku: data.sku }, { barcode: data.barcode }],
     },
   });
-  if (existing) throw new Error("SKU or barcode already exists");
+  if (existing) throw new Error("SKU or barcode already exists in this store");
+  // Set storeId on product
+  data.storeId = storeId;
   // Create product
   const product = await prisma.product.create({
     data,
@@ -73,21 +80,26 @@ export async function createProductService(data, userId) {
 }
 
 // Update product details
-export async function updateProductService(id, data) {
+
+// Update product details (store isolated)
+export async function updateProductService(id, data, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const productId = parseInt(id);
-  const existingProduct = await prisma.product.findUnique({ where: { id: productId } });
-  if (!existingProduct) throw new Error("Product not found");
-  // Check for SKU/barcode conflicts
+  // Only allow update if product belongs to this store
+  const existingProduct = await prisma.product.findFirst({ where: { id: productId, storeId } });
+  if (!existingProduct) throw new Error("Product not found in this store");
+  // Check for SKU/barcode conflicts scoped to storeId
   if (data.sku || data.barcode) {
     const conflict = await prisma.product.findFirst({
       where: {
+        storeId,
         OR: [
           data.sku ? { sku: data.sku, id: { not: productId } } : {},
           data.barcode ? { barcode: data.barcode, id: { not: productId } } : {},
         ],
       },
     });
-    if (conflict) throw new Error("SKU or barcode already exists");
+    if (conflict) throw new Error("SKU or barcode already exists in this store");
   }
   return await prisma.product.update({
     where: { id: productId },
@@ -97,10 +109,14 @@ export async function updateProductService(id, data) {
 }
 
 // Soft delete a product
-export async function deleteProductService(id) {
+
+// Soft delete a product (store isolated)
+export async function deleteProductService(id, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const productId = parseInt(id);
-  const product = await prisma.product.findUnique({ where: { id: productId } });
-  if (!product) throw new Error("Product not found");
+  // Only allow delete if product belongs to this store
+  const product = await prisma.product.findFirst({ where: { id: productId, storeId } });
+  if (!product) throw new Error("Product not found in this store");
   return await prisma.product.update({
     where: { id: productId },
     data: { isActive: false, isDeleted: true },
@@ -108,19 +124,25 @@ export async function deleteProductService(id) {
 }
 
 // Get product by ID
-export async function getProductByIdService(id) {
-  return await prisma.product.findUnique({
-    where: { id: parseInt(id) },
+
+// Get product by ID (store isolated)
+export async function getProductByIdService(id, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  return await prisma.product.findFirst({
+    where: { id: parseInt(id), storeId },
     include: { category: true, supplier: true },
   });
 }
 
 // Upload product image
-export async function uploadProductImageService(id, file) {
+
+// Upload product image (store isolated)
+export async function uploadProductImageService(id, file, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const productId = parseInt(id);
   if (!file) throw new Error("No image uploaded");
-  const product = await prisma.product.findUnique({ where: { id: productId } });
-  if (!product) throw new Error("Product not found");
+  const product = await prisma.product.findFirst({ where: { id: productId, storeId } });
+  if (!product) throw new Error("Product not found in this store");
   // If previous image was stored locally, delete it
   try {
     if (product.image && product.image.startsWith("/uploads")) {
@@ -173,10 +195,13 @@ export async function uploadProductImageService(id, file) {
 }
 
 // Delete product image
-export async function deleteProductImageService(id) {
+
+// Delete product image (store isolated)
+export async function deleteProductImageService(id, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const productId = parseInt(id);
-  const product = await prisma.product.findUnique({ where: { id: productId } });
-  if (!product) throw new Error("Product not found");
+  const product = await prisma.product.findFirst({ where: { id: productId, storeId } });
+  if (!product) throw new Error("Product not found in this store");
   if (!product.image) throw new Error("No image to delete");
   // ...delete image file logic if needed...
   return await prisma.product.update({
@@ -187,8 +212,12 @@ export async function deleteProductImageService(id) {
 }
 
 // Export products as CSV
-export async function exportProductsCSVService() {
+
+// Export products as CSV (store isolated)
+export async function exportProductsCSVService(storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const products = await prisma.product.findMany({
+    where: { storeId },
     include: { category: true, supplier: true },
     orderBy: { id: "asc" },
   });
@@ -210,7 +239,10 @@ export async function exportProductsCSVService() {
 }
 
 // Import products from CSV
-export async function importProductsCSVService(buffer) {
+
+// Import products from CSV (store isolated)
+export async function importProductsCSVService(buffer, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const csv = buffer.toString();
   const rows = csv
     .split("\n")
@@ -221,9 +253,9 @@ export async function importProductsCSVService(buffer) {
     const values = rows[i].split(",");
     const product = {};
     headers.forEach((h, idx) => (product[h] = values[idx]));
-    // Basic upsert
+    // Basic upsert scoped to storeId
     await prisma.product.upsert({
-      where: { sku: product.sku },
+      where: { sku_storeId: { sku: product.sku, storeId } },
       update: { name: product.name, price: parseFloat(product.price), barcode: product.barcode },
       create: {
         name: product.name,
@@ -231,6 +263,7 @@ export async function importProductsCSVService(buffer) {
         price: parseFloat(product.price),
         barcode: product.barcode,
         isActive: true,
+        storeId,
       },
     });
   }
@@ -238,8 +271,12 @@ export async function importProductsCSVService(buffer) {
 }
 
 // Export products as Excel
-export async function exportProductsExcelService() {
+
+// Export products as Excel (store isolated)
+export async function exportProductsExcelService(storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const products = await prisma.product.findMany({
+    where: { storeId },
     include: { category: true, supplier: true },
     orderBy: { name: "asc" },
   });
@@ -272,7 +309,10 @@ export async function exportProductsExcelService() {
 }
 
 // Import products from Excel
-export async function importProductsExcelService(buffer) {
+
+// Import products from Excel (store isolated)
+export async function importProductsExcelService(buffer, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
   const sheet = workbook.getWorksheet("Products");
@@ -280,18 +320,21 @@ export async function importProductsExcelService(buffer) {
     if (rowNumber === 1) return; // skip header
     const [id, name, sku, barcode, price, category, supplier, isActive] = row.values.slice(1);
     prisma.product.upsert({
-      where: { sku },
+      where: { sku_storeId: { sku, storeId } },
       update: { name, price: parseFloat(price), barcode },
-      create: { name, sku, price: parseFloat(price), barcode, isActive: isActive === "true" },
+      create: { name, sku, price: parseFloat(price), barcode, isActive: isActive === "true", storeId },
     });
   });
   return { success: true };
 }
 
 // Get product barcode
-export async function getProductBarcodeService(id) {
-  const product = await prisma.product.findUnique({ where: { id: parseInt(id) } });
-  if (!product) throw new Error("Product not found");
+
+// Get product barcode (store isolated)
+export async function getProductBarcodeService(id, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  const product = await prisma.product.findFirst({ where: { id: parseInt(id), storeId } });
+  if (!product) throw new Error("Product not found in this store");
   if (!product.barcode) throw new Error("No barcode for product");
   // Generate barcode image as PNG buffer
   const png = await bwipjs.toBuffer({
@@ -305,7 +348,13 @@ export async function getProductBarcodeService(id) {
 }
 
 // Regenerate product barcode
-export async function regenerateProductBarcodeService(id) {
+
+// Regenerate product barcode (store isolated)
+export async function regenerateProductBarcodeService(id, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  // Only allow if product belongs to this store
+  const product = await prisma.product.findFirst({ where: { id: parseInt(id), storeId } });
+  if (!product) throw new Error("Product not found in this store");
   // Example: generate a new random barcode and update product
   const newBarcode = Math.random().toString(36).substring(2, 12).toUpperCase();
   await prisma.product.update({ where: { id: parseInt(id) }, data: { barcode: newBarcode } });
