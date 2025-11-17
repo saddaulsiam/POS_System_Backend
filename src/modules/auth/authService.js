@@ -2,8 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import { hashPassword, comparePassword, generateToken, logAudit } from "../../utils/helpers.js";
 const prisma = new PrismaClient();
 
-export async function loginService(username, pinCode, req, storeId) {
-  const employee = await prisma.employee.findFirst({ where: { username, storeId } });
+export async function loginService(username, pinCode, req) {
+  const employee = await prisma.employee.findUnique({ where: { username } });
   if (!employee || !employee.isActive) {
     return { error: "Invalid credentials or inactive account", status: 401 };
   }
@@ -11,7 +11,7 @@ export async function loginService(username, pinCode, req, storeId) {
   if (!isValidPin) {
     return { error: "Invalid credentials", status: 401 };
   }
-  const token = generateToken(employee.id, employee.role);
+  const token = generateToken(employee.id, employee.role, employee.storeId);
   await logAudit({
     userId: employee.id,
     action: "LOGIN",
@@ -27,6 +27,7 @@ export async function loginService(username, pinCode, req, storeId) {
       name: employee.name,
       username: employee.username,
       role: employee.role,
+      storeId: employee.storeId,
     },
   };
 }

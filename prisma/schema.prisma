@@ -212,7 +212,7 @@ model Employee {
   contractDetails String?
   notes           String?
   pinCode         String
-  role            String        @default("CASHIER")
+  role            String        @default("CASHIER") // Possible values: OWNER, ADMIN, MANAGER, CASHIER, STAFF
   isActive        Boolean       @default(true)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
