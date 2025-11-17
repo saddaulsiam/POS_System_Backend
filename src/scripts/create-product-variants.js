@@ -1,19 +1,20 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-export async function createProductWithVariants() {
+export async function createProductWithVariants(storeId) {
   try {
     console.log("🧪 Creating test product with variants...\n");
 
-    // Find or create a category
+    // Find or create a category for this store
     let category = await prisma.category.findFirst({
-      where: { name: "Beverages" },
+      where: { name: "Beverages", storeId },
     });
 
     if (!category) {
       category = await prisma.category.create({
         data: {
           name: "Beverages",
+          storeId,
         },
       });
       console.log("✅ Created Beverages category");

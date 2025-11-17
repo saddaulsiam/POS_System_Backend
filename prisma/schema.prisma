@@ -201,7 +201,7 @@ model LoyaltyTierConfig {
 
 model Employee {
   id              Int           @id @default(autoincrement())
-  storeId         Int
+  storeId         Int?
   name            String
   username        String        @unique
   email           String?       @unique
@@ -224,7 +224,7 @@ model Employee {
   salarySheets    SalarySheet[]
   // Store(s) this employee owns (for Store.owner relation)
   storesOwned     Store[]       @relation("StoreOwner")
-  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store           Store?        @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model SalarySheet {
