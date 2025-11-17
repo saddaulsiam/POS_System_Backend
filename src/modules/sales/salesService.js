@@ -4,11 +4,12 @@ import { checkAndCreateAlerts } from "../notifications/notificationService.js";
 
 const prisma = new PrismaClient();
 
-export const getSales = async (query) => {
+export const getSales = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const page = parseInt(query.page) || 1;
   const limit = parseInt(query.limit) || 20;
   const skip = (page - 1) * limit;
-  const where = {};
+  const where = { storeId };
   if (query.startDate || query.endDate) {
     where.createdAt = {};
     if (query.startDate) where.createdAt.gte = new Date(query.startDate);
@@ -49,9 +50,11 @@ export const getSales = async (query) => {
   };
 };
 
-export const getSaleById = async (identifier) => {
+export const getSaleById = async (identifier, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   return prisma.sale.findFirst({
     where: {
+      storeId,
       OR: [{ id: isNaN(identifier) ? -1 : parseInt(identifier) }, { receiptId: identifier }],
     },
     include: {
@@ -83,7 +86,8 @@ export const getSaleById = async (identifier) => {
   });
 };
 
-export const createSale = async (body, user, ip, userAgent) => {
+export const createSale = async (body, user, ip, userAgent, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const {
     items,
     customerId,
@@ -114,18 +118,20 @@ export const createSale = async (body, user, ip, userAgent) => {
   const alertProductIds = [];
   const result = await prisma.$transaction(async (tx) => {
     for (const item of items) {
-      const product = await tx.product.findUnique({
-        where: { id: item.productId, isActive: true },
+      // Ensure product and variant are store-isolated
+      const product = await tx.product.findFirst({
+        where: { id: item.productId, isActive: true, storeId },
       });
-      if (!product) throw new Error(`Product with ID ${item.productId} not found or inactive`);
+      if (!product) throw new Error(`Product with ID ${item.productId} not found or inactive in this store`);
       let variant = null;
       let stockQuantity = product.stockQuantity;
       let productName = product.name;
       if (item.productVariantId) {
-        variant = await tx.productVariant.findUnique({
-          where: { id: item.productVariantId, isActive: true },
+        variant = await tx.productVariant.findFirst({
+          where: { id: item.productVariantId, isActive: true, storeId },
         });
-        if (!variant) throw new Error(`Product variant with ID ${item.productVariantId} not found or inactive`);
+        if (!variant)
+          throw new Error(`Product variant with ID ${item.productVariantId} not found or inactive in this store`);
         if (variant.productId !== item.productId)
           throw new Error(`Variant ${item.productVariantId} does not belong to product ${item.productId}`);
         stockQuantity = variant.stockQuantity;
@@ -149,16 +155,17 @@ export const createSale = async (body, user, ip, userAgent) => {
         priceAtSale: price,
         discount,
         subtotal: itemSubtotal,
+        storeId,
       });
       if (variant) {
         await tx.productVariant.update({
-          where: { id: variant.id },
+          where: { id: variant.id, storeId },
           data: { stockQuantity: { decrement: item.quantity } },
         });
         alertProductIds.push(variant.id);
       } else {
         await tx.product.update({
-          where: { id: item.productId },
+          where: { id: item.productId, storeId },
           data: { stockQuantity: { decrement: item.quantity } },
         });
         alertProductIds.push(item.productId);
@@ -171,6 +178,7 @@ export const createSale = async (body, user, ip, userAgent) => {
           quantity: -item.quantity,
           reason: "Sale transaction",
           createdBy: employeeId,
+          storeId,
         },
       });
     }
@@ -186,14 +194,14 @@ export const createSale = async (body, user, ip, userAgent) => {
     let pointsEarned = 0;
     let qualifiedTier = null;
     if (customerId) {
-      const customer = await tx.customer.findUnique({
-        where: { id: customerId },
+      const customer = await tx.customer.findFirst({
+        where: { id: customerId, storeId },
         select: { loyaltyTier: true, loyaltyPoints: true },
       });
       if (customer) {
-        const settings = await tx.pOSSettings.findFirst({ select: { loyaltyPointsPerUnit: true } });
+        const settings = await tx.pOSSettings.findFirst({ where: { storeId }, select: { loyaltyPointsPerUnit: true } });
         const pointsPerUnit = settings?.loyaltyPointsPerUnit || 10;
-        const tierConfig = await tx.loyaltyTierConfig.findUnique({ where: { tier: customer.loyaltyTier } });
+        const tierConfig = await tx.loyaltyTierConfig.findFirst({ where: { tier: customer.loyaltyTier, storeId } });
         const defaultMultipliers = { BRONZE: 1.0, SILVER: 1.25, GOLD: 1.5, PLATINUM: 2.0 };
         const multiplier = tierConfig?.pointsMultiplier || defaultMultipliers[customer.loyaltyTier] || 1.0;
         const basePoints = Math.floor(finalAmount / pointsPerUnit);
@@ -203,6 +211,7 @@ export const createSale = async (body, user, ip, userAgent) => {
     }
     const sale = await tx.sale.create({
       data: {
+        storeId,
         receiptId,
         employeeId,
         customerId,
@@ -220,7 +229,8 @@ export const createSale = async (body, user, ip, userAgent) => {
         changeGiven: paymentMethod === "CASH" ? (cashReceived || 0) - finalAmount : 0,
         notes,
         saleItems: { create: saleItemsData },
-        paymentSplits: paymentMethod === "MIXED" ? { create: paymentSplits } : undefined,
+        paymentSplits:
+          paymentMethod === "MIXED" ? { create: paymentSplits.map((split) => ({ ...split, storeId })) } : undefined,
         pointsEarned,
       },
       include: {
@@ -237,7 +247,10 @@ export const createSale = async (body, user, ip, userAgent) => {
     });
     // --- Update customer points, tier, and create points transaction ---
     if (customerId && pointsEarned > 0) {
-      await tx.customer.update({ where: { id: customerId }, data: { loyaltyPoints: { increment: pointsEarned } } });
+      await tx.customer.update({
+        where: { id: customerId, storeId },
+        data: { loyaltyPoints: { increment: pointsEarned } },
+      });
       await tx.pointsTransaction.create({
         data: {
           customerId,
@@ -245,11 +258,12 @@ export const createSale = async (body, user, ip, userAgent) => {
           type: "EARNED",
           points: pointsEarned,
           description: `Purchase ${sale.receiptId}: ${pointsEarned} points earned`,
+          storeId,
         },
       });
       // Calculate lifetime points and tier
       const earnedPointsSum = await tx.pointsTransaction.aggregate({
-        where: { customerId, points: { gt: 0 } },
+        where: { customerId, storeId, points: { gt: 0 } },
         _sum: { points: true },
       });
       const lifetimePoints = earnedPointsSum._sum.points || 0;
@@ -270,13 +284,14 @@ export const createSale = async (body, user, ip, userAgent) => {
       })();
       const qualifiedTierIndex = TIER_ORDER.indexOf(qualifiedTier);
       if (qualifiedTierIndex > currentTierIndex) {
-        await tx.customer.update({ where: { id: customerId }, data: { loyaltyTier: qualifiedTier } });
+        await tx.customer.update({ where: { id: customerId, storeId }, data: { loyaltyTier: qualifiedTier } });
         await tx.pointsTransaction.create({
           data: {
             customerId,
             type: "ADJUSTED",
             points: 0,
             description: `🎉 Tier upgraded from ${customerTier} to ${qualifiedTier}! You've earned ${lifetimePoints} lifetime points.`,
+            storeId,
           },
         });
       }
@@ -285,7 +300,7 @@ export const createSale = async (body, user, ip, userAgent) => {
   });
   // Run alerts outside transaction
   for (const pid of alertProductIds) {
-    checkAndCreateAlerts(pid);
+    checkAndCreateAlerts(pid, storeId);
   }
   logAudit({
     userId: user.id,
@@ -298,20 +313,23 @@ export const createSale = async (body, user, ip, userAgent) => {
       finalAmount: result.sale.finalAmount,
       paymentMethod,
       splitPayments: paymentMethod === "MIXED" ? paymentSplits.length : 0,
+      storeId,
     }),
     ipAddress: ip,
     userAgent: userAgent || "",
+    storeId,
   });
 
   return result.sale;
 };
 
-export const processReturn = async (id, body, user) => {
+export const processReturn = async (id, body, user, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { items, reason, refundMethod, restockingFee = 0, exchangeProductId, notes } = body;
   const saleId = parseInt(id);
   const result = await prisma.$transaction(async (tx) => {
-    const originalSale = await tx.sale.findUnique({
-      where: { id: saleId },
+    const originalSale = await tx.sale.findFirst({
+      where: { id: saleId, storeId },
       include: {
         items: { include: { product: true, productVariant: true } },
         customer: true,
@@ -475,14 +493,16 @@ export const processReturn = async (id, body, user) => {
   return result;
 };
 
-export const getReturnHistory = async (id) => {
-  const originalSale = await prisma.sale.findUnique({
-    where: { id: parseInt(id) },
+export const getReturnHistory = async (id, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  const originalSale = await prisma.sale.findFirst({
+    where: { id: parseInt(id), storeId },
     select: { receiptId: true },
   });
   if (!originalSale) return null;
   const returns = await prisma.sale.findMany({
     where: {
+      storeId,
       notes: {
         contains: `Return for sale ${originalSale.receiptId}`,
       },
@@ -505,11 +525,13 @@ export const getReturnHistory = async (id) => {
   };
 };
 
-export const getAllReturns = async (query) => {
+export const getAllReturns = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const page = parseInt(query.page) || 1;
   const limit = parseInt(query.limit) || 20;
   const skip = (page - 1) * limit;
   const where = {
+    storeId,
     receiptId: {
       startsWith: "RET-",
     },
@@ -549,11 +571,13 @@ export const getAllReturns = async (query) => {
   };
 };
 
-export const getSalesSummary = async (query) => {
+export const getSalesSummary = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const startDate = query.startDate ? new Date(query.startDate) : new Date(new Date().setHours(0, 0, 0, 0));
   const endDate = query.endDate ? new Date(query.endDate) : new Date(new Date().setHours(23, 59, 59, 999));
   const summary = await prisma.sale.aggregate({
     where: {
+      storeId,
       createdAt: {
         gte: startDate,
         lte: endDate,
@@ -570,6 +594,7 @@ export const getSalesSummary = async (query) => {
   const paymentMethodBreakdown = await prisma.sale.groupBy({
     by: ["paymentMethod"],
     where: {
+      storeId,
       createdAt: {
         gte: startDate,
         lte: endDate,

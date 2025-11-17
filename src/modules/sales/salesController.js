@@ -12,7 +12,8 @@ export const getSales = async (req, res) => {
         .join(", ");
       return sendError(res, 400, messages);
     }
-    const result = await salesService.getSales(req.query);
+    const storeId = req.user.storeId;
+    const result = await salesService.getSales(req.query, storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, "Failed to fetch sales", error);
@@ -21,7 +22,8 @@ export const getSales = async (req, res) => {
 
 export const getSaleById = async (req, res) => {
   try {
-    const result = await salesService.getSaleById(req.params.identifier);
+    const storeId = req.user.storeId;
+    const result = await salesService.getSaleById(req.params.identifier, storeId);
     if (!result) return sendError(res, 404, "Sale not found");
     sendSuccess(res, result);
   } catch (error) {
@@ -39,7 +41,8 @@ export const createSale = async (req, res) => {
         .join(", ");
       return sendError(res, 400, messages);
     }
-    const result = await salesService.createSale(req.body, req.user, req.ip, req.headers["user-agent"]);
+    const storeId = req.user.storeId;
+    const result = await salesService.createSale(req.body, req.user, req.ip, req.headers["user-agent"], storeId);
     sendSuccess(res, result, 201);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to create sale", error);
@@ -56,7 +59,8 @@ export const processReturn = async (req, res) => {
         .join(", ");
       return sendError(res, 400, messages);
     }
-    const result = await salesService.processReturn(req.params.id, req.body, req.user);
+    const storeId = req.user.storeId;
+    const result = await salesService.processReturn(req.params.id, req.body, req.user, storeId);
     sendSuccess(res, result, 201);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to process return", error);
@@ -65,7 +69,8 @@ export const processReturn = async (req, res) => {
 
 export const getReturnHistory = async (req, res) => {
   try {
-    const result = await salesService.getReturnHistory(req.params.id);
+    const storeId = req.user.storeId;
+    const result = await salesService.getReturnHistory(req.params.id, storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to get return history", error);
@@ -74,7 +79,8 @@ export const getReturnHistory = async (req, res) => {
 
 export const getAllReturns = async (req, res) => {
   try {
-    const result = await salesService.getAllReturns(req.query);
+    const storeId = req.user.storeId;
+    const result = await salesService.getAllReturns(req.query, storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to get returns", error);
@@ -91,7 +97,8 @@ export const getSalesSummary = async (req, res) => {
         .join(", ");
       return sendError(res, 400, messages);
     }
-    const result = await salesService.getSalesSummary(req.query);
+    const storeId = req.user.storeId;
+    const result = await salesService.getSalesSummary(req.query, storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to generate sales summary", error);

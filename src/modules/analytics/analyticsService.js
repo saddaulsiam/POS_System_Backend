@@ -37,7 +37,7 @@ export function getDateRange(period) {
   }
 }
 
-export async function getOverview(query) {
+export async function getOverview(query, storeId) {
   let startDate, endDate;
   if (query.period) {
     const range = getDateRange(query.period);
@@ -51,6 +51,7 @@ export async function getOverview(query) {
     where: {
       createdAt: { gte: startDate, lte: endDate },
       paymentStatus: "COMPLETED",
+      storeId,
     },
     select: {
       id: true,
@@ -75,6 +76,7 @@ export async function getOverview(query) {
     where: {
       createdAt: { gte: compareStartDate, lt: compareEndDate },
       paymentStatus: "COMPLETED",
+      storeId,
     },
     select: { finalAmount: true },
   });
@@ -94,7 +96,7 @@ export async function getOverview(query) {
   };
 }
 
-export async function getSalesTrend(query) {
+export async function getSalesTrend(query, storeId) {
   const period = query.period || "week";
   const groupBy = query.groupBy || "day";
   const range = getDateRange(period);
@@ -102,6 +104,7 @@ export async function getSalesTrend(query) {
     where: {
       createdAt: { gte: range.start, lte: range.end },
       paymentStatus: "COMPLETED",
+      storeId,
     },
     select: { createdAt: true, finalAmount: true, subtotal: true },
     orderBy: { createdAt: "asc" },
@@ -145,7 +148,7 @@ export async function getSalesTrend(query) {
   return { period: { start: range.start, end: range.end }, groupBy, data: trend };
 }
 
-export async function getTopProducts(query) {
+export async function getTopProducts(query, storeId) {
   let startDate, endDate;
   if (query.startDate) {
     startDate = new Date(query.startDate);
@@ -167,6 +170,7 @@ export async function getTopProducts(query) {
       sale: {
         createdAt: { gte: startDate, lte: endDate },
         paymentStatus: "COMPLETED",
+        storeId,
       },
     },
     include: {
@@ -212,7 +216,7 @@ export async function getTopProducts(query) {
   return { period: { start: startDate, end: endDate }, products: topProducts };
 }
 
-export async function getCategoryBreakdown(query) {
+export async function getCategoryBreakdown(query, storeId) {
   let startDate, endDate;
   if (query.startDate) {
     startDate = new Date(query.startDate);
@@ -233,6 +237,7 @@ export async function getCategoryBreakdown(query) {
       sale: {
         createdAt: { gte: startDate, lte: endDate },
         paymentStatus: "COMPLETED",
+        storeId,
       },
     },
     include: {
@@ -262,7 +267,7 @@ export async function getCategoryBreakdown(query) {
   return { period: { start: startDate, end: endDate }, totalRevenue, categories };
 }
 
-export async function getCustomerStats(query) {
+export async function getCustomerStats(query, storeId) {
   let startDate, endDate;
   if (query.startDate) {
     startDate = new Date(query.startDate);
@@ -278,13 +283,13 @@ export async function getCustomerStats(query) {
     endDate = new Date();
     endDate.setHours(23, 59, 59, 999);
   }
-  const totalCustomers = await prisma.customer.count({ where: { isActive: true } });
+  const totalCustomers = await prisma.customer.count({ where: { isActive: true, storeId } });
   const newCustomers = await prisma.customer.count({
-    where: { createdAt: { gte: startDate, lte: endDate } },
+    where: { createdAt: { gte: startDate, lte: endDate }, storeId },
   });
   const tierDistribution = await prisma.customer.groupBy({
     by: ["loyaltyTier"],
-    where: { isActive: true },
+    where: { isActive: true, storeId },
     _count: { loyaltyTier: true },
   });
   const topCustomers = await prisma.sale.groupBy({
@@ -293,6 +298,7 @@ export async function getCustomerStats(query) {
       customerId: { not: null },
       createdAt: { gte: startDate, lte: endDate },
       paymentStatus: "COMPLETED",
+      storeId,
     },
     _sum: { finalAmount: true },
     _count: { id: true },
@@ -301,8 +307,8 @@ export async function getCustomerStats(query) {
   });
   const topCustomersWithDetails = await Promise.all(
     topCustomers.map(async (customer) => {
-      const details = await prisma.customer.findUnique({
-        where: { id: customer.customerId },
+      const details = await prisma.customer.findFirst({
+        where: { id: customer.customerId, storeId },
         select: { id: true, name: true, phoneNumber: true, loyaltyTier: true, loyaltyPoints: true },
       });
       return {
@@ -322,7 +328,7 @@ export async function getCustomerStats(query) {
   };
 }
 
-export async function getPaymentMethods(query) {
+export async function getPaymentMethods(query, storeId) {
   let startDate, endDate;
   if (query.startDate) {
     startDate = new Date(query.startDate);
@@ -343,6 +349,7 @@ export async function getPaymentMethods(query) {
     where: {
       createdAt: { gte: startDate, lte: endDate },
       paymentStatus: "COMPLETED",
+      storeId,
     },
     _sum: { finalAmount: true },
     _count: { id: true },

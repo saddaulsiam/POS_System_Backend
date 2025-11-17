@@ -9,7 +9,8 @@ import { sendSuccess, sendError } from "../../utils/response.js";
 
 export const getSuppliers = async (req, res) => {
   try {
-    const result = await getSuppliersService(req.query);
+    const storeId = req.user.storeId;
+    const result = await getSuppliersService(req.query, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching suppliers:", error);
@@ -19,7 +20,8 @@ export const getSuppliers = async (req, res) => {
 
 export const getSupplierById = async (req, res) => {
   try {
-    const result = await getSupplierByIdService(req.params.id);
+    const storeId = req.user.storeId;
+    const result = await getSupplierByIdService(req.params.id, storeId);
     if (!result) {
       return sendError(res, 404, "Supplier not found");
     }
@@ -32,7 +34,8 @@ export const getSupplierById = async (req, res) => {
 
 export const createSupplier = async (req, res) => {
   try {
-    const result = await createSupplierService(req.body);
+    const storeId = req.user.storeId;
+    const result = await createSupplierService(req.body, storeId);
     sendSuccess(res, result, 201);
   } catch (error) {
     console.error("Error creating supplier:", error);
@@ -42,7 +45,8 @@ export const createSupplier = async (req, res) => {
 
 export const updateSupplier = async (req, res) => {
   try {
-    const result = await updateSupplierService(req.params.id, req.body);
+    const storeId = req.user.storeId;
+    const result = await updateSupplierService(req.params.id, req.body, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error updating supplier:", error);
@@ -52,7 +56,8 @@ export const updateSupplier = async (req, res) => {
 
 export const deleteSupplier = async (req, res) => {
   try {
-    const result = await deleteSupplierService(req.params.id);
+    const storeId = req.user.storeId;
+    const result = await deleteSupplierService(req.params.id, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error deleting supplier:", error);

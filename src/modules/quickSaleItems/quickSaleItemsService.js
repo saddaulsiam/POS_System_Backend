@@ -1,8 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-export const getAllQuickSaleItems = async () => {
+export const getAllQuickSaleItems = async (storeId) => {
   return await prisma.quickSaleItem.findMany({
+    where: { product: { storeId } },
     include: {
       product: {
         include: {
@@ -14,13 +15,13 @@ export const getAllQuickSaleItems = async () => {
   });
 };
 
-export const createQuickSaleItem = async (body) => {
+export const createQuickSaleItem = async (body, storeId) => {
   const { productId, displayName, color, sortOrder, isActive } = body;
-  // Check if product exists
-  const product = await prisma.product.findUnique({ where: { id: productId } });
-  if (!product) throw new Error("Product not found");
-  // Check if quick sale item already exists for this product
-  const existing = await prisma.quickSaleItem.findFirst({ where: { productId } });
+  // Check if product exists and belongs to store
+  const product = await prisma.product.findFirst({ where: { id: productId, storeId } });
+  if (!product) throw new Error("Product not found in this store");
+  // Check if quick sale item already exists for this product in this store
+  const existing = await prisma.quickSaleItem.findFirst({ where: { productId, product: { storeId } } });
   if (existing) throw new Error("Quick sale item already exists for this product");
   return await prisma.quickSaleItem.create({
     data: {
@@ -40,11 +41,11 @@ export const createQuickSaleItem = async (body) => {
   });
 };
 
-export const updateQuickSaleItem = async (id, body) => {
+export const updateQuickSaleItem = async (id, body, storeId) => {
   const { displayName, color, sortOrder, isActive } = body;
-  // Check if exists
-  const existing = await prisma.quickSaleItem.findUnique({ where: { id } });
-  if (!existing) throw new Error("Quick sale item not found");
+  // Check if exists and belongs to store
+  const existing = await prisma.quickSaleItem.findFirst({ where: { id, product: { storeId } } });
+  if (!existing) throw new Error("Quick sale item not found in this store");
   const updateData = {};
   if (displayName !== undefined) updateData.displayName = displayName;
   if (color !== undefined) updateData.color = color;
@@ -63,6 +64,9 @@ export const updateQuickSaleItem = async (id, body) => {
   });
 };
 
-export const deleteQuickSaleItem = async (id) => {
+export const deleteQuickSaleItem = async (id, storeId) => {
+  // Only delete if it belongs to the store
+  const existing = await prisma.quickSaleItem.findFirst({ where: { id, product: { storeId } } });
+  if (!existing) throw new Error("Quick sale item not found in this store");
   await prisma.quickSaleItem.delete({ where: { id } });
 };

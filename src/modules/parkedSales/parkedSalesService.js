@@ -1,9 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-export async function getAllParkedSalesService(employeeId) {
+export async function getAllParkedSalesService(employeeId, storeId) {
   const parkedSales = await prisma.parkedSale.findMany({
-    where: { employeeId },
+    where: { employeeId, storeId },
     include: {
       customer: true,
       employee: true,
@@ -25,12 +25,14 @@ export async function parkSaleService({
   notes,
   expiresAt,
   employeeId,
+  storeId,
 }) {
   const itemsJSON = JSON.stringify(items);
   const parkedSale = await prisma.parkedSale.create({
     data: {
       employeeId,
       customerId,
+      storeId,
       items: itemsJSON,
       subtotal,
       taxAmount: taxAmount || 0,
@@ -49,9 +51,9 @@ export async function parkSaleService({
   };
 }
 
-export async function getParkedSaleService(id, employeeId) {
+export async function getParkedSaleService(id, employeeId, storeId) {
   const parkedSale = await prisma.parkedSale.findFirst({
-    where: { id, employeeId },
+    where: { id, employeeId, storeId },
     include: {
       customer: true,
       employee: true,
@@ -64,17 +66,18 @@ export async function getParkedSaleService(id, employeeId) {
   };
 }
 
-export async function deleteParkedSaleService(id, employeeId) {
-  const parkedSale = await prisma.parkedSale.findFirst({ where: { id, employeeId } });
+export async function deleteParkedSaleService(id, employeeId, storeId) {
+  const parkedSale = await prisma.parkedSale.findFirst({ where: { id, employeeId, storeId } });
   if (!parkedSale) return null;
-  await prisma.parkedSale.delete({ where: { id } });
+  await prisma.parkedSale.delete({ where: { id, storeId } });
   return true;
 }
 
-export async function cleanupExpiredParkedSalesService() {
+export async function cleanupExpiredParkedSalesService(storeId) {
   const now = new Date();
   return prisma.parkedSale.deleteMany({
     where: {
+      storeId,
       expiresAt: {
         lte: now,
       },

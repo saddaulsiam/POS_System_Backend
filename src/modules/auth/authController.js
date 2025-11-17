@@ -13,8 +13,11 @@ export async function login(req, res) {
         .join(", ");
       return sendError(res, 400, messages);
     }
-    const { username, pinCode } = req.body;
-    const result = await loginService(username, pinCode, req);
+    const { username, pinCode, storeId } = req.body;
+    if (!storeId) {
+      return sendError(res, 400, "Store ID is required for login");
+    }
+    const result = await loginService(username, pinCode, req, storeId);
     if (result.error) {
       return sendError(res, result.status || 400, result.error);
     }
@@ -52,7 +55,11 @@ export async function changePin(req, res) {
     }
     const { currentPin, newPin } = req.body;
     const userId = req.user.id;
-    const result = await changePinService(userId, currentPin, newPin);
+    const storeId = req.user.storeId;
+    if (!storeId) {
+      return sendError(res, 400, "Store ID is required for PIN change");
+    }
+    const result = await changePinService(userId, currentPin, newPin, storeId);
     if (result.error) {
       return sendError(res, result.status || 400, result.error);
     }

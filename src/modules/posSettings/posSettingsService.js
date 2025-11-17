@@ -2,8 +2,9 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export const getSettings = async () => {
+export const getSettings = async (storeId) => {
   let settings = await prisma.pOSSettings.findFirst({
+    where: { storeId },
     include: {
       updatedByEmployee: {
         select: {
@@ -17,6 +18,7 @@ export const getSettings = async () => {
   if (!settings) {
     settings = await prisma.pOSSettings.create({
       data: {
+        storeId,
         enableQuickSale: true,
         enableSplitPayment: true,
         enableParkSale: true,
@@ -30,7 +32,7 @@ export const getSettings = async () => {
   return settings;
 };
 
-export const updateSettings = async (body, userId) => {
+export const updateSettings = async (body, userId, storeId) => {
   const updateData = {};
   const allowedFields = [
     "enableQuickSale",
@@ -90,11 +92,12 @@ export const updateSettings = async (body, userId) => {
     }
   });
   updateData.updatedBy = userId;
-  let settings = await prisma.pOSSettings.findFirst();
+  let settings = await prisma.pOSSettings.findFirst({ where: { storeId } });
   if (!settings) {
     settings = await prisma.pOSSettings.create({
       data: {
         ...updateData,
+        storeId,
         enableQuickSale: updateData.enableQuickSale ?? true,
         enableSplitPayment: updateData.enableSplitPayment ?? true,
         enableParkSale: updateData.enableParkSale ?? true,
@@ -115,7 +118,7 @@ export const updateSettings = async (body, userId) => {
     });
   } else {
     settings = await prisma.pOSSettings.update({
-      where: { id: settings.id },
+      where: { id: settings.id, storeId },
       data: updateData,
       include: {
         updatedByEmployee: {

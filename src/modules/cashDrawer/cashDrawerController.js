@@ -4,7 +4,8 @@ import { cashDrawerService } from "./cashDrawerService.js";
 
 async function getAll(req, res) {
   try {
-    const result = await cashDrawerService.getAll(req.query);
+    const storeId = req.user.storeId;
+    const result = await cashDrawerService.getAll(req.query, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching cash drawers:", error);
@@ -64,7 +65,8 @@ async function getReconciliation(req, res) {
 
 async function getSummary(req, res) {
   try {
-    const result = await cashDrawerService.getSummary(req.query);
+    const storeId = req.user.storeId;
+    const result = await cashDrawerService.getSummary(req.query, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching drawer statistics:", error);

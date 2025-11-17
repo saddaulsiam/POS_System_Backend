@@ -6,6 +6,7 @@ export async function bulkGenerateSalarySheets(req, res) {
     if (!month || !year) {
       return sendError(res, 400, "Month and year are required");
     }
+    const storeId = req.user.storeId;
     // Only allow previous, current, or next month
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -34,7 +35,7 @@ export async function bulkGenerateSalarySheets(req, res) {
     // Get all active employees
     const { data: employees } = await getAllEmployeesService({ includeInactive: false, limit: 1000 });
     // Call service to bulk create salary sheets
-    const result = await bulkGenerateSalarySheetsService({ employees, month: m, year: y });
+    const result = await bulkGenerateSalarySheetsService({ employees, month: m, year: y }, storeId);
     sendSuccess(res, result, 201);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to bulk generate salary sheets");
@@ -59,7 +60,8 @@ export async function getAllSalarySheets(req, res) {
       console.warn("[SalarySheets] employeeId found in query for all-sheets endpoint, removing.");
       delete rest.employeeId;
     }
-    const result = await getAllSalarySheetsService({ month, year });
+    const storeId = req.user.storeId;
+    const result = await getAllSalarySheetsService({ month, year }, storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to fetch salary sheets");
@@ -73,7 +75,8 @@ export async function getEmployeeSalarySheets(req, res) {
     if (!employeeId || isNaN(employeeId)) {
       return sendError(res, 400, "Invalid or missing employee id");
     }
-    const result = await getEmployeeSalarySheetsService(employeeId);
+    const storeId = req.user.storeId;
+    const result = await getEmployeeSalarySheetsService(employeeId, storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to fetch employee salary sheets");
@@ -83,6 +86,7 @@ export async function getEmployeeSalarySheets(req, res) {
 export async function createSalarySheet(req, res) {
   try {
     const { employeeId, month, year, baseSalary, bonus, deduction } = req.body;
+    const storeId = req.user.storeId;
     // Validation: Only allow previous, current, or next month
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -108,7 +112,7 @@ export async function createSalarySheet(req, res) {
     if (!isAllowed) {
       return sendError(res, 400, "You can only create salary sheets for the previous, current, or next month.");
     }
-    const result = await createSalarySheetService({ employeeId, month, year, baseSalary, bonus, deduction });
+    const result = await createSalarySheetService({ employeeId, month, year, baseSalary, bonus, deduction }, storeId);
     sendSuccess(res, result, 201);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to create salary sheet");
@@ -119,7 +123,8 @@ export async function updateSalarySheet(req, res) {
   try {
     const id = parseInt(req.params.id);
     const { baseSalary, bonus, deduction } = req.body;
-    const result = await updateSalarySheetService(id, { baseSalary, bonus, deduction });
+    const storeId = req.user.storeId;
+    const result = await updateSalarySheetService(id, { baseSalary, bonus, deduction }, storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to update salary sheet");
@@ -129,7 +134,8 @@ export async function updateSalarySheet(req, res) {
 export async function markSalaryAsPaid(req, res) {
   try {
     const id = parseInt(req.params.id);
-    const result = await markSalaryAsPaidService(id);
+    const storeId = req.user.storeId;
+    const result = await markSalaryAsPaidService(id, storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to mark salary as paid");
@@ -139,7 +145,8 @@ export async function markSalaryAsPaid(req, res) {
 export async function deleteSalarySheet(req, res) {
   try {
     const id = parseInt(req.params.id);
-    await deleteSalarySheetService(id);
+    const storeId = req.user.storeId;
+    await deleteSalarySheetService(id, storeId);
     sendSuccess(res, { message: "Salary sheet deleted" });
   } catch (error) {
     sendError(res, 500, error.message || "Failed to delete salary sheet");

@@ -9,6 +9,7 @@ export async function getStockMovements(req, res) {
     const movementType = req.query.movementType;
     const startDate = req.query.startDate;
     const endDate = req.query.endDate;
+    const storeId = req.user.storeId;
     const movements = await inventoryService.getStockMovementsService({
       page,
       limit,
@@ -16,6 +17,7 @@ export async function getStockMovements(req, res) {
       movementType,
       startDate,
       endDate,
+      storeId,
     });
     sendSuccess(res, { movements });
   } catch (err) {
@@ -26,7 +28,8 @@ export async function getStockMovements(req, res) {
 
 export async function createStockAdjustment(req, res) {
   try {
-    const result = await inventoryService.createStockAdjustmentService(req.body, req.user.id);
+    const storeId = req.user.storeId;
+    const result = await inventoryService.createStockAdjustmentService(req.body, req.user.id, storeId);
     sendSuccess(res, result);
   } catch (err) {
     console.error("Stock adjustment error:", err);
@@ -36,7 +39,8 @@ export async function createStockAdjustment(req, res) {
 
 export async function getInventorySummary(req, res) {
   try {
-    const summary = await inventoryService.getInventorySummaryService();
+    const storeId = req.user.storeId;
+    const summary = await inventoryService.getInventorySummaryService(storeId);
     sendSuccess(res, summary);
   } catch (err) {
     console.error("Inventory summary error:", err);
@@ -46,7 +50,13 @@ export async function getInventorySummary(req, res) {
 
 export async function bulkStockUpdate(req, res) {
   try {
-    const result = await inventoryService.bulkStockUpdateService(req.body.updates, req.body.reason, req.user.id);
+    const storeId = req.user.storeId;
+    const result = await inventoryService.bulkStockUpdateService(
+      req.body.updates,
+      req.body.reason,
+      req.user.id,
+      storeId
+    );
     sendSuccess(res, result);
   } catch (err) {
     console.error("Bulk stock update error:", err);
@@ -56,7 +66,8 @@ export async function bulkStockUpdate(req, res) {
 
 export async function stockTransfer(req, res) {
   try {
-    const result = await inventoryService.stockTransferService(req.body, req.user.id);
+    const storeId = req.user.storeId;
+    const result = await inventoryService.stockTransferService(req.body, req.user.id, storeId);
     sendSuccess(res, result, 201);
   } catch (err) {
     console.error("Stock transfer error:", err);
@@ -66,7 +77,8 @@ export async function stockTransfer(req, res) {
 
 export async function getStockAlerts(req, res) {
   try {
-    const alerts = await inventoryService.getStockAlertsService(req.query);
+    const storeId = req.user.storeId;
+    const alerts = await inventoryService.getStockAlertsService(req.query, storeId);
     sendSuccess(res, alerts);
   } catch (err) {
     console.error("Get alerts error:", err);
@@ -76,7 +88,8 @@ export async function getStockAlerts(req, res) {
 
 export async function resolveStockAlert(req, res) {
   try {
-    const alert = await inventoryService.resolveStockAlertService(parseInt(req.params.id), req.user.id);
+    const storeId = req.user.storeId;
+    const alert = await inventoryService.resolveStockAlertService(parseInt(req.params.id), req.user.id, storeId);
     sendSuccess(res, alert);
   } catch (err) {
     console.error("Resolve alert error:", err);
@@ -86,7 +99,8 @@ export async function resolveStockAlert(req, res) {
 
 export async function receivePurchaseOrder(req, res) {
   try {
-    const result = await inventoryService.receivePurchaseOrderService(req.body, req.user.id);
+    const storeId = req.user.storeId;
+    const result = await inventoryService.receivePurchaseOrderService(req.body, req.user.id, storeId);
     sendSuccess(res, result);
   } catch (err) {
     console.error("Receive PO error:", err);
@@ -96,7 +110,8 @@ export async function receivePurchaseOrder(req, res) {
 
 export async function getPurchaseOrders(req, res) {
   try {
-    const result = await inventoryService.getPurchaseOrdersService(req.query);
+    const storeId = req.user.storeId;
+    const result = await inventoryService.getPurchaseOrdersService(req.query, storeId);
     sendSuccess(res, result);
   } catch (err) {
     console.error("Error fetching purchase orders:", err);
@@ -106,7 +121,8 @@ export async function getPurchaseOrders(req, res) {
 
 export async function getPurchaseOrderById(req, res) {
   try {
-    const result = await inventoryService.getPurchaseOrderByIdService(parseInt(req.params.id));
+    const storeId = req.user.storeId;
+    const result = await inventoryService.getPurchaseOrderByIdService(parseInt(req.params.id), storeId);
     if (!result) return sendError(res, 404, "Purchase order not found");
     sendSuccess(res, result);
   } catch (err) {
@@ -117,7 +133,8 @@ export async function getPurchaseOrderById(req, res) {
 
 export async function createPurchaseOrder(req, res) {
   try {
-    const result = await inventoryService.createPurchaseOrderService(req.body, req.user.id);
+    const storeId = req.user.storeId;
+    const result = await inventoryService.createPurchaseOrderService(req.body, req.user.id, storeId);
     sendSuccess(res, result, 201);
   } catch (err) {
     console.error("Error creating purchase order:", err);
@@ -127,7 +144,13 @@ export async function createPurchaseOrder(req, res) {
 
 export async function updatePurchaseOrder(req, res) {
   try {
-    const result = await inventoryService.updatePurchaseOrderService(parseInt(req.params.id), req.body, req.user.id);
+    const storeId = req.user.storeId;
+    const result = await inventoryService.updatePurchaseOrderService(
+      parseInt(req.params.id),
+      req.body,
+      req.user.id,
+      storeId
+    );
     sendSuccess(res, result);
   } catch (err) {
     console.error("Error updating purchase order:", err);
@@ -137,10 +160,12 @@ export async function updatePurchaseOrder(req, res) {
 
 export async function receivePurchaseOrderItems(req, res) {
   try {
+    const storeId = req.user.storeId;
     const result = await inventoryService.receivePurchaseOrderItemsService(
       parseInt(req.params.id),
       req.body.items,
-      req.user.id
+      req.user.id,
+      storeId
     );
     sendSuccess(res, result);
   } catch (err) {
@@ -151,7 +176,8 @@ export async function receivePurchaseOrderItems(req, res) {
 
 export async function cancelPurchaseOrder(req, res) {
   try {
-    const result = await inventoryService.cancelPurchaseOrderService(parseInt(req.params.id), req.user.id);
+    const storeId = req.user.storeId;
+    const result = await inventoryService.cancelPurchaseOrderService(parseInt(req.params.id), req.user.id, storeId);
     sendSuccess(res, result);
   } catch (err) {
     console.error("Error cancelling purchase order:", err);
@@ -161,7 +187,8 @@ export async function cancelPurchaseOrder(req, res) {
 
 export async function getPurchaseOrderStats(req, res) {
   try {
-    const result = await inventoryService.getPurchaseOrderStatsService(req.query);
+    const storeId = req.user.storeId;
+    const result = await inventoryService.getPurchaseOrderStatsService(req.query, storeId);
     sendSuccess(res, result);
   } catch (err) {
     console.error("Error fetching PO statistics:", err);

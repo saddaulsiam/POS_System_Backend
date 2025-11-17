@@ -19,7 +19,8 @@ export async function getAllEmployees(req, res) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const search = req.query.search || "";
-    const result = await getAllEmployeesService({ includeInactive, page, limit, search });
+    const storeId = req.user.storeId;
+    const result = await getAllEmployeesService({ includeInactive, page, limit, search, storeId });
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to fetch employees");
@@ -32,7 +33,8 @@ export async function getEmployeeById(req, res) {
     if (!id || isNaN(id)) {
       return sendError(res, 400, "Invalid or missing employee id");
     }
-    const employee = await getEmployeeByIdService(id);
+    const storeId = req.user.storeId;
+    const employee = await getEmployeeByIdService(id, storeId);
     if (!employee) return sendError(res, 404, "Employee not found");
     sendSuccess(res, employee);
   } catch (error) {
@@ -44,7 +46,8 @@ export async function createEmployee(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return sendError(res, 400, errors.array());
-    const employee = await createEmployeeService(req.body);
+    const storeId = req.user.storeId;
+    const employee = await createEmployeeService(req.body, storeId);
     sendSuccess(res, employee, 201);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to create employee");
@@ -55,7 +58,8 @@ export async function updateEmployee(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return sendError(res, 400, errors.array());
-    const employee = await updateEmployeeService(req.params.id, req.body, req.user);
+    const storeId = req.user.storeId;
+    const employee = await updateEmployeeService(req.params.id, req.body, req.user, storeId);
     sendSuccess(res, employee);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to update employee");
@@ -88,7 +92,8 @@ export async function getEmployeePerformance(req, res) {
 
 export async function deactivateEmployee(req, res) {
   try {
-    await deactivateEmployeeService(req.params.id, req.user);
+    const storeId = req.user.storeId;
+    await deactivateEmployeeService(req.params.id, req.user, storeId);
     sendSuccess(res, { message: "Employee deactivated successfully" });
   } catch (error) {
     sendError(res, 500, error.message || "Failed to deactivate employee");

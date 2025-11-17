@@ -4,7 +4,8 @@ import * as loyaltyService from "./loyaltyService.js";
 
 const getTiers = async (req, res) => {
   try {
-    const result = await loyaltyService.getTiersService();
+    const storeId = req.user.storeId;
+    const result = await loyaltyService.getTiersService(storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, "Failed to fetch loyalty tiers");
@@ -15,8 +16,9 @@ const getPointsHistory = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+    const storeId = req.user.storeId;
     const customerId = parseInt(req.params.customerId);
-    const result = await loyaltyService.getPointsHistoryService(customerId);
+    const result = await loyaltyService.getPointsHistoryService(customerId, storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, "Failed to fetch points history");
@@ -27,7 +29,8 @@ const redeem = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return sendError(res, 400, errors.array());
-    const result = await loyaltyService.redeemService(req.body);
+    const storeId = req.user.storeId;
+    const result = await loyaltyService.redeemService({ ...req.body, storeId });
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to redeem points");
@@ -38,7 +41,8 @@ const redeemPoints = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return sendError(res, 400, errors.array());
-    const result = await loyaltyService.redeemPointsService(req.body);
+    const storeId = req.user.storeId;
+    const result = await loyaltyService.redeemPointsService({ ...req.body, storeId });
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to redeem points");
@@ -49,8 +53,9 @@ const getRewards = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+    const storeId = req.user.storeId;
     const customerId = parseInt(req.params.customerId);
-    const result = await loyaltyService.getRewardsService(customerId);
+    const result = await loyaltyService.getRewardsService(customerId, storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, "Failed to fetch rewards");
@@ -61,7 +66,8 @@ const awardPoints = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return sendError(res, 400, errors.array());
-    const result = await loyaltyService.awardPointsService(req.body);
+    const storeId = req.user.storeId;
+    const result = await loyaltyService.awardPointsService({ ...req.body, storeId });
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to award points");
@@ -70,7 +76,8 @@ const awardPoints = async (req, res) => {
 
 const birthdayRewards = async (req, res) => {
   try {
-    const result = await loyaltyService.birthdayRewardsService();
+    const storeId = req.user.storeId;
+    const result = await loyaltyService.birthdayRewardsService(storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, "Failed to process birthday rewards");

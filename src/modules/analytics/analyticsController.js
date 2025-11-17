@@ -3,7 +3,8 @@ import * as analyticsService from "./analyticsService.js";
 
 export async function overview(req, res) {
   try {
-    const result = await analyticsService.getOverview(req.query);
+    const storeId = req.user.storeId;
+    const result = await analyticsService.getOverview(req.query, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching analytics overview:", error);
@@ -13,7 +14,8 @@ export async function overview(req, res) {
 
 export async function salesTrend(req, res) {
   try {
-    const result = await analyticsService.getSalesTrend(req.query);
+    const storeId = req.user.storeId;
+    const result = await analyticsService.getSalesTrend(req.query, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching sales trend:", error);
@@ -23,7 +25,8 @@ export async function salesTrend(req, res) {
 
 export async function topProducts(req, res) {
   try {
-    const result = await analyticsService.getTopProducts(req.query);
+    const storeId = req.user.storeId;
+    const result = await analyticsService.getTopProducts(req.query, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching top products:", error);
@@ -33,7 +36,8 @@ export async function topProducts(req, res) {
 
 export async function categoryBreakdown(req, res) {
   try {
-    const result = await analyticsService.getCategoryBreakdown(req.query);
+    const storeId = req.user.storeId;
+    const result = await analyticsService.getCategoryBreakdown(req.query, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching category breakdown:", error);
@@ -43,7 +47,8 @@ export async function categoryBreakdown(req, res) {
 
 export async function customerStats(req, res) {
   try {
-    const result = await analyticsService.getCustomerStats(req.query);
+    const storeId = req.user.storeId;
+    const result = await analyticsService.getCustomerStats(req.query, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching customer stats:", error);
@@ -53,7 +58,8 @@ export async function customerStats(req, res) {
 
 export async function paymentMethods(req, res) {
   try {
-    const result = await analyticsService.getPaymentMethods(req.query);
+    const storeId = req.user.storeId;
+    const result = await analyticsService.getPaymentMethods(req.query, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Error fetching payment methods:", error);

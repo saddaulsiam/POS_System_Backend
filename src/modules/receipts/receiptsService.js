@@ -1,8 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-export async function getStoreSettings() {
-  const settings = await prisma.pOSSettings.findFirst();
+export async function getStoreSettings(storeId) {
+  const settings = await prisma.pOSSettings.findFirst({ where: { storeId } });
   if (settings) {
     return {
       storeName: settings.storeName,
@@ -28,9 +28,9 @@ export async function getStoreSettings() {
   };
 }
 
-export async function getSaleData(saleId) {
-  const sale = await prisma.sale.findUnique({
-    where: { id: parseInt(saleId) },
+export async function getSaleData(saleId, storeId) {
+  const sale = await prisma.sale.findFirst({
+    where: { id: parseInt(saleId), storeId },
     include: {
       saleItems: { include: { product: true, productVariant: true } },
       customer: true,

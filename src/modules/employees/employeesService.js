@@ -3,17 +3,15 @@ import cloudinary from "../../utils/cloudinary.js";
 import { hashPassword } from "../../utils/helpers.js";
 const prisma = new PrismaClient();
 
-export async function getAllEmployeesService({ includeInactive, page = 1, limit = 20, search = "" }) {
-  const where = includeInactive ? {} : { isActive: true };
-
-  // Add search condition
+export async function getAllEmployeesService({ includeInactive, page = 1, limit = 20, search = "", storeId }) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  const where = includeInactive ? { storeId } : { isActive: true, storeId };
   if (search && search.trim()) {
     where.OR = [
       { name: { contains: search.trim(), mode: "insensitive" } },
       { username: { contains: search.trim(), mode: "insensitive" } },
     ];
   }
-
   const skip = (page - 1) * limit;
   const [employees, total] = await Promise.all([
     prisma.employee.findMany({
@@ -51,10 +49,11 @@ export async function getAllEmployeesService({ includeInactive, page = 1, limit 
   };
 }
 
-export async function getEmployeeByIdService(id) {
+export async function getEmployeeByIdService(id, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const employeeId = parseInt(id);
-  const employee = await prisma.employee.findUnique({
-    where: { id: employeeId },
+  const employee = await prisma.employee.findFirst({
+    where: { id: employeeId, storeId },
     select: {
       id: true,
       name: true,
@@ -86,6 +85,7 @@ export async function getEmployeeByIdService(id) {
   const stats = await prisma.sale.aggregate({
     where: {
       employeeId,
+      storeId,
       finalAmount: { gt: 0 },
     },
     _sum: { finalAmount: true },
@@ -101,10 +101,11 @@ export async function getEmployeeByIdService(id) {
   };
 }
 
-export async function createEmployeeService(data) {
+export async function createEmployeeService(data, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { name, username, pinCode, role, email, phone, photo, joinedDate, salary, contractDetails, notes } = data;
-  const existing = await prisma.employee.findUnique({ where: { username: username.trim() } });
-  if (existing) throw new Error("Username already exists");
+  const existing = await prisma.employee.findFirst({ where: { username: username.trim(), storeId } });
+  if (existing) throw new Error("Username already exists in this store");
   const hashedPin = await hashPassword(pinCode);
   return prisma.employee.create({
     data: {
@@ -119,6 +120,7 @@ export async function createEmployeeService(data) {
       salary,
       contractDetails,
       notes,
+      storeId,
     },
     select: {
       id: true,
@@ -138,15 +140,16 @@ export async function createEmployeeService(data) {
   });
 }
 
-export async function updateEmployeeService(id, data, user) {
+export async function updateEmployeeService(id, data, user, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const employeeId = parseInt(id);
-  const existingEmployee = await prisma.employee.findUnique({ where: { id: employeeId } });
-  if (!existingEmployee) throw new Error("Employee not found");
+  const existingEmployee = await prisma.employee.findFirst({ where: { id: employeeId, storeId } });
+  if (!existingEmployee) throw new Error("Employee not found in this store");
   if (data.username) {
     const usernameConflict = await prisma.employee.findFirst({
-      where: { username: data.username.trim(), id: { not: employeeId } },
+      where: { username: data.username.trim(), id: { not: employeeId }, storeId },
     });
-    if (usernameConflict) throw new Error("Username already taken by another employee");
+    if (usernameConflict) throw new Error("Username already taken by another employee in this store");
   }
   if (user.id === employeeId && data.isActive === false) {
     throw new Error("Cannot deactivate your own account");
@@ -236,11 +239,12 @@ export async function getEmployeePerformanceService(id, startDate, endDate) {
   };
 }
 
-export async function deactivateEmployeeService(id, user) {
+export async function deactivateEmployeeService(id, user, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const employeeId = parseInt(id);
   if (user.id === employeeId) throw new Error("Cannot delete your own account");
-  const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
-  if (!employee) throw new Error("Employee not found");
+  const employee = await prisma.employee.findFirst({ where: { id: employeeId, storeId } });
+  if (!employee) throw new Error("Employee not found in this store");
   await prisma.employee.update({ where: { id: employeeId }, data: { isActive: false } });
 }
 

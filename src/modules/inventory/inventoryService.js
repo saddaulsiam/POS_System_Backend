@@ -3,9 +3,10 @@ import { checkAndCreateAlerts } from "../notifications/notificationService.js";
 import { logAudit } from "../../utils/auditLogger.js";
 const prisma = new PrismaClient();
 
-export async function getStockMovementsService({ page, limit, productId, movementType, startDate, endDate }) {
+export async function getStockMovementsService({ page, limit, productId, movementType, startDate, endDate, storeId }) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const skip = (page - 1) * limit;
-  const where = {};
+  const where = { storeId };
   if (productId) where.productId = productId;
   if (movementType) where.movementType = movementType;
   if (startDate || endDate) {
@@ -24,13 +25,14 @@ export async function getStockMovementsService({ page, limit, productId, movemen
   });
 }
 
-export async function createStockAdjustmentService(data, userId) {
+export async function createStockAdjustmentService(data, userId, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { productId, quantity, movementType, reason } = data;
   const result = await prisma.$transaction(async (tx) => {
-    const product = await tx.product.findUnique({ where: { id: productId } });
-    if (!product) throw new Error("Product not found");
+    const product = await tx.product.findFirst({ where: { id: productId, storeId } });
+    if (!product) throw new Error("Product not found in this store");
     const updatedProduct = await tx.product.update({
-      where: { id: productId },
+      where: { id: productId, storeId },
       data: { stockQuantity: { increment: quantity } },
     });
     const movement = await tx.stockMovement.create({
@@ -40,6 +42,7 @@ export async function createStockAdjustmentService(data, userId) {
         quantity,
         reason: reason || "Manual stock adjustment",
         createdBy: userId,
+        storeId,
       },
       include: {
         product: { select: { id: true, name: true, sku: true } },
@@ -49,7 +52,7 @@ export async function createStockAdjustmentService(data, userId) {
   });
 
   try {
-    await checkAndCreateAlerts(productId);
+    await checkAndCreateAlerts(productId, storeId);
   } catch (err) {
     console.error("Failed to check/create alerts after stock adjustment:", err);
   }
@@ -57,14 +60,15 @@ export async function createStockAdjustmentService(data, userId) {
   return result;
 }
 
-export async function getInventorySummaryService() {
+export async function getInventorySummaryService(storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const [totalProducts, totalValue, lowStockCount] = await Promise.all([
-    prisma.product.count({ where: { isActive: true } }),
-    prisma.product.aggregate({ where: { isActive: true }, _sum: { stockQuantity: true } }),
-    prisma.$queryRaw`SELECT COUNT(*) as count FROM Product WHERE isActive = 1 AND stockQuantity <= lowStockThreshold`,
+    prisma.product.count({ where: { isActive: true, storeId } }),
+    prisma.product.aggregate({ where: { isActive: true, storeId }, _sum: { stockQuantity: true } }),
+    prisma.product.count({ where: { isActive: true, storeId, stockQuantity: { lte: 10 } } }),
   ]);
   const products = await prisma.product.findMany({
-    where: { isActive: true },
+    where: { isActive: true, storeId },
     select: { stockQuantity: true, purchasePrice: true },
   });
   const totalInventoryValue = products.reduce((sum, product) => sum + product.stockQuantity * product.purchasePrice, 0);
@@ -72,19 +76,23 @@ export async function getInventorySummaryService() {
     totalProducts,
     totalItems: totalValue._sum.stockQuantity || 0,
     totalInventoryValue,
-    lowStockProducts: lowStockCount[0]?.count || 0,
+    lowStockProducts: lowStockCount || 0,
   };
 }
 
-export async function bulkStockUpdateService(updates, reason, userId) {
+export async function bulkStockUpdateService(updates, reason, userId, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   // Perform DB updates inside a transaction, but defer alert checks until after the transaction
   const res = await prisma.$transaction(async (tx) => {
     const results = [];
     for (const update of updates) {
-      const product = await tx.product.findUnique({ where: { id: update.productId } });
-      if (!product) throw new Error(`Product with ID ${update.productId} not found`);
+      const product = await tx.product.findFirst({ where: { id: update.productId, storeId } });
+      if (!product) throw new Error(`Product with ID ${update.productId} not found in this store`);
       const quantityDifference = update.newQuantity - product.stockQuantity;
-      await tx.product.update({ where: { id: update.productId }, data: { stockQuantity: update.newQuantity } });
+      await tx.product.update({
+        where: { id: update.productId, storeId },
+        data: { stockQuantity: update.newQuantity },
+      });
       if (quantityDifference !== 0) {
         await tx.stockMovement.create({
           data: {
@@ -93,6 +101,7 @@ export async function bulkStockUpdateService(updates, reason, userId) {
             quantity: quantityDifference,
             reason: reason || "Bulk stock update",
             createdBy: userId,
+            storeId,
           },
         });
       }
@@ -109,7 +118,7 @@ export async function bulkStockUpdateService(updates, reason, userId) {
 
   // Run alerts after transaction completes
   try {
-    await Promise.all(res.updates.map((u) => checkAndCreateAlerts(u.productId)));
+    await Promise.all(res.updates.map((u) => checkAndCreateAlerts(u.productId, storeId)));
   } catch (err) {
     console.error("Failed to check/create alerts after bulk stock update:", err);
   }
@@ -117,10 +126,14 @@ export async function bulkStockUpdateService(updates, reason, userId) {
   return res;
 }
 
-export async function stockTransferService(data, userId) {
+export async function stockTransferService(data, userId, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { productId, productVariantId, quantity, fromLocation, toLocation, notes } = data;
   const transferId = `TR-${Date.now()}`;
   return prisma.$transaction(async (tx) => {
+    // Ensure product belongs to store
+    const product = await tx.product.findFirst({ where: { id: productId, storeId } });
+    if (!product) throw new Error("Product not found in this store");
     const outMovement = await tx.stockMovement.create({
       data: {
         productId,
@@ -132,6 +145,7 @@ export async function stockTransferService(data, userId) {
         fromLocation,
         toLocation,
         createdBy: userId,
+        storeId,
       },
     });
     const inMovement = await tx.stockMovement.create({
@@ -145,6 +159,7 @@ export async function stockTransferService(data, userId) {
         fromLocation,
         toLocation,
         createdBy: userId,
+        storeId,
       },
       include: {
         product: { select: { id: true, name: true, sku: true } },
@@ -155,8 +170,9 @@ export async function stockTransferService(data, userId) {
   });
 }
 
-export async function getStockAlertsService(query) {
-  const where = {};
+export async function getStockAlertsService(query, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  const where = { storeId };
   if (query.isResolved !== undefined) {
     where.isResolved = query.isResolved === "true";
   }
@@ -169,23 +185,22 @@ export async function getStockAlertsService(query) {
   });
 }
 
-export async function resolveStockAlertService(id, userId) {
+export async function resolveStockAlertService(id, userId, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   return prisma.stockAlert.update({
-    where: { id },
+    where: { id, storeId },
     data: { isResolved: true, resolvedAt: new Date(), resolvedBy: userId },
     include: { product: { select: { id: true, name: true } } },
   });
 }
 
-export async function receivePurchaseOrderService(data, userId) {
+export async function receivePurchaseOrderService(data, userId, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { purchaseOrderId, items } = data;
-
-  // Collect productIds to check alerts after transaction
   const productIdsToCheck = new Set();
-
   const result = await prisma.$transaction(async (tx) => {
-    const po = await tx.purchaseOrder.findUnique({ where: { id: purchaseOrderId }, include: { items: true } });
-    if (!po) throw new Error("Purchase order not found");
+    const po = await tx.purchaseOrder.findFirst({ where: { id: purchaseOrderId, storeId }, include: { items: true } });
+    if (!po) throw new Error("Purchase order not found in this store");
     for (const receivedItem of items) {
       const poItem = po.items.find((i) => i.productId === receivedItem.productId);
       if (!poItem) continue;
@@ -194,10 +209,9 @@ export async function receivePurchaseOrderService(data, userId) {
         data: { receivedQuantity: { increment: receivedItem.receivedQuantity } },
       });
       await tx.product.update({
-        where: { id: receivedItem.productId },
+        where: { id: receivedItem.productId, storeId },
         data: { stockQuantity: { increment: receivedItem.receivedQuantity } },
       });
-      // mark for alert check after transaction
       productIdsToCheck.add(receivedItem.productId);
       await tx.stockMovement.create({
         data: {
@@ -207,35 +221,37 @@ export async function receivePurchaseOrderService(data, userId) {
           reason: "Purchase order received",
           reference: po.poNumber,
           createdBy: userId,
+          storeId,
         },
       });
     }
-    const updatedPO = await tx.purchaseOrder.findUnique({ where: { id: purchaseOrderId }, include: { items: true } });
+    const updatedPO = await tx.purchaseOrder.findFirst({
+      where: { id: purchaseOrderId, storeId },
+      include: { items: true },
+    });
     const allReceived = updatedPO.items.every((item) => item.receivedQuantity >= item.quantity);
     const partiallyReceived = updatedPO.items.some((item) => item.receivedQuantity > 0);
     const newStatus = allReceived ? "RECEIVED" : partiallyReceived ? "PARTIALLY_RECEIVED" : "ORDERED";
     return tx.purchaseOrder.update({
-      where: { id: purchaseOrderId },
+      where: { id: purchaseOrderId, storeId },
       data: { status: newStatus, receivedDate: allReceived ? new Date() : null },
       include: { supplier: true, items: { include: { product: true } } },
     });
   });
-
-  // Run alert checks after the transaction completes
   try {
-    await Promise.all(Array.from(productIdsToCheck).map((pid) => checkAndCreateAlerts(pid)));
+    await Promise.all(Array.from(productIdsToCheck).map((pid) => checkAndCreateAlerts(pid, storeId)));
   } catch (err) {
     console.error("Failed to check/create alerts after receiving purchase order:", err);
   }
-
   return result;
 }
 
-export async function getPurchaseOrdersService(query) {
+export async function getPurchaseOrdersService(query, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { page = 1, limit = 20, status, supplierId, startDate, endDate } = query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const take = parseInt(limit);
-  const where = {};
+  const where = { storeId };
   if (status) where.status = status;
   if (supplierId) where.supplierId = parseInt(supplierId);
   if (startDate || endDate) {
@@ -259,9 +275,10 @@ export async function getPurchaseOrdersService(query) {
   return { purchaseOrders, pagination: { page: parseInt(page), limit: take, total, pages: Math.ceil(total / take) } };
 }
 
-export async function getPurchaseOrderByIdService(id) {
-  return prisma.purchaseOrder.findUnique({
-    where: { id },
+export async function getPurchaseOrderByIdService(id, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  return prisma.purchaseOrder.findFirst({
+    where: { id, storeId },
     include: {
       supplier: { select: { id: true, name: true, contactName: true, email: true, phone: true, address: true } },
       items: { include: { product: { select: { id: true, name: true, sku: true, barcode: true } } } },
@@ -269,9 +286,10 @@ export async function getPurchaseOrderByIdService(id) {
   });
 }
 
-export async function createPurchaseOrderService(data, userId) {
+export async function createPurchaseOrderService(data, userId, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { supplierId, orderDate, expectedDate, items, notes } = data;
-  const poCount = await prisma.purchaseOrder.count();
+  const poCount = await prisma.purchaseOrder.count({ where: { storeId } });
   const poNumber = `PO-${new Date().getFullYear()}-${String(poCount + 1).padStart(5, "0")}`;
   const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   const purchaseOrder = await prisma.purchaseOrder.create({
@@ -283,6 +301,7 @@ export async function createPurchaseOrderService(data, userId) {
       status: "PENDING",
       totalAmount,
       notes: notes || null,
+      storeId,
       items: {
         create: items.map((item) => ({
           productId: item.productId,
@@ -308,10 +327,11 @@ export async function createPurchaseOrderService(data, userId) {
   return purchaseOrder;
 }
 
-export async function updatePurchaseOrderService(id, data, userId) {
+export async function updatePurchaseOrderService(id, data, userId, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { supplierId, orderDate, expectedDate, notes, items } = data;
-  const existingPO = await prisma.purchaseOrder.findUnique({ where: { id }, include: { items: true } });
-  if (!existingPO) throw new Error("Purchase order not found");
+  const existingPO = await prisma.purchaseOrder.findFirst({ where: { id, storeId }, include: { items: true } });
+  if (!existingPO) throw new Error("Purchase order not found in this store");
   if (existingPO.status !== "PENDING")
     throw new Error(
       `Cannot edit ${existingPO.status.toLowerCase()} purchase order. Only PENDING orders can be edited.`
@@ -336,7 +356,7 @@ export async function updatePurchaseOrderService(id, data, userId) {
     };
   }
   const updatedPO = await prisma.purchaseOrder.update({
-    where: { id },
+    where: { id, storeId },
     data: updateData,
     include: {
       supplier: { select: { id: true, name: true, contactName: true } },
@@ -353,9 +373,10 @@ export async function updatePurchaseOrderService(id, data, userId) {
   return updatedPO;
 }
 
-export async function receivePurchaseOrderItemsService(id, items, userId) {
-  const purchaseOrder = await prisma.purchaseOrder.findUnique({ where: { id }, include: { items: true } });
-  if (!purchaseOrder) throw new Error("Purchase order not found");
+export async function receivePurchaseOrderItemsService(id, items, userId, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  const purchaseOrder = await prisma.purchaseOrder.findFirst({ where: { id, storeId }, include: { items: true } });
+  if (!purchaseOrder) throw new Error("Purchase order not found in this store");
   if (purchaseOrder.status === "CANCELLED") throw new Error("Cannot receive cancelled purchase order");
   const productIds = purchaseOrder.items
     .filter((item) => {
@@ -364,7 +385,7 @@ export async function receivePurchaseOrderItemsService(id, items, userId) {
     })
     .map((item) => item.productId);
   const currentProducts = await prisma.product.findMany({
-    where: { id: { in: productIds } },
+    where: { id: { in: productIds }, storeId },
     select: { id: true, name: true, sku: true, purchasePrice: true, sellingPrice: true },
   });
   const productMap = new Map(currentProducts.map((p) => [p.id, p]));
@@ -398,7 +419,7 @@ export async function receivePurchaseOrderItemsService(id, items, userId) {
       }
       updates.push(
         prisma.product.update({
-          where: { id: poItem.productId },
+          where: { id: poItem.productId, storeId },
           data: {
             stockQuantity: { increment: parseFloat(receivedItem.receivedQuantity) },
             purchasePrice: newPurchasePrice,
@@ -411,6 +432,7 @@ export async function receivePurchaseOrderItemsService(id, items, userId) {
         quantity: parseFloat(receivedItem.receivedQuantity),
         reference: `PO-${purchaseOrder.poNumber}`,
         createdBy: userId,
+        storeId,
       });
     }
   }
@@ -474,8 +496,8 @@ export async function receivePurchaseOrderItemsService(id, items, userId) {
       });
     }
   }
-  const updatedPO = await prisma.purchaseOrder.findUnique({
-    where: { id },
+  const updatedPO = await prisma.purchaseOrder.findFirst({
+    where: { id, storeId },
     include: { items: true, supplier: { select: { id: true, name: true, contactName: true } } },
   });
   const allReceived = updatedPO.items.every((item) => item.receivedQuantity >= item.quantity);
@@ -489,7 +511,7 @@ export async function receivePurchaseOrderItemsService(id, items, userId) {
     newStatus = "PARTIAL";
   }
   if (newStatus !== updatedPO.status) {
-    await prisma.purchaseOrder.update({ where: { id }, data: { status: newStatus, receivedDate } });
+    await prisma.purchaseOrder.update({ where: { id, storeId }, data: { status: newStatus, receivedDate } });
   }
   await logAudit({
     userId,
@@ -498,8 +520,8 @@ export async function receivePurchaseOrderItemsService(id, items, userId) {
     entityId: updatedPO.id,
     details: { itemsReceived: items.length, newStatus },
   });
-  const finalPO = await prisma.purchaseOrder.findUnique({
-    where: { id },
+  const finalPO = await prisma.purchaseOrder.findFirst({
+    where: { id, storeId },
     include: {
       items: { include: { product: { select: { id: true, name: true, sku: true } } } },
       supplier: { select: { id: true, name: true, contactName: true, email: true, phone: true } },
@@ -512,12 +534,13 @@ export async function receivePurchaseOrderItemsService(id, items, userId) {
   };
 }
 
-export async function cancelPurchaseOrderService(id, userId) {
-  const purchaseOrder = await prisma.purchaseOrder.findUnique({ where: { id }, include: { items: true } });
-  if (!purchaseOrder) throw new Error("Purchase order not found");
+export async function cancelPurchaseOrderService(id, userId, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  const purchaseOrder = await prisma.purchaseOrder.findFirst({ where: { id, storeId }, include: { items: true } });
+  if (!purchaseOrder) throw new Error("Purchase order not found in this store");
   if (purchaseOrder.status === "RECEIVED") throw new Error("Cannot cancel a fully received purchase order");
   const updatedPO = await prisma.purchaseOrder.update({
-    where: { id },
+    where: { id, storeId },
     data: { status: "CANCELLED" },
     include: { supplier: { select: { id: true, name: true } }, items: true },
   });
@@ -531,9 +554,10 @@ export async function cancelPurchaseOrderService(id, userId) {
   return { message: "Purchase order cancelled successfully", purchaseOrder: updatedPO };
 }
 
-export async function getPurchaseOrderStatsService(query) {
+export async function getPurchaseOrderStatsService(query, storeId) {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { startDate, endDate, supplierId } = query;
-  const where = {};
+  const where = { storeId };
   if (supplierId) where.supplierId = parseInt(supplierId);
   if (startDate || endDate) {
     where.orderDate = {};

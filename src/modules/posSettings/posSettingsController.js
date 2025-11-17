@@ -4,7 +4,8 @@ import { sendError, sendSuccess } from "../../utils/response.js";
 
 export const getSettings = async (req, res) => {
   try {
-    const settings = await posSettingsService.getSettings();
+    const storeId = req.user.storeId;
+    const settings = await posSettingsService.getSettings(storeId);
     sendSuccess(res, settings);
   } catch (error) {
     console.error("Get POS settings error:", error);
@@ -19,7 +20,8 @@ export const updateSettings = async (req, res) => {
       return sendError(res, 400, errors.array());
     }
     const userId = req.user.id;
-    const settings = await posSettingsService.updateSettings(req.body, userId);
+    const storeId = req.user.storeId;
+    const settings = await posSettingsService.updateSettings(req.body, userId, storeId);
     sendSuccess(res, settings);
   } catch (error) {
     console.error("Update POS settings error:", error);

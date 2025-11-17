@@ -9,9 +9,10 @@ import {
 // Get all notifications
 export async function getAllNotifications(req, res) {
   try {
+    const storeId = req.user.storeId;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const result = await getNotificationsService(page, limit);
+    const result = await getNotificationsService(storeId, page, limit);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to fetch notifications");
@@ -22,7 +23,8 @@ export async function getAllNotifications(req, res) {
 export async function markNotificationAsRead(req, res) {
   try {
     const { id } = req.params;
-    await markNotificationAsReadService(id);
+    const storeId = req.user.storeId;
+    await markNotificationAsReadService(id, storeId);
     sendSuccess(res, { success: true });
   } catch (error) {
     sendError(res, 500, error.message || "Failed to mark notification as read");
@@ -33,7 +35,8 @@ export async function markNotificationAsRead(req, res) {
 export async function deleteNotification(req, res) {
   try {
     const { id } = req.params;
-    await deleteNotificationService(id);
+    const storeId = req.user.storeId;
+    await deleteNotificationService(id, storeId);
     sendSuccess(res, { success: true });
   } catch (error) {
     sendError(res, 500, error.message || "Failed to delete notification");

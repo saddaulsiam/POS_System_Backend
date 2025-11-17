@@ -2,11 +2,11 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 // Get All notifications
-export async function getNotificationsService(page = 1, limit = 10) {
+export async function getNotificationsService(storeId, page = 1, limit = 10) {
   const skip = Math.max(0, (page - 1) * limit);
   const [notifications, total] = await Promise.all([
     prisma.notification.findMany({
-      where: { productId: { not: null } },
+      where: { productId: { not: null }, storeId },
       orderBy: { createdAt: "desc" },
       include: {
         product: {
@@ -16,7 +16,7 @@ export async function getNotificationsService(page = 1, limit = 10) {
       skip,
       take: limit,
     }),
-    prisma.notification.count({ where: { productId: { not: null } } }),
+    prisma.notification.count({ where: { productId: { not: null }, storeId } }),
   ]);
   return {
     data: notifications,
@@ -30,23 +30,23 @@ export async function getNotificationsService(page = 1, limit = 10) {
 }
 
 // Mark notification as read
-export async function markNotificationAsReadService(id) {
-  await prisma.notification.update({ where: { id: parseInt(id) }, data: { isRead: true } });
+export async function markNotificationAsReadService(id, storeId) {
+  await prisma.notification.update({ where: { id: parseInt(id), storeId }, data: { isRead: true } });
 }
 
 // Delete notification
-export async function deleteNotificationService(id) {
-  await prisma.notification.delete({ where: { id: parseInt(id) } });
+export async function deleteNotificationService(id, storeId) {
+  await prisma.notification.delete({ where: { id: parseInt(id), storeId } });
 }
 
 // Alerts for product status changes
-export async function checkAndCreateAlerts(productId) {
+export async function checkAndCreateAlerts(productId, storeId) {
   if (!productId || isNaN(productId)) {
     // Don't run alerts if productId is missing or invalid
     return;
   }
-  const settings = await prisma.pOSSettings.findFirst();
-  const product = await prisma.product.findUnique({ where: { id: productId } });
+  const settings = await prisma.pOSSettings.findFirst({ where: { storeId } });
+  const product = await prisma.product.findUnique({ where: { id: productId, storeId } });
   if (!product) {
     // Optionally log or notify about missing product
     return;
@@ -60,6 +60,7 @@ export async function checkAndCreateAlerts(productId) {
           type: "low_stock",
           message: `Stock for ${product.name} is low (${product.stockQuantity} left)`,
           productId: product.id,
+          storeId,
           isRead: false,
         },
       });
@@ -76,6 +77,7 @@ export async function checkAndCreateAlerts(productId) {
           type: "high_stock",
           message: `Stock for ${product.name} is high (${product.stockQuantity} units)`,
           productId: product.id,
+          storeId,
           isRead: false,
         },
       });
@@ -92,6 +94,7 @@ export async function checkAndCreateAlerts(productId) {
           type: "expiry",
           message: `Product ${product.name} has expired.`,
           productId: product.id,
+          storeId,
           isRead: false,
         },
       });
@@ -112,6 +115,7 @@ export async function checkAndCreateAlerts(productId) {
           type: "inactive",
           message: `Product ${product.name} has not been sold for ${settings.inactiveProductDays} days.`,
           productId: product.id,
+          storeId,
           isRead: false,
         },
       });
@@ -128,6 +132,7 @@ export async function checkAndCreateAlerts(productId) {
           type: "system_error",
           message: `System error detected for product ${product.name}.`,
           productId: product.id,
+          storeId,
           isRead: false,
         },
       });
@@ -144,6 +149,7 @@ export async function checkAndCreateAlerts(productId) {
           type: "price_change",
           message: `Price changed for product ${product.name}.`,
           productId: product.id,
+          storeId,
           isRead: false,
         },
       });
@@ -162,6 +168,7 @@ export async function checkAndCreateAlerts(productId) {
             type: "supplier_delivery",
             message: `Supplier delivery for ${product.name} expected in ${Math.ceil(daysUntilDelivery)} days.`,
             productId: product.id,
+            storeId,
             isRead: false,
           },
         });
@@ -183,6 +190,7 @@ export async function checkAndCreateAlerts(productId) {
           type: "low_balance",
           message: `Balance for ${product.name} is low (${product.balance}).`,
           productId: product.id,
+          storeId,
           isRead: false,
         },
       });
@@ -203,6 +211,7 @@ export async function checkAndCreateAlerts(productId) {
           type: "frequent_refunds",
           message: `Frequent refunds for ${product.name} (${product.refundCount} times).`,
           productId: product.id,
+          storeId,
           isRead: false,
         },
       });
@@ -223,6 +232,7 @@ export async function checkAndCreateAlerts(productId) {
           type: "daily_sales_target",
           message: `Daily sales for ${product.name} below target (${product.dailySales}/${settings.dailySalesTargetAmount}).`,
           productId: product.id,
+          storeId,
           isRead: false,
         },
       });
@@ -243,6 +253,7 @@ export async function checkAndCreateAlerts(productId) {
           type: "loyalty_points_expiry",
           message: `Loyalty points for ${product.name} have expired.`,
           productId: product.id,
+          storeId,
           isRead: false,
         },
       });

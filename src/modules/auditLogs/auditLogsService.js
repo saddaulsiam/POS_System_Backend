@@ -1,9 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-export async function getAuditLogs(query) {
+export async function getAuditLogs(query, storeId) {
   const { userId, action, entity, page = 1, limit = 20 } = query;
-  const where = {};
+  const where = { storeId };
   if (userId) where.userId = parseInt(userId);
   if (action) {
     where.action = { contains: action, mode: "insensitive" };

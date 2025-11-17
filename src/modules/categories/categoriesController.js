@@ -15,7 +15,8 @@ import {
 // Get all categories
 async function getCategories(req, res) {
   try {
-    const categories = await fetchCategories();
+    const storeId = req.user.storeId;
+    const categories = await fetchCategories(storeId);
     sendSuccess(res, categories);
   } catch (error) {
     console.error("Get categories error:", error);
@@ -26,9 +27,10 @@ async function getCategories(req, res) {
 // Get category by ID
 async function getCategoryById(req, res) {
   try {
+    const storeId = req.user.storeId;
     const { id } = req.params;
     const categoryId = parseInt(id);
-    const category = await fetchCategoryById(categoryId);
+    const category = await fetchCategoryById(categoryId, storeId);
     if (!category) {
       return sendError(res, 404, "Category not found");
     }
@@ -42,6 +44,7 @@ async function getCategoryById(req, res) {
 // Create new category
 async function createCategory(req, res) {
   try {
+    const storeId = req.user.storeId;
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -50,13 +53,13 @@ async function createCategory(req, res) {
 
     const { name } = req.body;
 
-    const existing = await findCategoryByName(name.trim());
+    const existing = await findCategoryByName(name.trim(), storeId);
     if (existing) {
       return sendError(res, 400, "Category with this name already exists");
     }
 
     // Create category with icon if file is uploaded
-    const category = await createCategoryService(name.trim(), req.file);
+    const category = await createCategoryService(name.trim(), req.file, storeId);
     sendSuccess(res, category, 201);
   } catch (error) {
     console.error("Create category error:", error);
@@ -67,6 +70,7 @@ async function createCategory(req, res) {
 // Update category
 async function updateCategory(req, res) {
   try {
+    const storeId = req.user.storeId;
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -77,18 +81,18 @@ async function updateCategory(req, res) {
     const { name } = req.body;
     const categoryId = parseInt(id);
 
-    const existingCategory = await findCategoryById(categoryId);
+    const existingCategory = await findCategoryById(categoryId, storeId);
     if (!existingCategory) {
       return sendError(res, 404, "Category not found");
     }
 
-    const nameConflict = await findNameConflict(name.trim(), categoryId);
+    const nameConflict = await findNameConflict(name.trim(), categoryId, storeId);
     if (nameConflict) {
       return sendError(res, 400, "Another category with this name already exists");
     }
 
     // Update category with icon if file is uploaded
-    const category = await updateCategoryService(categoryId, name.trim(), req.file);
+    const category = await updateCategoryService(categoryId, name.trim(), req.file, storeId);
     sendSuccess(res, category);
   } catch (error) {
     console.error("Update category error:", error);
@@ -99,16 +103,17 @@ async function updateCategory(req, res) {
 // Delete category
 async function deleteCategory(req, res) {
   try {
+    const storeId = req.user.storeId;
     const { id } = req.params;
     const categoryId = parseInt(id);
-    const category = await fetchCategoryById(categoryId);
+    const category = await fetchCategoryById(categoryId, storeId);
     if (!category) {
       return sendError(res, 404, "Category not found");
     }
     if (category._count.products > 0) {
       return sendError(res, 400, "Cannot delete category that has products. Please reassign products first.");
     }
-    await deleteCategoryService(categoryId);
+    await deleteCategoryService(categoryId, storeId);
     sendSuccess(res, { message: "Category deleted successfully" });
   } catch (error) {
     console.error("Delete category error:", error);

@@ -3,13 +3,15 @@ import moment from "moment";
 
 const prisma = new PrismaClient();
 
-export const dailySalesReport = async (query) => {
+export const dailySalesReport = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const date = query.date ? moment(query.date) : moment();
   const startOfDay = date.startOf("day").toDate();
   const endOfDay = date.endOf("day").toDate();
 
   const salesSummary = await prisma.sale.aggregate({
     where: {
+      storeId,
       createdAt: {
         gte: startOfDay,
         lte: endOfDay,
@@ -29,6 +31,7 @@ export const dailySalesReport = async (query) => {
   const salesByPayment = await prisma.sale.groupBy({
     by: ["paymentMethod"],
     where: {
+      storeId,
       createdAt: {
         gte: startOfDay,
         lte: endOfDay,
@@ -46,7 +49,9 @@ export const dailySalesReport = async (query) => {
   const topProducts = await prisma.saleItem.groupBy({
     by: ["productId"],
     where: {
+      storeId,
       sale: {
+        storeId,
         createdAt: {
           gte: startOfDay,
           lte: endOfDay,
@@ -72,6 +77,7 @@ export const dailySalesReport = async (query) => {
       id: {
         in: productIds,
       },
+      storeId,
     },
     select: {
       id: true,
@@ -101,12 +107,14 @@ export const dailySalesReport = async (query) => {
   };
 };
 
-export const salesRangeReport = async (query) => {
+export const salesRangeReport = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const startDate = moment(query.startDate).startOf("day").toDate();
   const endDate = moment(query.endDate).endOf("day").toDate();
 
   const salesData = await prisma.sale.findMany({
     where: {
+      storeId,
       createdAt: {
         gte: startDate,
         lte: endDate,
@@ -127,6 +135,7 @@ export const salesRangeReport = async (query) => {
 
   const summary = await prisma.sale.aggregate({
     where: {
+      storeId,
       createdAt: {
         gte: startDate,
         lte: endDate,
@@ -154,9 +163,10 @@ export const salesRangeReport = async (query) => {
   };
 };
 
-export const inventoryReport = async () => {
+export const inventoryReport = async (storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const products = await prisma.product.findMany({
-    where: { isActive: true },
+    where: { isActive: true, storeId },
     include: {
       category: { select: { name: true } },
       supplier: { select: { name: true } },
@@ -179,7 +189,8 @@ export const inventoryReport = async () => {
   };
 };
 
-export const employeePerformanceReport = async (query) => {
+export const employeePerformanceReport = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const startDate = query.startDate
     ? moment(query.startDate).startOf("day").toDate()
     : moment().subtract(30, "days").startOf("day").toDate();
@@ -188,6 +199,7 @@ export const employeePerformanceReport = async (query) => {
   const employeePerformance = await prisma.sale.groupBy({
     by: ["employeeId"],
     where: {
+      storeId,
       createdAt: { gte: startDate, lte: endDate },
       paymentStatus: "COMPLETED",
     },
@@ -198,7 +210,7 @@ export const employeePerformanceReport = async (query) => {
 
   const employeeIds = employeePerformance.map((perf) => perf.employeeId);
   const employees = await prisma.employee.findMany({
-    where: { id: { in: employeeIds } },
+    where: { id: { in: employeeIds }, storeId },
     select: { id: true, name: true, username: true, role: true },
   });
 
@@ -221,7 +233,8 @@ export const employeePerformanceReport = async (query) => {
   };
 };
 
-export const productPerformanceReport = async (query) => {
+export const productPerformanceReport = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const startDate = query.startDate
     ? moment(query.startDate).startOf("day").toDate()
     : moment().subtract(30, "days").startOf("day").toDate();
@@ -231,7 +244,9 @@ export const productPerformanceReport = async (query) => {
   const productPerformance = await prisma.saleItem.groupBy({
     by: ["productId"],
     where: {
+      storeId,
       sale: {
+        storeId,
         createdAt: { gte: startDate, lte: endDate },
         paymentStatus: "COMPLETED",
       },
@@ -244,7 +259,7 @@ export const productPerformanceReport = async (query) => {
 
   const productIds = productPerformance.map((perf) => perf.productId);
   const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
+    where: { id: { in: productIds }, storeId },
     include: { category: { select: { name: true } } },
   });
 
@@ -267,13 +282,16 @@ export const productPerformanceReport = async (query) => {
   };
 };
 
-export const profitMarginReport = async (query) => {
+export const profitMarginReport = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const startDate = query.startDate ? new Date(query.startDate) : moment().subtract(30, "days").toDate();
   const endDate = query.endDate ? new Date(query.endDate) : new Date();
 
   const salesData = await prisma.saleItem.findMany({
     where: {
+      storeId,
       sale: {
+        storeId,
         createdAt: { gte: startDate, lte: endDate },
         paymentStatus: "COMPLETED",
       },
@@ -329,11 +347,13 @@ export const profitMarginReport = async (query) => {
   };
 };
 
-export const stockTurnoverReport = async (query) => {
+export const stockTurnoverReport = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const days = parseInt(query.days) || 30;
   const startDate = moment().subtract(days, "days").toDate();
 
   const products = await prisma.product.findMany({
+    where: { storeId },
     select: {
       id: true,
       name: true,
@@ -344,6 +364,7 @@ export const stockTurnoverReport = async (query) => {
       saleItems: {
         where: {
           sale: {
+            storeId,
             createdAt: { gte: startDate },
             paymentStatus: "COMPLETED",
           },
@@ -394,13 +415,15 @@ export const stockTurnoverReport = async (query) => {
   };
 };
 
-export const salesTrendsReport = async (query) => {
+export const salesTrendsReport = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const startDate = query.startDate ? new Date(query.startDate) : moment().subtract(30, "days").toDate();
   const endDate = query.endDate ? new Date(query.endDate) : new Date();
   const groupBy = query.groupBy || "day";
 
   const sales = await prisma.sale.findMany({
     where: {
+      storeId,
       createdAt: { gte: startDate, lte: endDate },
       paymentStatus: "COMPLETED",
     },
@@ -455,12 +478,13 @@ export const salesTrendsReport = async (query) => {
   };
 };
 
-export const customerAnalyticsReport = async (query) => {
+export const customerAnalyticsReport = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const days = parseInt(query.days) || 30;
   const startDate = moment().subtract(days, "days").toDate();
 
   const customerStats = await prisma.customer.findMany({
-    where: { isActive: true },
+    where: { isActive: true, storeId },
     select: {
       id: true,
       name: true,
@@ -468,6 +492,7 @@ export const customerAnalyticsReport = async (query) => {
       loyaltyTier: true,
       sales: {
         where: {
+          storeId,
           createdAt: { gte: startDate },
           paymentStatus: "COMPLETED",
         },

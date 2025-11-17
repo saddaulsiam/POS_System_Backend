@@ -4,8 +4,9 @@ import * as productVariantsService from "./productVariantsService.js";
 
 export const getVariantById = async (req, res) => {
   try {
+    const storeId = req.user.storeId;
     const id = parseInt(req.params.id);
-    const variant = await productVariantsService.getVariantById(id);
+    const variant = await productVariantsService.getVariantById(id, storeId);
     if (!variant) {
       return sendError(res, 404, "Variant not found");
     }
@@ -18,20 +19,19 @@ export const getVariantById = async (req, res) => {
 
 export const getAllVariants = async (req, res) => {
   try {
+    const storeId = req.user.storeId;
     const { productId } = req.query;
-    
     // If productId is provided, filter by product
     if (productId) {
       const parsedProductId = parseInt(productId);
       if (isNaN(parsedProductId)) {
         return sendError(res, 400, "Invalid productId");
       }
-      const variants = await productVariantsService.getVariantsByProduct(parsedProductId);
+      const variants = await productVariantsService.getVariantsByProduct(parsedProductId, storeId);
       return sendSuccess(res, variants);
     }
-    
-    // Otherwise, return all variants
-    const variants = await productVariantsService.getAllVariants();
+    // Otherwise, return all variants for this store
+    const variants = await productVariantsService.getAllVariants(storeId);
     sendSuccess(res, variants);
   } catch (error) {
     console.error("Get all variants error:", error);
@@ -41,12 +41,13 @@ export const getAllVariants = async (req, res) => {
 
 export const getVariantsByProduct = async (req, res) => {
   try {
+    const storeId = req.user.storeId;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return sendError(res, 400, errors.array());
     }
     const productId = parseInt(req.params.productId);
-    const variants = await productVariantsService.getVariantsByProduct(productId);
+    const variants = await productVariantsService.getVariantsByProduct(productId, storeId);
     sendSuccess(res, variants);
   } catch (error) {
     console.error("Get variants error:", error);
@@ -56,11 +57,12 @@ export const getVariantsByProduct = async (req, res) => {
 
 export const createVariant = async (req, res) => {
   try {
+    const storeId = req.user.storeId;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return sendError(res, 400, errors.array());
     }
-    const result = await productVariantsService.createVariant(req.body);
+    const result = await productVariantsService.createVariant(req.body, storeId);
     sendSuccess(res, result, 201);
   } catch (error) {
     console.error("Create variant error:", error);
@@ -70,12 +72,13 @@ export const createVariant = async (req, res) => {
 
 export const updateVariant = async (req, res) => {
   try {
+    const storeId = req.user.storeId;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return sendError(res, 400, errors.array());
     }
     const id = parseInt(req.params.id);
-    const result = await productVariantsService.updateVariant(id, req.body);
+    const result = await productVariantsService.updateVariant(id, req.body, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Update variant error:", error);
@@ -85,12 +88,13 @@ export const updateVariant = async (req, res) => {
 
 export const deleteVariant = async (req, res) => {
   try {
+    const storeId = req.user.storeId;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return sendError(res, 400, errors.array());
     }
     const id = parseInt(req.params.id);
-    const result = await productVariantsService.deleteVariant(id);
+    const result = await productVariantsService.deleteVariant(id, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Delete variant error:", error);
@@ -100,8 +104,9 @@ export const deleteVariant = async (req, res) => {
 
 export const lookupVariant = async (req, res) => {
   try {
+    const storeId = req.user.storeId;
     const identifier = req.params.identifier;
-    const variant = await productVariantsService.lookupVariant(identifier);
+    const variant = await productVariantsService.lookupVariant(identifier, storeId);
     if (!variant) {
       return sendError(res, 404, "Variant not found");
     }

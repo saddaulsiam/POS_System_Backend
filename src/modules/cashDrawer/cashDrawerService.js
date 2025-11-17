@@ -1,9 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-async function getAll(query) {
+async function getAll(query, storeId) {
   const { page = 1, limit = 20, status, employeeId } = query;
-  const where = {};
+  const where = { storeId };
   if (status) where.status = status;
   if (employeeId) where.employeeId = Number(employeeId);
   const skip = (Number(page) - 1) * Number(limit);
@@ -39,11 +39,12 @@ async function getAll(query) {
 }
 
 async function getCurrent(user) {
-  // Get current open drawer for the logged-in employee
+  // Get current open drawer for the logged-in employee, scoped to store
   return await prisma.cashDrawer.findFirst({
     where: {
       employeeId: user.id,
       status: "OPEN",
+      storeId: user.storeId,
     },
     include: { employee: true },
     orderBy: { openedAt: "desc" },
@@ -51,12 +52,13 @@ async function getCurrent(user) {
 }
 
 async function openDrawer(user, body) {
-  // Open a new cash drawer for the employee
+  // Open a new cash drawer for the employee, scoped to store
   // Only allow if no open drawer exists
   const existing = await prisma.cashDrawer.findFirst({
     where: {
       employeeId: user.id,
       status: "OPEN",
+      storeId: user.storeId,
     },
   });
   if (existing) throw new Error("An open cash drawer already exists for this employee.");
@@ -66,14 +68,15 @@ async function openDrawer(user, body) {
       openingBalance: body.openingBalance,
       openedAt: new Date(),
       status: "OPEN",
+      storeId: user.storeId,
     },
   });
 }
 
 async function closeDrawer(user, params, body) {
-  // Close the specified cash drawer
+  // Close the specified cash drawer, scoped to store
   const { id } = params;
-  const drawer = await prisma.cashDrawer.findUnique({ where: { id: Number(id) } });
+  const drawer = await prisma.cashDrawer.findFirst({ where: { id: Number(id), storeId: user.storeId } });
   if (!drawer || drawer.status !== "OPEN") throw new Error("Cash drawer not found or not open.");
   if (drawer.employeeId !== user.id) throw new Error("Unauthorized to close this drawer.");
   return await prisma.cashDrawer.update({
@@ -87,24 +90,25 @@ async function closeDrawer(user, params, body) {
 }
 
 async function getById(user, params) {
-  // Fetch cash drawer by ID
+  // Fetch cash drawer by ID, scoped to store
   const { id } = params;
-  const drawer = await prisma.cashDrawer.findUnique({ where: { id: Number(id) } });
+  const drawer = await prisma.cashDrawer.findFirst({ where: { id: Number(id), storeId: user.storeId } });
   if (!drawer) throw new Error("Cash drawer not found.");
   // Optionally restrict access by employee or role
   return drawer;
 }
 
 async function getReconciliation(user, params) {
-  // Fetch reconciliation details for a drawer
+  // Fetch reconciliation details for a drawer, scoped to store
   const { id } = params;
-  const drawer = await prisma.cashDrawer.findUnique({ where: { id: Number(id) } });
+  const drawer = await prisma.cashDrawer.findFirst({ where: { id: Number(id), storeId: user.storeId } });
   if (!drawer) throw new Error("Cash drawer not found.");
 
-  // Fetch sales for this employee during the drawer's shift
+  // Fetch sales for this employee during the drawer's shift, scoped to store
   const sales = await prisma.sale.findMany({
     where: {
       employeeId: drawer.employeeId,
+      storeId: user.storeId,
       createdAt: {
         gte: drawer.openedAt,
         lte: drawer.closedAt ?? new Date(),
@@ -147,14 +151,13 @@ async function getReconciliation(user, params) {
   };
 }
 
-async function getSummary(query) {
-  // Fetch summary statistics for cash drawers
-  // Example: total opened, closed, discrepancies
-  const totalOpened = await prisma.cashDrawer.count({ where: { status: "OPEN" } });
-  const totalClosed = await prisma.cashDrawer.count({ where: { status: "CLOSED" } });
-  const totalDrawers = await prisma.cashDrawer.count();
+async function getSummary(query, storeId) {
+  // Fetch summary statistics for cash drawers, scoped to store
+  const totalOpened = await prisma.cashDrawer.count({ where: { status: "OPEN", storeId } });
+  const totalClosed = await prisma.cashDrawer.count({ where: { status: "CLOSED", storeId } });
+  const totalDrawers = await prisma.cashDrawer.count({ where: { storeId } });
   // Discrepancy: count drawers with nonzero discrepancy
-  const drawers = await prisma.cashDrawer.findMany({ where: { status: "CLOSED" } });
+  const drawers = await prisma.cashDrawer.findMany({ where: { status: "CLOSED", storeId } });
   const discrepancies = drawers.filter(
     (d) => d.closingBalance !== null && d.openingBalance !== null && d.closingBalance !== d.openingBalance
   ).length;

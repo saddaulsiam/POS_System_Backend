@@ -2,10 +2,10 @@ import { validationResult } from "express-validator";
 import { sendError, sendSuccess } from "../../utils/response.js";
 import * as parkedSalesService from "./parkedSalesService.js";
 
-export const getAllParkedSales = async (req, res) => {
   try {
     const employeeId = req.user.id;
-    const result = await parkedSalesService.getAllParkedSalesService(employeeId);
+    const storeId = req.user.storeId;
+    const result = await parkedSalesService.getAllParkedSalesService(employeeId, storeId);
     sendSuccess(res, result);
   } catch (error) {
     console.error("Get parked sales error:", error);
@@ -13,14 +13,14 @@ export const getAllParkedSales = async (req, res) => {
   }
 };
 
-export const parkSale = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
     const employeeId = req.user.id;
-    const result = await parkedSalesService.parkSaleService({ ...req.body, employeeId });
+    const storeId = req.user.storeId;
+    const result = await parkedSalesService.parkSaleService({ ...req.body, employeeId, storeId });
     sendSuccess(res, result, 201);
   } catch (error) {
     console.error("Park sale error:", error);
@@ -28,7 +28,6 @@ export const parkSale = async (req, res) => {
   }
 };
 
-export const getParkedSale = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -36,7 +35,8 @@ export const getParkedSale = async (req, res) => {
     }
     const id = parseInt(req.params.id);
     const employeeId = req.user.id;
-    const result = await parkedSalesService.getParkedSaleService(id, employeeId);
+    const storeId = req.user.storeId;
+    const result = await parkedSalesService.getParkedSaleService(id, employeeId, storeId);
     if (!result) {
       return res.status(404).json({ error: "Parked sale not found" });
     }
@@ -47,7 +47,6 @@ export const getParkedSale = async (req, res) => {
   }
 };
 
-export const deleteParkedSale = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -55,7 +54,8 @@ export const deleteParkedSale = async (req, res) => {
     }
     const id = parseInt(req.params.id);
     const employeeId = req.user.id;
-    const result = await parkedSalesService.deleteParkedSaleService(id, employeeId);
+    const storeId = req.user.storeId;
+    const result = await parkedSalesService.deleteParkedSaleService(id, employeeId, storeId);
     if (!result) {
       return res.status(404).json({ error: "Parked sale not found" });
     }
@@ -66,10 +66,9 @@ export const deleteParkedSale = async (req, res) => {
   }
 };
 
-export const cleanupExpiredParkedSales = async (req, res) => {
   try {
-    const result = await parkedSalesService.cleanupExpiredParkedSalesService();
-    sendSuccess(res, { message: `Deleted ${result.count} expired parked sales` });
+    const storeId = req.user.storeId;
+    const result = await parkedSalesService.cleanupExpiredParkedSalesService(storeId);
     sendSuccess(res, { message: `Deleted ${result.count} expired parked sales` });
   } catch (error) {
     console.error("Cleanup expired sales error:", error);

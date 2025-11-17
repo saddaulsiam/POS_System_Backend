@@ -1,11 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-export const getSuppliersService = async (query) => {
+export const getSuppliersService = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { page = 1, limit = 50, search } = query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const where = search
     ? {
+        storeId,
         OR: [
           { name: { contains: search } },
           { contactName: { contains: search } },
@@ -13,7 +15,7 @@ export const getSuppliersService = async (query) => {
           { email: { contains: search } },
         ],
       }
-    : {};
+    : { storeId };
   const totalItems = await prisma.supplier.count({ where });
   const suppliers = await prisma.supplier.findMany({
     where,
@@ -50,9 +52,10 @@ export const getSuppliersService = async (query) => {
   };
 };
 
-export const getSupplierByIdService = async (id) => {
-  const supplier = await prisma.supplier.findUnique({
-    where: { id: parseInt(id) },
+export const getSupplierByIdService = async (id, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  const supplier = await prisma.supplier.findFirst({
+    where: { id: parseInt(id), storeId },
     include: {
       products: {
         select: {
@@ -77,19 +80,20 @@ export const getSupplierByIdService = async (id) => {
   };
 };
 
-export const createSupplierService = async (body) => {
+export const createSupplierService = async (body, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { name, contactName, phone, email, address } = body;
   if (!name || !name.trim()) {
     throw new Error("Supplier name is required");
   }
   if (phone) {
-    const existingSupplier = await prisma.supplier.findFirst({ where: { phone } });
+    const existingSupplier = await prisma.supplier.findFirst({ where: { phone, storeId } });
     if (existingSupplier) {
       throw new Error("A supplier with this phone number already exists");
     }
   }
   if (email) {
-    const existingSupplier = await prisma.supplier.findFirst({ where: { email } });
+    const existingSupplier = await prisma.supplier.findFirst({ where: { email, storeId } });
     if (existingSupplier) {
       throw new Error("A supplier with this email already exists");
     }
@@ -101,13 +105,15 @@ export const createSupplierService = async (body) => {
       phone: phone?.trim() || null,
       email: email?.trim() || null,
       address: address?.trim() || null,
+      storeId,
     },
   });
 };
 
-export const updateSupplierService = async (id, body) => {
+export const updateSupplierService = async (id, body, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { name, contactName, phone, email, address } = body;
-  const existingSupplier = await prisma.supplier.findUnique({ where: { id: parseInt(id) } });
+  const existingSupplier = await prisma.supplier.findFirst({ where: { id: parseInt(id), storeId } });
   if (!existingSupplier) {
     throw new Error("Supplier not found");
   }
@@ -119,6 +125,7 @@ export const updateSupplierService = async (id, body) => {
       where: {
         phone,
         id: { not: parseInt(id) },
+        storeId,
       },
     });
     if (duplicatePhone) {
@@ -130,6 +137,7 @@ export const updateSupplierService = async (id, body) => {
       where: {
         email,
         id: { not: parseInt(id) },
+        storeId,
       },
     });
     if (duplicateEmail) {
@@ -137,7 +145,7 @@ export const updateSupplierService = async (id, body) => {
     }
   }
   return prisma.supplier.update({
-    where: { id: parseInt(id) },
+    where: { id: parseInt(id), storeId },
     data: {
       ...(name !== undefined && { name: name.trim() }),
       ...(contactName !== undefined && { contactName: contactName?.trim() || null }),
@@ -148,9 +156,10 @@ export const updateSupplierService = async (id, body) => {
   });
 };
 
-export const deleteSupplierService = async (id) => {
-  const supplier = await prisma.supplier.findUnique({
-    where: { id: parseInt(id) },
+export const deleteSupplierService = async (id, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  const supplier = await prisma.supplier.findFirst({
+    where: { id: parseInt(id), storeId },
     include: {
       _count: {
         select: { products: true },
@@ -165,6 +174,6 @@ export const deleteSupplierService = async (id) => {
       `Cannot delete supplier. ${supplier._count.products} product(s) are associated with this supplier.`
     );
   }
-  await prisma.supplier.delete({ where: { id: parseInt(id) } });
+  await prisma.supplier.delete({ where: { id: parseInt(id), storeId } });
   return { message: "Supplier deleted successfully" };
 };
