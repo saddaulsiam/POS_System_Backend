@@ -1,6 +1,5 @@
-import { PrismaClient } from "@prisma/client";
-import { hashPassword, comparePassword, generateToken, logAudit } from "../../utils/helpers.js";
-const prisma = new PrismaClient();
+import prisma from "../../prisma.js";
+import { comparePassword, generateToken, hashPassword, logAudit } from "../../utils/helpers.js";
 
 export async function loginService(username, pinCode, req) {
   const employee = await prisma.employee.findUnique({ where: { username } });

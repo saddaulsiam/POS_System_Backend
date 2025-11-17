@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "../../prisma.js";
 
 export const getSuppliersService = async (query, storeId) => {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");

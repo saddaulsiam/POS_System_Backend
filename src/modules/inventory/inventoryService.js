@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client";
-import { checkAndCreateAlerts } from "../notifications/notificationService.js";
+import prisma from "../../prisma.js";
 import { logAudit } from "../../utils/auditLogger.js";
-const prisma = new PrismaClient();
+import { checkAndCreateAlerts } from "../notifications/notificationService.js";
 
 export async function getStockMovementsService({ page, limit, productId, movementType, startDate, endDate, storeId }) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");

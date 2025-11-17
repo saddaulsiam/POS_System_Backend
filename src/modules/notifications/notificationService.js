@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "../../prisma.js";
 
 // Get All notifications
 export async function getNotificationsService(storeId, page = 1, limit = 10) {

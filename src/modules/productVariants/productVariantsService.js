@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "../../prisma.js";
 
 export const getVariantById = async (id, storeId) => {
   // Only return variant if its parent product belongs to storeId

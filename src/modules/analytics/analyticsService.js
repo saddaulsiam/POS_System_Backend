@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "../../prisma.js";
 
 export function getDateRange(period) {
   const now = new Date();

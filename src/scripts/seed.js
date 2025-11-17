@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../prisma.js";
 import { hashPassword } from "../utils/helpers.js"; // adjust path if needed
-
-const prisma = new PrismaClient();
 
 /**
  * Realistic grocery store seeding script

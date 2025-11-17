@@ -1,11 +1,9 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../prisma.js";
 import bwipjs from "bwip-js";
 import ExcelJS from "exceljs";
 import { Parser } from "json2csv";
 import cloudinary from "../../utils/cloudinary.js";
 import { deleteImage } from "../../utils/upload.js";
-
-const prisma = new PrismaClient();
 
 // Get paginated, filtered products (store isolated)
 export async function getProductsService({ page, limit, search, categoryId, isActive, showDeleted, storeId }) {

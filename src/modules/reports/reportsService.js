@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../prisma.js";
 import moment from "moment";
-
-const prisma = new PrismaClient();
 
 export const dailySalesReport = async (query, storeId) => {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");

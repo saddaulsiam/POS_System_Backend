@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "../../prisma.js";
 
 async function getAll(query, storeId) {
   const { page = 1, limit = 20, status, employeeId } = query;

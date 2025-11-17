@@ -1,6 +1,5 @@
 // Audit logging helper
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "../prisma.js";
 
 export async function logAudit({ userId, action, entity, entityId, details }) {
   return prisma.auditLog.create({

@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../prisma.js";
 import cloudinary from "../../utils/cloudinary.js";
-
-const prisma = new PrismaClient();
 
 export async function fetchCategories(storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");

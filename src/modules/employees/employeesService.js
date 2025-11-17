@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../prisma.js";
 import cloudinary from "../../utils/cloudinary.js";
 import { hashPassword } from "../../utils/helpers.js";
-const prisma = new PrismaClient();
 
 export async function getAllEmployeesService({ includeInactive, page = 1, limit = 20, search = "", storeId }) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");

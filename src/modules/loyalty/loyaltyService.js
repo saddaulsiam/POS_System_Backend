@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "../../prisma.js";
 
 export const LOYALTY_TIERS = {
   BRONZE: { min: 0, multiplier: 1.0, discount: 0, birthdayBonus: 50 },

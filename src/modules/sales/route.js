@@ -17,7 +17,7 @@ router.use(authenticateToken);
 router
   .route("/")
   .get(getSalesValidator, salesController.getSales)
-  .post(createSaleValidator, salesController.createSale);
+  .post(authorizeRoles("ADMIN", "MANAGER"), createSaleValidator, salesController.createSale);
 
 router.get("/:identifier", salesController.getSaleById);
 router.post(

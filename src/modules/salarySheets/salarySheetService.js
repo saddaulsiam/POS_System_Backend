@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "../../prisma.js";
 
 export async function getAllSalarySheetsService({ month, year }, storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");

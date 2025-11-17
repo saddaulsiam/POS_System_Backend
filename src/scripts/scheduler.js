@@ -1,14 +1,8 @@
-/**
- * Birthday Rewards Automation Scheduler
- * Automatically awards birthday bonuses to customers daily
- */
-
 import cron from "node-cron";
-import { PrismaClient } from "@prisma/client";
 import { fileURLToPath } from "url";
+import prisma from "../prisma.js";
 
 const __filename = fileURLToPath(import.meta.url);
-const prisma = new PrismaClient();
 
 // Tier birthday bonuses (same as in loyalty.js)
 const LOYALTY_TIERS = {
@@ -209,4 +203,4 @@ if (process.argv[1] === __filename) {
     });
 }
 
-export { startScheduler, stopScheduler, processBirthdayRewards };
+export { processBirthdayRewards, startScheduler, stopScheduler };

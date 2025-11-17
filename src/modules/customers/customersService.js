@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "../../prisma.js";
 
 async function fetchCustomers(where, skip, limit, storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
@@ -164,17 +163,17 @@ async function redeemLoyaltyPointsService(customerId, points, storeId) {
 }
 
 export {
-  fetchCustomers,
-  countCustomers,
-  findCustomerByPhone,
-  searchCustomers,
-  findCustomerById,
-  aggregateTotalSpent,
-  findExistingCustomer,
-  createCustomerService,
-  findCustomerConflict,
-  updateCustomerService,
-  deactivateCustomerService,
   addLoyaltyPointsService,
+  aggregateTotalSpent,
+  countCustomers,
+  createCustomerService,
+  deactivateCustomerService,
+  fetchCustomers,
+  findCustomerById,
+  findCustomerByPhone,
+  findCustomerConflict,
+  findExistingCustomer,
   redeemLoyaltyPointsService,
+  searchCustomers,
+  updateCustomerService,
 };
