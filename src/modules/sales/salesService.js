@@ -109,193 +109,234 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
     }
   }
 
+  // --- Batch fetch all products and variants needed ---
+  const productIds = [...new Set(items.map((i) => i.productId))];
+  const variantIds = [...new Set(items.filter((i) => i.productVariantId).map((i) => i.productVariantId))];
+  // Fetch all products in one query
+  const productsArr = await prisma.product.findMany({
+    where: { id: { in: productIds }, isActive: true, storeId },
+  });
+  const products = Object.fromEntries(productsArr.map((p) => [p.id, p]));
+  // Fetch all variants in one query
+  let variants = {};
+  if (variantIds.length > 0) {
+    const variantsArr = await prisma.productVariant.findMany({
+      where: { id: { in: variantIds }, isActive: true, storeId },
+    });
+    variants = Object.fromEntries(variantsArr.map((v) => [v.id, v]));
+  }
+
   // Start transaction
   let subtotal = 0;
   let totalTax = 0;
   const saleItemsData = [];
   const alertProductIds = [];
-  const result = await prisma.$transaction(async (tx) => {
-    for (const item of items) {
-      // Ensure product and variant are store-isolated
-      const product = await tx.product.findFirst({
-        where: { id: item.productId, isActive: true, storeId },
-      });
-      if (!product) throw new Error(`Product with ID ${item.productId} not found or inactive in this store`);
-      let variant = null;
-      let stockQuantity = product.stockQuantity;
-      let productName = product.name;
-      if (item.productVariantId) {
-        variant = await tx.productVariant.findFirst({
-          where: { id: item.productVariantId, isActive: true, storeId },
-        });
-        if (!variant)
-          throw new Error(`Product variant with ID ${item.productVariantId} not found or inactive in this store`);
-        if (variant.productId !== item.productId)
-          throw new Error(`Variant ${item.productVariantId} does not belong to product ${item.productId}`);
-        stockQuantity = variant.stockQuantity;
-        productName = `${product.name} - ${variant.name}`;
-      }
-      if (stockQuantity < item.quantity) {
-        throw new Error(
-          `Insufficient stock for ${productName}. Available: ${stockQuantity}, Requested: ${item.quantity}`
-        );
-      }
-      const price = item.price || (variant ? variant.sellingPrice : product.sellingPrice);
-      const discount = item.discount || 0;
-      const itemSubtotal = price * item.quantity - discount;
-      const itemTax = calculateTax(itemSubtotal, product.taxRate);
-      subtotal += itemSubtotal;
-      totalTax += itemTax;
-      saleItemsData.push({
-        productId: item.productId,
-        productVariantId: item.productVariantId || null,
-        quantity: item.quantity,
-        priceAtSale: price,
-        discount,
-        subtotal: itemSubtotal,
-        storeId,
-      });
-      if (variant) {
-        await tx.productVariant.update({
-          where: { id: variant.id, storeId },
-          data: { stockQuantity: { decrement: item.quantity } },
-        });
-        alertProductIds.push(variant.id);
-      } else {
-        await tx.product.update({
-          where: { id: item.productId, storeId },
-          data: { stockQuantity: { decrement: item.quantity } },
-        });
-        alertProductIds.push(item.productId);
-      }
-      await tx.stockMovement.create({
-        data: {
-          productId: item.productId,
-          productVariantId: item.productVariantId || null,
-          movementType: "SALE",
-          quantity: -item.quantity,
-          reason: "Sale transaction",
-          createdBy: employeeId,
-          storeId,
-        },
-      });
+  const stockUpdates = [];
+  const stockMovements = [];
+
+  for (const item of items) {
+    const product = products[item.productId];
+    if (!product) throw new Error(`Product with ID ${item.productId} not found or inactive in this store`);
+    let variant = null;
+    let stockQuantity = product.stockQuantity;
+    let productName = product.name;
+    if (item.productVariantId) {
+      variant = variants[item.productVariantId];
+      if (!variant)
+        throw new Error(`Product variant with ID ${item.productVariantId} not found or inactive in this store`);
+      if (variant.productId !== item.productId)
+        throw new Error(`Variant ${item.productVariantId} does not belong to product ${item.productId}`);
+      stockQuantity = variant.stockQuantity;
+      productName = `${product.name} - ${variant.name}`;
     }
-    const finalAmount = subtotal + totalTax - discountAmount - loyaltyDiscount - (offerDiscount || 0);
-    const receiptId = generateReceiptId();
-    if (paymentMethod === "MIXED") {
-      const totalSplitAmount = paymentSplits.reduce((sum, split) => sum + split.amount, 0);
-      if (Math.abs(totalSplitAmount - finalAmount) > 0.01) {
-        throw new Error(`Payment splits total (${totalSplitAmount}) must equal final amount (${finalAmount})`);
-      }
+    if (stockQuantity < item.quantity) {
+      throw new Error(
+        `Insufficient stock for ${productName}. Available: ${stockQuantity}, Requested: ${item.quantity}`
+      );
     }
-    // --- Loyalty points calculation ---
-    let pointsEarned = 0;
-    let qualifiedTier = null;
-    if (customerId) {
-      const customer = await tx.customer.findFirst({
-        where: { id: customerId, storeId },
-        select: { loyaltyTier: true, loyaltyPoints: true },
-      });
-      if (customer) {
-        const settings = await tx.pOSSettings.findFirst({ where: { storeId }, select: { loyaltyPointsPerUnit: true } });
-        const pointsPerUnit = settings?.loyaltyPointsPerUnit || 10;
-        const tierConfig = await tx.loyaltyTierConfig.findFirst({ where: { tier: customer.loyaltyTier, storeId } });
-        const defaultMultipliers = { BRONZE: 1.0, SILVER: 1.25, GOLD: 1.5, PLATINUM: 2.0 };
-        const multiplier = tierConfig?.pointsMultiplier || defaultMultipliers[customer.loyaltyTier] || 1.0;
-        const basePoints = Math.floor(finalAmount / pointsPerUnit);
-        const bonusPoints = Math.floor(basePoints * (multiplier - 1));
-        pointsEarned = basePoints + bonusPoints;
-      }
-    }
-    const sale = await tx.sale.create({
-      data: {
-        storeId,
-        receiptId,
-        employeeId,
-        customerId,
-        subtotal,
-        taxAmount: totalTax,
-        discountAmount,
-        loyaltyDiscount,
-        discountReason,
-        offerId,
-        offerTitle,
-        offerDiscount,
-        finalAmount,
-        paymentMethod,
-        cashReceived,
-        changeGiven: paymentMethod === "CASH" ? (cashReceived || 0) - finalAmount : 0,
-        notes,
-        saleItems: { create: saleItemsData },
-        paymentSplits:
-          paymentMethod === "MIXED" ? { create: paymentSplits.map((split) => ({ ...split, storeId })) } : undefined,
-        pointsEarned,
-      },
-      include: {
-        employee: { select: { id: true, name: true, username: true } },
-        customer: { select: { id: true, name: true, phoneNumber: true } },
-        saleItems: {
-          include: {
-            product: { select: { id: true, name: true, sku: true, isWeighted: true } },
-            productVariant: { select: { id: true, name: true, sku: true } },
-          },
-        },
-        paymentSplits: paymentMethod === "MIXED",
-      },
+    const price = item.price || (variant ? variant.sellingPrice : product.sellingPrice);
+    const discount = item.discount || 0;
+    const itemSubtotal = price * item.quantity - discount;
+    const itemTax = calculateTax(itemSubtotal, product.taxRate);
+    subtotal += itemSubtotal;
+    totalTax += itemTax;
+    saleItemsData.push({
+      productId: item.productId,
+      productVariantId: item.productVariantId || null,
+      quantity: item.quantity,
+      priceAtSale: price,
+      discount,
+      subtotal: itemSubtotal,
+      storeId,
     });
-    // --- Update customer points, tier, and create points transaction ---
-    if (customerId && pointsEarned > 0) {
-      await tx.customer.update({
-        where: { id: customerId, storeId },
-        data: { loyaltyPoints: { increment: pointsEarned } },
+    if (variant) {
+      stockUpdates.push({
+        type: "variant",
+        id: variant.id,
+        storeId,
+        quantity: item.quantity,
       });
-      await tx.pointsTransaction.create({
+      alertProductIds.push(variant.id);
+    } else {
+      stockUpdates.push({
+        type: "product",
+        id: item.productId,
+        storeId,
+        quantity: item.quantity,
+      });
+      alertProductIds.push(item.productId);
+    }
+    stockMovements.push({
+      productId: item.productId,
+      productVariantId: item.productVariantId || null,
+      movementType: "SALE",
+      quantity: -item.quantity,
+      reason: "Sale transaction",
+      createdBy: employeeId,
+      storeId,
+    });
+  }
+
+  const result = await prisma.$transaction(
+    async (tx) => {
+      // Batch update stock
+      for (const upd of stockUpdates) {
+        if (upd.type === "variant") {
+          await tx.productVariant.update({
+            where: { id: upd.id, storeId: upd.storeId },
+            data: { stockQuantity: { decrement: upd.quantity } },
+          });
+        } else {
+          await tx.product.update({
+            where: { id: upd.id, storeId: upd.storeId },
+            data: { stockQuantity: { decrement: upd.quantity } },
+          });
+        }
+      }
+      // Batch create stock movements
+      await tx.stockMovement.createMany({ data: stockMovements });
+
+      const finalAmount = subtotal + totalTax - discountAmount - loyaltyDiscount - (offerDiscount || 0);
+      const receiptId = generateReceiptId();
+      if (paymentMethod === "MIXED") {
+        const totalSplitAmount = paymentSplits.reduce((sum, split) => sum + split.amount, 0);
+        if (Math.abs(totalSplitAmount - finalAmount) > 0.01) {
+          throw new Error(`Payment splits total (${totalSplitAmount}) must equal final amount (${finalAmount})`);
+        }
+      }
+      // --- Loyalty points calculation ---
+      let pointsEarned = 0;
+      let qualifiedTier = null;
+      if (customerId) {
+        const customer = await tx.customer.findFirst({
+          where: { id: customerId, storeId },
+          select: { loyaltyTier: true, loyaltyPoints: true },
+        });
+        if (customer) {
+          const settings = await tx.pOSSettings.findFirst({
+            where: { storeId },
+            select: { loyaltyPointsPerUnit: true },
+          });
+          const pointsPerUnit = settings?.loyaltyPointsPerUnit || 10;
+          const tierConfig = await tx.loyaltyTierConfig.findFirst({ where: { tier: customer.loyaltyTier, storeId } });
+          const defaultMultipliers = { BRONZE: 1.0, SILVER: 1.25, GOLD: 1.5, PLATINUM: 2.0 };
+          const multiplier = tierConfig?.pointsMultiplier || defaultMultipliers[customer.loyaltyTier] || 1.0;
+          const basePoints = Math.floor(finalAmount / pointsPerUnit);
+          const bonusPoints = Math.floor(basePoints * (multiplier - 1));
+          pointsEarned = basePoints + bonusPoints;
+        }
+      }
+      const sale = await tx.sale.create({
         data: {
-          customerId,
-          saleId: sale.id,
-          type: "EARNED",
-          points: pointsEarned,
-          description: `Purchase ${sale.receiptId}: ${pointsEarned} points earned`,
           storeId,
+          receiptId,
+          employeeId,
+          customerId,
+          subtotal,
+          taxAmount: totalTax,
+          discountAmount,
+          loyaltyDiscount,
+          discountReason,
+          offerId,
+          offerTitle,
+          offerDiscount,
+          finalAmount,
+          paymentMethod,
+          cashReceived,
+          changeGiven: paymentMethod === "CASH" ? (cashReceived || 0) - finalAmount : 0,
+          notes,
+          saleItems: { create: saleItemsData },
+          paymentSplits:
+            paymentMethod === "MIXED" ? { create: paymentSplits.map((split) => ({ ...split, storeId })) } : undefined,
+          pointsEarned,
+        },
+        include: {
+          employee: { select: { id: true, name: true, username: true } },
+          customer: { select: { id: true, name: true, phoneNumber: true } },
+          saleItems: {
+            include: {
+              product: { select: { id: true, name: true, sku: true, isWeighted: true } },
+              productVariant: { select: { id: true, name: true, sku: true } },
+            },
+          },
+          paymentSplits: paymentMethod === "MIXED",
         },
       });
-      // Calculate lifetime points and tier
-      const earnedPointsSum = await tx.pointsTransaction.aggregate({
-        where: { customerId, storeId, points: { gt: 0 } },
-        _sum: { points: true },
-      });
-      const lifetimePoints = earnedPointsSum._sum.points || 0;
-      const TIER_ORDER = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
-      const LOYALTY_TIERS = {
-        BRONZE: { min: 0 },
-        SILVER: { min: 500 },
-        GOLD: { min: 1500 },
-        PLATINUM: { min: 3000 },
-      };
-      const customerTier = sale.customer?.loyaltyTier || "BRONZE";
-      const currentTierIndex = TIER_ORDER.indexOf(customerTier);
-      qualifiedTier = (() => {
-        if (lifetimePoints >= LOYALTY_TIERS.PLATINUM.min) return "PLATINUM";
-        if (lifetimePoints >= LOYALTY_TIERS.GOLD.min) return "GOLD";
-        if (lifetimePoints >= LOYALTY_TIERS.SILVER.min) return "SILVER";
-        return "BRONZE";
-      })();
-      const qualifiedTierIndex = TIER_ORDER.indexOf(qualifiedTier);
-      if (qualifiedTierIndex > currentTierIndex) {
-        await tx.customer.update({ where: { id: customerId, storeId }, data: { loyaltyTier: qualifiedTier } });
+      // --- Update customer points, tier, and create points transaction ---
+      if (customerId && pointsEarned > 0) {
+        await tx.customer.update({
+          where: { id: customerId, storeId },
+          data: { loyaltyPoints: { increment: pointsEarned } },
+        });
         await tx.pointsTransaction.create({
           data: {
             customerId,
-            type: "ADJUSTED",
-            points: 0,
-            description: `🎉 Tier upgraded from ${customerTier} to ${qualifiedTier}! You've earned ${lifetimePoints} lifetime points.`,
+            saleId: sale.id,
+            type: "EARNED",
+            points: pointsEarned,
+            description: `Purchase ${sale.receiptId}: ${pointsEarned} points earned`,
             storeId,
           },
         });
+        // Calculate lifetime points and tier
+        const earnedPointsSum = await tx.pointsTransaction.aggregate({
+          where: { customerId, storeId, points: { gt: 0 } },
+          _sum: { points: true },
+        });
+        const lifetimePoints = earnedPointsSum._sum.points || 0;
+        const TIER_ORDER = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
+        const LOYALTY_TIERS = {
+          BRONZE: { min: 0 },
+          SILVER: { min: 500 },
+          GOLD: { min: 1500 },
+          PLATINUM: { min: 3000 },
+        };
+        const customerTier = sale.customer?.loyaltyTier || "BRONZE";
+        const currentTierIndex = TIER_ORDER.indexOf(customerTier);
+        qualifiedTier = (() => {
+          if (lifetimePoints >= LOYALTY_TIERS.PLATINUM.min) return "PLATINUM";
+          if (lifetimePoints >= LOYALTY_TIERS.GOLD.min) return "GOLD";
+          if (lifetimePoints >= LOYALTY_TIERS.SILVER.min) return "SILVER";
+          return "BRONZE";
+        })();
+        const qualifiedTierIndex = TIER_ORDER.indexOf(qualifiedTier);
+        if (qualifiedTierIndex > currentTierIndex) {
+          await tx.customer.update({ where: { id: customerId, storeId }, data: { loyaltyTier: qualifiedTier } });
+          await tx.pointsTransaction.create({
+            data: {
+              customerId,
+              type: "ADJUSTED",
+              points: 0,
+              description: `🎉 Tier upgraded from ${customerTier} to ${qualifiedTier}! You've earned ${lifetimePoints} lifetime points.`,
+              storeId,
+            },
+          });
+        }
       }
-    }
-    return { sale, finalAmount };
-  });
+      return { sale, finalAmount };
+    },
+    { timeout: 20000 }
+  );
   // Run alerts outside transaction
   for (const pid of alertProductIds) {
     checkAndCreateAlerts(pid, storeId);
