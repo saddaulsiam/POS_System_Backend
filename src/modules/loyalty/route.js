@@ -15,7 +15,7 @@ import {
 
 const router = express.Router();
 
-router.get("/tiers", loyaltyController.getTiers);
+router.get("/tiers", authenticateToken, loyaltyController.getTiers);
 
 // Get customer's points history
 router.get(

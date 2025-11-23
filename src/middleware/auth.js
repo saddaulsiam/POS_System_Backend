@@ -6,7 +6,6 @@ const authenticateToken = async (req, res, next) => {
   const token = authHeader && authHeader.split(" ")[1];
 
   if (!token) {
-    console.log("❌ No token provided");
     return res.status(401).json({ error: "Access token required" });
   }
 
@@ -21,7 +20,9 @@ const authenticateToken = async (req, res, next) => {
     if (!employee || !employee.isActive) {
       return res.status(401).json({ error: "Invalid or inactive user" });
     }
-    if (!employee.storeId) {
+    console.log("[AUTH] employee:", employee);
+    console.log("[AUTH] storeId:", employee.storeId);
+    if (employee.storeId === null || employee.storeId === undefined) {
       return res.status(403).json({
         error: "Access denied: Your account is not assigned to any store. Please contact your administrator.",
       });

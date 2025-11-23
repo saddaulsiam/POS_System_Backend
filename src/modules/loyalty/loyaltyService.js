@@ -10,8 +10,20 @@ export const TIER_ORDER = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
 export const TIER_MINIMUMS = { BRONZE: 0, SILVER: 500, GOLD: 1500, PLATINUM: 3000 };
 
 export async function getTiersService(storeId) {
-  const tiers = await prisma.loyaltyTierConfig.findMany({ where: { storeId }, orderBy: { minimumPoints: "asc" } });
-  if (tiers.length === 0) {
+  try {
+    const tiers = await prisma.loyaltyTierConfig.findMany({ where: { storeId }, orderBy: { minimumPoints: "asc" } });
+    if (tiers.length === 0) {
+      return Object.entries(LOYALTY_TIERS).map(([tier, config]) => ({
+        tier,
+        minimumPoints: config.min,
+        pointsMultiplier: config.multiplier,
+        discountPercentage: config.discount,
+        birthdayBonus: config.birthdayBonus,
+      }));
+    }
+    return tiers;
+  } catch (error) {
+    console.error("[LOYALTY] getTiersService DB error:", error);
     return Object.entries(LOYALTY_TIERS).map(([tier, config]) => ({
       tier,
       minimumPoints: config.min,
@@ -20,7 +32,6 @@ export async function getTiersService(storeId) {
       birthdayBonus: config.birthdayBonus,
     }));
   }
-  return tiers;
 }
 
 export async function getPointsHistoryService(customerId, storeId) {

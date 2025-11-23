@@ -4,6 +4,13 @@ import * as loyaltyService from "./loyaltyService.js";
 
 const getTiers = async (req, res) => {
   try {
+    if (!req.user || req.user.storeId === null || req.user.storeId === undefined) {
+      return sendError(
+        res,
+        403,
+        "Access denied: Your account is not assigned to any store. Please contact your administrator."
+      );
+    }
     const storeId = req.user.storeId;
     const result = await loyaltyService.getTiersService(storeId);
     sendSuccess(res, result);
@@ -132,7 +139,15 @@ const loyaltyTierConfig = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return sendError(res, 400, errors.array());
-    const result = await loyaltyService.loyaltyTierConfigService(req.body);
+    if (!req.user || !req.user.storeId) {
+      return sendError(
+        res,
+        403,
+        "Access denied: Your account is not assigned to any store. Please contact your administrator."
+      );
+    }
+    const storeId = req.user.storeId;
+    const result = await loyaltyService.loyaltyTierConfigService(req.body, storeId);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, "Failed to manage tier configuration");
