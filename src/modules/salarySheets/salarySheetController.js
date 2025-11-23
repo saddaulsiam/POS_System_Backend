@@ -6,7 +6,14 @@ export async function bulkGenerateSalarySheets(req, res) {
     if (!month || !year) {
       return sendError(res, 400, "Month and year are required");
     }
-    const storeId = req.user.storeId;
+    const storeId = req.user?.storeId;
+    if (!storeId) {
+      return sendError(
+        res,
+        403,
+        "Access denied: storeId is required for salary sheet operations. Please contact your administrator."
+      );
+    }
     // Only allow previous, current, or next month
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -32,8 +39,8 @@ export async function bulkGenerateSalarySheets(req, res) {
     if (!isAllowed) {
       return sendError(res, 400, "You can only generate salary sheets for the previous, current, or next month.");
     }
-    // Get all active employees
-    const { data: employees } = await getAllEmployeesService({ includeInactive: false, limit: 1000 });
+    // Get all active employees with storeId included
+    const { data: employees } = await getAllEmployeesService({ includeInactive: false, limit: 1000, storeId });
     // Call service to bulk create salary sheets
     const result = await bulkGenerateSalarySheetsService({ employees, month: m, year: y }, storeId);
     sendSuccess(res, result, 201);
@@ -60,7 +67,14 @@ export async function getAllSalarySheets(req, res) {
       console.warn("[SalarySheets] employeeId found in query for all-sheets endpoint, removing.");
       delete rest.employeeId;
     }
-    const storeId = req.user.storeId;
+    const storeId = req.user?.storeId;
+    if (!storeId) {
+      return sendError(
+        res,
+        403,
+        "Access denied: storeId is required for salary sheet operations. Please contact your administrator."
+      );
+    }
     const result = await getAllSalarySheetsService({ month, year }, storeId);
     sendSuccess(res, result);
   } catch (error) {
@@ -75,7 +89,14 @@ export async function getEmployeeSalarySheets(req, res) {
     if (!employeeId || isNaN(employeeId)) {
       return sendError(res, 400, "Invalid or missing employee id");
     }
-    const storeId = req.user.storeId;
+    const storeId = req.user?.storeId;
+    if (!storeId) {
+      return sendError(
+        res,
+        403,
+        "Access denied: storeId is required for salary sheet operations. Please contact your administrator."
+      );
+    }
     const result = await getEmployeeSalarySheetsService(employeeId, storeId);
     sendSuccess(res, result);
   } catch (error) {
@@ -86,7 +107,14 @@ export async function getEmployeeSalarySheets(req, res) {
 export async function createSalarySheet(req, res) {
   try {
     const { employeeId, month, year, baseSalary, bonus, deduction } = req.body;
-    const storeId = req.user.storeId;
+    const storeId = req.user?.storeId;
+    if (!storeId) {
+      return sendError(
+        res,
+        403,
+        "Access denied: storeId is required for salary sheet operations. Please contact your administrator."
+      );
+    }
     // Validation: Only allow previous, current, or next month
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -123,7 +151,14 @@ export async function updateSalarySheet(req, res) {
   try {
     const id = parseInt(req.params.id);
     const { baseSalary, bonus, deduction } = req.body;
-    const storeId = req.user.storeId;
+    const storeId = req.user?.storeId;
+    if (!storeId) {
+      return sendError(
+        res,
+        403,
+        "Access denied: storeId is required for salary sheet operations. Please contact your administrator."
+      );
+    }
     const result = await updateSalarySheetService(id, { baseSalary, bonus, deduction }, storeId);
     sendSuccess(res, result);
   } catch (error) {
@@ -134,7 +169,14 @@ export async function updateSalarySheet(req, res) {
 export async function markSalaryAsPaid(req, res) {
   try {
     const id = parseInt(req.params.id);
-    const storeId = req.user.storeId;
+    const storeId = req.user?.storeId;
+    if (!storeId) {
+      return sendError(
+        res,
+        403,
+        "Access denied: storeId is required for salary sheet operations. Please contact your administrator."
+      );
+    }
     const result = await markSalaryAsPaidService(id, storeId);
     sendSuccess(res, result);
   } catch (error) {
@@ -145,7 +187,14 @@ export async function markSalaryAsPaid(req, res) {
 export async function deleteSalarySheet(req, res) {
   try {
     const id = parseInt(req.params.id);
-    const storeId = req.user.storeId;
+    const storeId = req.user?.storeId;
+    if (!storeId) {
+      return sendError(
+        res,
+        403,
+        "Access denied: storeId is required for salary sheet operations. Please contact your administrator."
+      );
+    }
     await deleteSalarySheetService(id, storeId);
     sendSuccess(res, { message: "Salary sheet deleted" });
   } catch (error) {

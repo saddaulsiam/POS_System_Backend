@@ -2,7 +2,7 @@ import prisma from "../../prisma.js";
 
 export async function getAuditLogs(query, storeId) {
   const { userId, action, entity, page = 1, limit = 20 } = query;
-  const where = { storeId };
+  const where = {};
   if (userId) where.userId = parseInt(userId);
   if (action) {
     where.action = { contains: action, mode: "insensitive" };

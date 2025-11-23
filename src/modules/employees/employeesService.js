@@ -30,6 +30,7 @@ export async function getAllEmployeesService({ includeInactive, page = 1, limit 
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        storeId: true,
       },
       orderBy: { name: "asc" },
       skip,
