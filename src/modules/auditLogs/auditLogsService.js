@@ -1,9 +1,9 @@
 import prisma from "../../prisma.js";
 
 export async function getAuditLogs(query, storeId) {
-  const { userId, action, entity, page = 1, limit = 20 } = query;
-  const where = {};
-  if (userId) where.userId = parseInt(userId);
+  const { employeeId, action, entity, page = 1, limit = 20 } = query;
+  const where = { storeId };
+  if (employeeId) where.employeeId = parseInt(employeeId);
   if (action) {
     where.action = { contains: action, mode: "insensitive" };
   }
@@ -15,7 +15,10 @@ export async function getAuditLogs(query, storeId) {
     orderBy: { createdAt: "desc" },
     skip: (parseInt(page) - 1) * parseInt(limit),
     take: parseInt(limit),
-    include: { user: { select: { id: true, name: true, username: true, role: true } } },
+    include: {
+      employee: { select: { id: true, name: true, username: true, role: true } },
+      store: { select: { id: true, name: true } },
+    },
   });
   const total = await prisma.auditLog.count({ where });
   return { logs, total };

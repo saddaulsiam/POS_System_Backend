@@ -1,5 +1,5 @@
 // ==================================================
-// PRISMA CLEAN OPTIMIZED SCHEMA — MULTI STORE POS
+//  PRISMA CLEAN OPTIMIZED SCHEMA — MULTI STORE POS  
 // ==================================================
 
 generator client {
@@ -46,6 +46,7 @@ model Store {
   cashDrawers        CashDrawer[]
   posSettings        POSSettings[]
   notifications      Notification[]
+  auditLogs          AuditLog[]
 }
 
 // ==================================================
@@ -110,7 +111,8 @@ model AuditLog {
   id Int @id @default(autoincrement())
 
   // FKs
-  userId Int
+  storeId    Int
+  employeeId Int?
 
   // Fields
   action    String
@@ -122,7 +124,8 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   // Relations
-  user Employee @relation(fields: [userId], references: [id])
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id])
 }
 
 // ==================================================
