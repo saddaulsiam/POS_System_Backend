@@ -1,5 +1,5 @@
-import prisma from "../../prisma.js";
-import { hashPassword } from "../utils/helpers.js"; // adjust path if needed
+import prisma from "../prisma.js";
+import { hashPassword } from "../utils/helpers.js";
 
 /**
  * Realistic grocery store seeding script
