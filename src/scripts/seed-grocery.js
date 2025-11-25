@@ -119,9 +119,9 @@ async function main() {
         ownerId: dummy.id,
       },
     });
-    const posSettings = await prisma.posSettings.findFirst({ where: { storeId: store.id } });
+    const posSettings = await prisma.pOSSettings.findFirst({ where: { storeId: store.id } });
     if (posSettings) {
-      await prisma.posSettings.update({
+      await prisma.pOSSettings.update({
         where: { id: posSettings.id },
         data: { storeName: "Fresh Mart Grocery" },
       });

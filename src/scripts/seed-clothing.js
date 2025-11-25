@@ -104,9 +104,9 @@ async function main() {
       data: { name: "Urban Threads Boutique", ownerId: dummy.id },
     });
     // Optional: Setup POS settings if your schema has it
-    const posSettings = await prisma.posSettings.findFirst({ where: { storeId: store.id } });
+    const posSettings = await prisma.pOSSettings.findFirst({ where: { storeId: store.id } });
     if (posSettings) {
-      await prisma.posSettings.update({
+      await prisma.pOSSettings.update({
         where: { id: posSettings.id },
         data: { storeName: "Urban Threads Boutique" },
       });
