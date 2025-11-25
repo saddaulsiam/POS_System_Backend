@@ -121,7 +121,11 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
   let variants = {};
   if (variantIds.length > 0) {
     const variantsArr = await prisma.productVariant.findMany({
-      where: { id: { in: variantIds }, isActive: true, storeId },
+      where: {
+        id: { in: variantIds },
+        isActive: true,
+        product: { storeId },
+      },
     });
     variants = Object.fromEntries(variantsArr.map((v) => [v.id, v]));
   }
@@ -203,7 +207,7 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
       for (const upd of stockUpdates) {
         if (upd.type === "variant") {
           await tx.productVariant.update({
-            where: { id: upd.id, storeId: upd.storeId },
+            where: { id: upd.id },
             data: { stockQuantity: { decrement: upd.quantity } },
           });
         } else {
@@ -238,7 +242,7 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
             select: { loyaltyPointsPerUnit: true },
           });
           const pointsPerUnit = settings?.loyaltyPointsPerUnit || 10;
-          const tierConfig = await tx.loyaltyTierConfig.findFirst({ where: { tier: customer.loyaltyTier, storeId } });
+          const tierConfig = await tx.loyaltyTierConfig.findFirst({ where: { tier: customer.loyaltyTier } });
           const defaultMultipliers = { BRONZE: 1.0, SILVER: 1.25, GOLD: 1.5, PLATINUM: 2.0 };
           const multiplier = tierConfig?.pointsMultiplier || defaultMultipliers[customer.loyaltyTier] || 1.0;
           const basePoints = Math.floor(finalAmount / pointsPerUnit);
@@ -295,12 +299,11 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
             type: "EARNED",
             points: pointsEarned,
             description: `Purchase ${sale.receiptId}: ${pointsEarned} points earned`,
-            storeId,
           },
         });
         // Calculate lifetime points and tier
         const earnedPointsSum = await tx.pointsTransaction.aggregate({
-          where: { customerId, storeId, points: { gt: 0 } },
+          where: { customerId, points: { gt: 0 } },
           _sum: { points: true },
         });
         const lifetimePoints = earnedPointsSum._sum.points || 0;

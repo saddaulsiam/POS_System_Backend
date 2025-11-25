@@ -102,18 +102,25 @@ async function main() {
 
   let store = await prisma.store.findFirst({ where: { name: "Step Ahead Footwear" } });
   if (!store) {
-    store = await prisma.store.create({
-      data: { name: "Step Ahead Footwear", ownerId: dummy.id },
-    });
-    // Optional: Setup POS settings if your schema has it
-    const posSettings = await prisma.pOSSettings.findFirst({ where: { storeId: store.id } });
+    store = await prisma.store.create({ data: { name: "Step Ahead Footwear", ownerId: dummy.id } });
+    // after creating store, setup POS settings
+    let posSettings = await prisma.pOSSettings.findFirst({ where: { storeId: store.id } });
     if (posSettings) {
       await prisma.pOSSettings.update({
         where: { id: posSettings.id },
         data: { storeName: "Step Ahead Footwear" },
       });
+    } else {
+      await prisma.pOSSettings.create({
+        data: {
+          storeName: "Step Ahead Footwear",
+          storeId: store.id,
+        },
+      });
     }
     console.log("Store created: Step Ahead Footwear");
+  } else {
+    console.log("Store already exists: Step Ahead Footwear");
   }
 
   const admin = await prisma.employee.upsert({

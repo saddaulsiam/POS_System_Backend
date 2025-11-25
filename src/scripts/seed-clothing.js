@@ -91,7 +91,7 @@ async function main() {
   const adminPin = await hashPassword("1234");
 
   // 1) Setup Store
-  console.log("Creating Clothing Store Staff...");
+  console.log("Creating Clothing Store owner...");
   const dummy = await prisma.employee.upsert({
     where: { username: "cloth_owner" },
     update: {},
@@ -100,18 +100,25 @@ async function main() {
 
   let store = await prisma.store.findFirst({ where: { name: "Urban Threads Boutique" } });
   if (!store) {
-    store = await prisma.store.create({
-      data: { name: "Urban Threads Boutique", ownerId: dummy.id },
-    });
-    // Optional: Setup POS settings if your schema has it
-    const posSettings = await prisma.pOSSettings.findFirst({ where: { storeId: store.id } });
+    store = await prisma.store.create({ data: { name: "Urban Threads Boutique", ownerId: dummy.id } });
+    // after creating store, setup POS settings
+    let posSettings = await prisma.pOSSettings.findFirst({ where: { storeId: store.id } });
     if (posSettings) {
       await prisma.pOSSettings.update({
         where: { id: posSettings.id },
         data: { storeName: "Urban Threads Boutique" },
       });
+    } else {
+      await prisma.pOSSettings.create({
+        data: {
+          storeName: "Urban Threads Boutique",
+          storeId: store.id,
+        },
+      });
     }
     console.log("Store created: Urban Threads Boutique");
+  } else {
+    console.log("Store already exists: Urban Threads Boutique");
   }
 
   const admin = await prisma.employee.upsert({

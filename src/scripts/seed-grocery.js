@@ -113,17 +113,20 @@ async function main() {
   let store = await prisma.store.findFirst({ where: { name: "Fresh Mart Grocery" } });
   if (!store) {
     console.log("Creating store: Fresh Mart Grocery");
-    store = await prisma.store.create({
-      data: {
-        name: "Fresh Mart Grocery",
-        ownerId: dummy.id,
-      },
-    });
-    const posSettings = await prisma.pOSSettings.findFirst({ where: { storeId: store.id } });
+    store = await prisma.store.create({ data: { name: "Fresh Mart Grocery", ownerId: dummy.id } });
+    // after creating store, setup POS settings
+    let posSettings = await prisma.pOSSettings.findFirst({ where: { storeId: store.id } });
     if (posSettings) {
       await prisma.pOSSettings.update({
         where: { id: posSettings.id },
         data: { storeName: "Fresh Mart Grocery" },
+      });
+    } else {
+      await prisma.pOSSettings.create({
+        data: {
+          storeName: "Fresh Mart Grocery",
+          storeId: store.id,
+        },
       });
     }
   } else {
