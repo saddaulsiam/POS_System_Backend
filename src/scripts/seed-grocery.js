@@ -119,9 +119,9 @@ async function main() {
         ownerId: dummy.id,
       },
     });
-    const posSettings = await prisma.POSSettings.findFirst({ where: { storeId: store.id } });
+    const posSettings = await prisma.posSettings.findFirst({ where: { storeId: store.id } });
     if (posSettings) {
-      await prisma.POSSettings.update({
+      await prisma.posSettings.update({
         where: { id: posSettings.id },
         data: { storeName: "Fresh Mart Grocery" },
       });
@@ -290,6 +290,7 @@ async function main() {
       stockQuantity: 200,
       lowStockThreshold: 20,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Yogurt Natural 500g",
@@ -303,6 +304,7 @@ async function main() {
       stockQuantity: 150,
       lowStockThreshold: 15,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1563114773-84221bd62daa?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Eggs (12pcs) Grade A",
@@ -316,6 +318,7 @@ async function main() {
       stockQuantity: 300,
       lowStockThreshold: 30,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1598155523122-38423bb4d6c1?auto=format&fit=crop&w=800&q=80",
     },
 
     // Fruits & Vegetables
@@ -332,6 +335,7 @@ async function main() {
       isWeighted: true,
       lowStockThreshold: 10,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Tomato (per kg)",
@@ -346,6 +350,7 @@ async function main() {
       isWeighted: true,
       lowStockThreshold: 15,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1546094096-0df4bcaaa337?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Potato (per kg)",
@@ -360,6 +365,7 @@ async function main() {
       isWeighted: true,
       lowStockThreshold: 20,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1518977676605-dc56455512a5?auto=format&fit=crop&w=800&q=80",
     },
 
     // Meat & Seafood
@@ -376,6 +382,7 @@ async function main() {
       isWeighted: true,
       lowStockThreshold: 10,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Tilapia Fillet (per kg)",
@@ -390,6 +397,7 @@ async function main() {
       isWeighted: true,
       lowStockThreshold: 8,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1519708227418-e8d316e88549?auto=format&fit=crop&w=800&q=80",
     },
 
     // Bakery
@@ -405,6 +413,7 @@ async function main() {
       stockQuantity: 120,
       lowStockThreshold: 15,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Croissant (single)",
@@ -418,6 +427,7 @@ async function main() {
       stockQuantity: 200,
       lowStockThreshold: 20,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=800&q=80",
     },
 
     // Beverages (some will have variants)
@@ -433,6 +443,7 @@ async function main() {
       stockQuantity: 300,
       lowStockThreshold: 30,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1560023907-5f339617ea30?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Orange Juice 1L",
@@ -446,6 +457,7 @@ async function main() {
       stockQuantity: 150,
       lowStockThreshold: 15,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?auto=format&fit=crop&w=800&q=80",
     },
 
     // Snacks (base)
@@ -461,6 +473,7 @@ async function main() {
       stockQuantity: 400,
       lowStockThreshold: 50,
       taxRate: 5,
+      image: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=800&q=80",
     },
 
     // Frozen Foods
@@ -476,6 +489,7 @@ async function main() {
       stockQuantity: 80,
       lowStockThreshold: 10,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1571166166174-8db9931eb6f6?auto=format&fit=crop&w=800&q=80",
     },
 
     // Pantry Staples
@@ -491,6 +505,7 @@ async function main() {
       stockQuantity: 160,
       lowStockThreshold: 20,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Granulated Sugar 1kg",
@@ -504,6 +519,7 @@ async function main() {
       stockQuantity: 180,
       lowStockThreshold: 20,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1610450949065-2244a8809df6?auto=format&fit=crop&w=800&q=80",
     },
 
     // Oils & Condiments
@@ -519,6 +535,7 @@ async function main() {
       stockQuantity: 120,
       lowStockThreshold: 15,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1474979266404-7eaacbcdccef?auto=format&fit=crop&w=800&q=80",
     },
 
     // Rice & Grains
@@ -534,6 +551,7 @@ async function main() {
       stockQuantity: 60,
       lowStockThreshold: 10,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80",
     },
 
     // Spices & Pulses
@@ -549,6 +567,7 @@ async function main() {
       stockQuantity: 140,
       lowStockThreshold: 15,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1515543904379-3d757afe72e3?auto=format&fit=crop&w=800&q=80",
     },
 
     // Household
@@ -564,6 +583,7 @@ async function main() {
       stockQuantity: 160,
       lowStockThreshold: 20,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1584620583866-e82200dc896c?auto=format&fit=crop&w=800&q=80",
     },
 
     // Health & Beauty
@@ -579,6 +599,7 @@ async function main() {
       stockQuantity: 200,
       lowStockThreshold: 30,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1596207891316-230543889770?auto=format&fit=crop&w=800&q=80",
     },
 
     // Baby & Kids
@@ -594,6 +615,7 @@ async function main() {
       stockQuantity: 90,
       lowStockThreshold: 10,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=800&q=80",
     },
 
     // Cleaning Supplies
@@ -609,6 +631,7 @@ async function main() {
       stockQuantity: 210,
       lowStockThreshold: 30,
       taxRate: 0,
+      image: "https://images.unsplash.com/photo-1585833830495-2c219602e1a3?auto=format&fit=crop&w=800&q=80",
     },
   ];
 
@@ -628,6 +651,7 @@ async function main() {
         hasVariants: true,
         lowStockThreshold: 30,
         taxRate: 5,
+        image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -678,6 +702,7 @@ async function main() {
         hasVariants: true,
         lowStockThreshold: 40,
         taxRate: 5,
+        image: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -720,6 +745,7 @@ async function main() {
         hasVariants: true,
         lowStockThreshold: 20,
         taxRate: 0,
+        image: "https://images.unsplash.com/photo-1474979266404-7eaacbcdccef?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -762,6 +788,7 @@ async function main() {
         hasVariants: true,
         lowStockThreshold: 12,
         taxRate: 0,
+        image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -804,6 +831,7 @@ async function main() {
         hasVariants: true,
         lowStockThreshold: 20,
         taxRate: 5,
+        image: "https://images.unsplash.com/photo-1579954115545-a95591f28bfc?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -864,6 +892,7 @@ async function main() {
       sellingPrice: 2.8,
       stockQuantity: 120,
       lowStockThreshold: 12,
+      image: "https://images.unsplash.com/photo-1594631252845-29fc4cc8cde9?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Instant Coffee 100g",
@@ -876,6 +905,7 @@ async function main() {
       sellingPrice: 3.0,
       stockQuantity: 90,
       lowStockThreshold: 10,
+      image: "https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Peanut Butter 350g",
@@ -888,6 +918,7 @@ async function main() {
       sellingPrice: 3.5,
       stockQuantity: 100,
       lowStockThreshold: 10,
+      image: "https://images.unsplash.com/photo-1518133100375-99d750058b8f?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Canned Tuna 185g",
@@ -900,6 +931,7 @@ async function main() {
       sellingPrice: 1.8,
       stockQuantity: 140,
       lowStockThreshold: 15,
+      image: "https://images.unsplash.com/photo-1626082927389-d31c0d58849b?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Mayonnaise 250g",
@@ -912,6 +944,7 @@ async function main() {
       sellingPrice: 1.6,
       stockQuantity: 120,
       lowStockThreshold: 12,
+      image: "https://images.unsplash.com/photo-1620216794692-a169b12275b0?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Mozzarella Cheese 200g",
@@ -924,6 +957,7 @@ async function main() {
       sellingPrice: 3.5,
       stockQuantity: 60,
       lowStockThreshold: 8,
+      image: "https://images.unsplash.com/photo-1588195536545-0d268294bd8a?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Beef Mince (per kg)",
@@ -937,6 +971,7 @@ async function main() {
       stockQuantity: 30,
       isWeighted: true,
       lowStockThreshold: 5,
+      image: "https://images.unsplash.com/photo-1588168333986-5078d3ae3976?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Garlic (per 100g)",
@@ -950,6 +985,7 @@ async function main() {
       stockQuantity: 200,
       isWeighted: true,
       lowStockThreshold: 20,
+      image: "https://images.unsplash.com/photo-1540148426945-6cf99a61c488?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Toothpaste 120g",
@@ -962,6 +998,7 @@ async function main() {
       sellingPrice: 1.2,
       stockQuantity: 200,
       lowStockThreshold: 20,
+      image: "https://images.unsplash.com/photo-1559599189-fe84dea4eb79?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Shampoo 400ml",
@@ -974,6 +1011,7 @@ async function main() {
       sellingPrice: 2.5,
       stockQuantity: 140,
       lowStockThreshold: 15,
+      image: "https://images.unsplash.com/photo-1519735777090-ec97162dc01c?auto=format&fit=crop&w=800&q=80",
     },
   ];
 

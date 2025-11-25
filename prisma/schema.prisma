@@ -580,7 +580,7 @@ model POSSettings {
   store             Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   updatedByEmployee Employee? @relation(fields: [updatedBy], references: [id])
 
-  @@map("POSSettings")
+  @@map("posSettings")
 }
 
 // ==================================================

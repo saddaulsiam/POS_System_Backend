@@ -66,6 +66,7 @@ async function upsertProduct(product, storeId, supplierId, categoryId) {
     categoryId,
     storeId,
   };
+  // Remove undefined keys so Prisma uses defaults if applicable
   Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
 
   return prisma.product.upsert({
@@ -93,11 +94,10 @@ async function main() {
   // 1) Setup Store Owner/Employees
   console.log("Creating Shoe Store Staff...");
 
-  // Reuse dummy owner if exists, or create
   const dummy = await prisma.employee.upsert({
-    where: { username: "shoe_owner" },
+    where: { username: "dummy_shoe" },
     update: {},
-    create: { name: "Shoes Owner Dummy", username: "shoe_owner", pinCode: adminPin, role: "OWNER" },
+    create: { name: "Shoe Owner Dummy", username: "dummy_shoe", pinCode: adminPin, role: "OWNER" },
   });
 
   let store = await prisma.store.findFirst({ where: { name: "Step Ahead Footwear" } });
@@ -105,9 +105,10 @@ async function main() {
     store = await prisma.store.create({
       data: { name: "Step Ahead Footwear", ownerId: dummy.id },
     });
-    const posSettings = await prisma.POSSettings.findFirst({ where: { storeId: store.id } });
+    // Optional: Setup POS settings if your schema has it
+    const posSettings = await prisma.posSettings.findFirst({ where: { storeId: store.id } });
     if (posSettings) {
-      await prisma.POSSettings.update({
+      await prisma.posSettings.update({
         where: { id: posSettings.id },
         data: { storeName: "Step Ahead Footwear" },
       });
@@ -166,6 +167,7 @@ async function main() {
       sellingPrice: 5.99,
       stockQuantity: 50,
       taxRate: 10,
+      image: "https://images.unsplash.com/photo-1627453308803-10d65b0c9530?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Premium Shoe Polish - Brown",
@@ -178,6 +180,7 @@ async function main() {
       sellingPrice: 5.99,
       stockQuantity: 40,
       taxRate: 10,
+      image: "https://images.unsplash.com/photo-1627453308803-10d65b0c9530?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Gel Insoles (One Size)",
@@ -190,6 +193,7 @@ async function main() {
       sellingPrice: 12.5,
       stockQuantity: 100,
       taxRate: 10,
+      image: "https://images.unsplash.com/photo-1605218427306-0294e756184a?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Cotton Laces - White 120cm",
@@ -202,6 +206,7 @@ async function main() {
       sellingPrice: 2.0,
       stockQuantity: 200,
       taxRate: 10,
+      image: "https://images.unsplash.com/photo-1542280756-74b2f55e73ab?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Cotton Laces - Black 120cm",
@@ -214,6 +219,7 @@ async function main() {
       sellingPrice: 2.0,
       stockQuantity: 200,
       taxRate: 10,
+      image: "https://images.unsplash.com/photo-1542280756-74b2f55e73ab?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Waterproof Spray 200ml",
@@ -226,6 +232,7 @@ async function main() {
       sellingPrice: 8.99,
       stockQuantity: 60,
       taxRate: 10,
+      image: "https://images.unsplash.com/photo-1628146931698-31623910c2c1?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Long Metal Shoe Horn",
@@ -238,6 +245,7 @@ async function main() {
       sellingPrice: 4.5,
       stockQuantity: 40,
       taxRate: 10,
+      image: "https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?auto=format&fit=crop&w=800&q=80",
     },
     {
       name: "Suede Cleaning Brush",
@@ -250,6 +258,7 @@ async function main() {
       sellingPrice: 5.99,
       stockQuantity: 30,
       taxRate: 10,
+      image: "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?auto=format&fit=crop&w=800&q=80",
     },
   ];
 
@@ -276,6 +285,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
+        image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -325,6 +335,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
+        image: "https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -358,6 +369,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
+        image: "https://images.unsplash.com/photo-1478146896981-b80fe463b330?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -399,6 +411,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
+        image: "https://images.unsplash.com/photo-1603487742131-4160d6986ba3?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -434,6 +447,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
+        image: "https://images.unsplash.com/photo-1594968155233-a3d1354d2496?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -475,6 +489,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
+        image: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -516,6 +531,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
+        image: "https://images.unsplash.com/photo-1534142357876-45851cd2feb2?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -551,6 +567,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
+        image: "https://images.unsplash.com/photo-1520256862855-398228c41684?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
@@ -584,6 +601,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
+        image: "https://images.unsplash.com/photo-1579728032731-5f25712c96c5?auto=format&fit=crop&w=800&q=80",
       },
       variants: [
         {
