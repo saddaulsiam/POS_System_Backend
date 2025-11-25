@@ -105,9 +105,9 @@ async function main() {
     store = await prisma.store.create({
       data: { name: "Step Ahead Footwear", ownerId: dummy.id },
     });
-    const posSettings = await prisma.pOSSettings.findFirst({ where: { storeId: store.id } });
+    const posSettings = await prisma.POSSettings.findFirst({ where: { storeId: store.id } });
     if (posSettings) {
-      await prisma.pOSSettings.update({
+      await prisma.POSSettings.update({
         where: { id: posSettings.id },
         data: { storeName: "Step Ahead Footwear" },
       });
