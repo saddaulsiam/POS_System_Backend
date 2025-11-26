@@ -27,7 +27,7 @@ model Store {
   categories         Category[]
   suppliers          Supplier[]
   products           Product[]
-  customers          Customer[]
+  customers          CustomerStore[]
   employees          Employee[]
   sales              Sale[]
   parkedSales        ParkedSale[]
@@ -314,35 +314,47 @@ model PaymentSplit {
 model Customer {
   id Int @id @default(autoincrement())
 
-  // FKs
-  storeId Int
-
-  // Fields
-  name          String
-  phoneNumber   String?   @unique
-  email         String?   @unique
-  loyaltyPoints Int       @default(0)
-  loyaltyTier   String    @default("BRONZE")
-  dateOfBirth   DateTime?
-  address       String?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  name        String
+  phoneNumber String?   @unique
+  email       String?   @unique
+  dateOfBirth DateTime?
+  address     String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Relations
-  store              Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customerStores     CustomerStore[]
   loyaltyRewards     LoyaltyReward[]
   parkedSales        ParkedSale[]
   pointsTransactions PointsTransaction[]
   sales              Sale[]
 }
 
+model CustomerStore {
+  id Int @id @default(autoincrement())
+
+  // FKs
+  customerId    Int
+  storeId       Int
+  loyaltyPoints Int    @default(0)
+  loyaltyTier   String @default("BRONZE")
+
+  // Relations
+  customer           Customer            @relation(fields: [customerId], references: [id])
+  store              Store               @relation(fields: [storeId], references: [id])
+  pointsTransactions PointsTransaction[]
+  loyaltyRewards     LoyaltyReward[]
+
+  @@unique([customerId, storeId])
+}
+
 model PointsTransaction {
   id Int @id @default(autoincrement())
 
   // FKs
-  customerId Int
-  saleId     Int?
+  customerStoreId Int
+  saleId          Int?
 
   // Fields
   type        String
@@ -351,15 +363,17 @@ model PointsTransaction {
   createdAt   DateTime @default(now())
 
   // Relations
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  sale     Sale?    @relation(fields: [saleId], references: [id])
+  customerStore CustomerStore @relation(fields: [customerStoreId], references: [id], onDelete: Cascade)
+  sale          Sale?         @relation(fields: [saleId], references: [id])
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  customerId    Int?
 }
 
 model LoyaltyReward {
   id Int @id @default(autoincrement())
 
   // FKs
-  customerId Int
+  customerStoreId Int
 
   // Fields
   rewardType  String
@@ -372,7 +386,9 @@ model LoyaltyReward {
   createdAt   DateTime  @default(now())
 
   // Relations
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerStore CustomerStore @relation(fields: [customerStoreId], references: [id], onDelete: Cascade)
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  customerId    Int?
 }
 
 model LoyaltyTierConfig {

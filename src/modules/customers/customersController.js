@@ -121,24 +121,28 @@ async function createCustomer(req, res) {
     if (!errors.isEmpty()) {
       return sendError(res, 400, errors.array());
     }
-    const { name, phoneNumber, email, dateOfBirth, address } = req.body;
-    const storeId = req.user.storeId;
-    if (phoneNumber || email) {
-      const existing = await findExistingCustomer(phoneNumber, email, storeId);
-      if (existing) {
-        return sendError(res, 400, "Customer with this phone number or email already exists");
+    const { name, phoneNumber, email, dateOfBirth, address, storeIds } = req.body;
+    // storeIds should be an array of store IDs to assign this customer to
+    if (!storeIds || !Array.isArray(storeIds) || storeIds.length === 0) {
+      return sendError(res, 400, "storeIds array is required");
+    }
+    // Check for existing customer in any of the stores
+    for (const storeId of storeIds) {
+      if (phoneNumber || email) {
+        const existing = await findExistingCustomer(phoneNumber, email, storeId);
+        if (existing) {
+          return sendError(res, 400, `Customer with this phone number or email already exists in store ${storeId}`);
+        }
       }
     }
-    const customer = await createCustomerService(
-      {
-        name: name.trim(),
-        phoneNumber,
-        email,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
-        address,
-      },
-      storeId
-    );
+    const customer = await createCustomerService({
+      name: name.trim(),
+      phoneNumber,
+      email,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+      address,
+      storeIds,
+    });
     sendSuccess(res, customer, 201);
   } catch (error) {
     console.error("Create customer error:", error);
