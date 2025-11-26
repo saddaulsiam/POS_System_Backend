@@ -169,7 +169,7 @@ async function main() {
       sellingPrice: 19.99,
       stockQuantity: 30,
       taxRate: 8,
-      image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155353/pos/products/x1oxxxomwfzabwf7jlnk.png",
     },
     {
       name: "Winter Scarf - Grey",
@@ -182,7 +182,7 @@ async function main() {
       sellingPrice: 14.99,
       stockQuantity: 40,
       taxRate: 8,
-      image: "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155322/pos/products/xdjupmm5n5mp8iioyiau.png",
     },
     {
       name: "Canvas Tote Bag",
@@ -195,7 +195,7 @@ async function main() {
       sellingPrice: 5.0,
       stockQuantity: 100,
       taxRate: 8,
-      image: "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155328/pos/products/dsawg6n2gglh4fi2ivty.png",
     },
     {
       name: "Baseball Cap - Navy",
@@ -208,7 +208,7 @@ async function main() {
       sellingPrice: 12.0,
       stockQuantity: 60,
       taxRate: 8,
-      image: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155314/pos/products/zjngvovwrjbdmx2fl4a8.png",
     },
     {
       name: "Aviator Sunglasses",
@@ -221,7 +221,7 @@ async function main() {
       sellingPrice: 25.0,
       stockQuantity: 25,
       taxRate: 8,
-      image: "https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155320/pos/products/rfj4ugiuxozc21nwjmg9.png",
     },
     {
       name: "Ankle Socks (3-Pack) White",
@@ -234,7 +234,7 @@ async function main() {
       sellingPrice: 6.99,
       stockQuantity: 150,
       taxRate: 8,
-      image: "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155316/pos/products/tirarm4ccc8azsemhlqa.png",
     },
   ];
 
@@ -261,7 +261,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 8,
-        image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155344/pos/products/kpxup3zppsbycml9uec4.png",
       },
       variants: [
         {
@@ -311,7 +311,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 8,
-        image: "https://images.unsplash.com/photo-1542272454315-4c01d7abdf4a?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155294/pos/products/sfukxsxxlv3g2arvgpi3.png",
       },
       variants: [
         {
@@ -353,7 +353,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 8,
-        image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155295/pos/products/yhrsfnj7u1x1jf0flwtf.png",
       },
       variants: [
         {
@@ -395,8 +395,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 8,
-        image:
-          "https://calvinklein.scene7.com/is/image/CalvinKlein/NB2440_7BX_main?wid=1487&qlt=80%2C0&resMode=sharp2&op_usm=0.9%2C1.0%2C8%2C0&iccEmbed=0&fmt=webp?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155301/pos/products/cntoyhsllsjqqlrmgyd3.png",
       },
       variants: [
         {
@@ -432,7 +431,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 8,
-        image: "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155288/pos/products/ygmxevsjp5x5f3md0t2a.png",
       },
       variants: [
         {
@@ -474,7 +473,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 8,
-        image: "https://images.unsplash.com/photo-1564257631407-4deb1f99d992?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155292/pos/products/mqzhiof2nan4ymeb6hd8.png",
       },
       variants: [
         {
@@ -516,7 +515,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 8,
-        image: "https://images.unsplash.com/photo-1506619216599-9d16d0903dfd?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155293/pos/products/c4vzotcuodxo7aqsssxe.png",
       },
       variants: [
         {
@@ -560,7 +559,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 8,
-        image: "https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155188/pos/products/oaaueybztdukhnzkcnoe.png",
       },
       variants: [
         {
@@ -610,7 +609,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 8,
-        image: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155159/pos/products/rycdgcmfsm8yzzjqmcrd.png",
       },
       variants: [
         {
@@ -644,7 +643,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 8,
-        image: "https://images.unsplash.com/photo-1503342394128-c104d54dba01?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764155338/pos/products/tzuixmpo5ogzlpqb5ujt.png",
       },
       variants: [
         {

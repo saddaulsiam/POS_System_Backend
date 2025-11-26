@@ -200,7 +200,7 @@ async function main() {
       sellingPrice: 12.5,
       stockQuantity: 100,
       taxRate: 10,
-      image: "https://images.unsplash.com/photo-1605218427306-0294e756184a?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764151169/pos/products/ukqjlrbe4kzd308owtew.png",
     },
     {
       name: "Cotton Laces - White 120cm",
@@ -213,7 +213,7 @@ async function main() {
       sellingPrice: 2.0,
       stockQuantity: 200,
       taxRate: 10,
-      image: "https://images.unsplash.com/photo-1542280756-74b2f55e73ab?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764152616/pos/products/yulnkq7hjyqifzig4rao.png",
     },
     {
       name: "Cotton Laces - Black 120cm",
@@ -226,7 +226,7 @@ async function main() {
       sellingPrice: 2.0,
       stockQuantity: 200,
       taxRate: 10,
-      image: "https://images.unsplash.com/photo-1542280756-74b2f55e73ab?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764152513/pos/products/b0gklkwdnzqurhenfqmg.png",
     },
     {
       name: "Waterproof Spray 200ml",
@@ -239,7 +239,7 @@ async function main() {
       sellingPrice: 8.99,
       stockQuantity: 60,
       taxRate: 10,
-      image: "https://images.unsplash.com/photo-1628146931698-31623910c2c1?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764150470/pos/products/lixrvq8lctla2vp6ukeq.png",
     },
     {
       name: "Long Metal Shoe Horn",
@@ -252,7 +252,7 @@ async function main() {
       sellingPrice: 4.5,
       stockQuantity: 40,
       taxRate: 10,
-      image: "https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764152801/pos/products/dpa9iwzwx7wpdntfb6zj.png",
     },
     {
       name: "Suede Cleaning Brush",
@@ -265,7 +265,7 @@ async function main() {
       sellingPrice: 5.99,
       stockQuantity: 30,
       taxRate: 10,
-      image: "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764152408/pos/products/t7bzbeyoff4wdsughnml.png",
     },
   ];
 
@@ -292,7 +292,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
-        image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764152811/pos/products/glnuhrey9gsqukwsq05y.png",
       },
       variants: [
         {
@@ -342,7 +342,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
-        image: "https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764152871/pos/products/kxrwmlacgxgmwlqhomzy.png",
       },
       variants: [
         {
@@ -376,7 +376,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
-        image: "https://images.unsplash.com/photo-1478146896981-b80fe463b330?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764151992/pos/products/dvb6qsakbqqvh1rwu0lz.png",
       },
       variants: [
         {
@@ -418,7 +418,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
-        image: "https://images.unsplash.com/photo-1603487742131-4160d6986ba3?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764151365/pos/products/bvnu718au4ac61uscnm4.png",
       },
       variants: [
         {
@@ -454,7 +454,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
-        image: "https://images.unsplash.com/photo-1594968155233-a3d1354d2496?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764151349/pos/products/lj8lj4emiyf2obn6lezc.png",
       },
       variants: [
         {
@@ -496,7 +496,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
-        image: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764153393/pos/products/u0cey2s3pkuocngvdtz3.png",
       },
       variants: [
         {
@@ -538,7 +538,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
-        image: "https://images.unsplash.com/photo-1534142357876-45851cd2feb2?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764151583/pos/products/jd0n3zo5hfkncklnyf8h.png",
       },
       variants: [
         {
@@ -574,7 +574,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
-        image: "https://images.unsplash.com/photo-1520256862855-398228c41684?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764153372/pos/products/vtqgw51ackcn42y1daue.png",
       },
       variants: [
         {
@@ -608,7 +608,7 @@ async function main() {
         stockQuantity: 0,
         hasVariants: true,
         taxRate: 10,
-        image: "https://images.unsplash.com/photo-1579728032731-5f25712c96c5?auto=format&fit=crop&w=800&q=80",
+        image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764151312/pos/products/cjxvb4pidv1ev0wdyvy3.png",
       },
       variants: [
         {
