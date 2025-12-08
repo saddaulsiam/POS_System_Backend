@@ -14,7 +14,7 @@ router
   .route("/")
   .get(authenticateToken, productVariantsController.getAllVariants)
   .post(
-    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...createVariantValidator],
+    [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...createVariantValidator],
     productVariantsController.createVariant
   );
 
@@ -22,11 +22,11 @@ router
   .route("/:id")
   .get(authenticateToken, productVariantsController.getVariantById)
   .put(
-    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...updateVariantValidator],
+    [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...updateVariantValidator],
     productVariantsController.updateVariant
   )
   .delete(
-    [authenticateToken, authorizeRoles("ADMIN"), ...deleteVariantValidator],
+    [authenticateToken, authorizeRoles("OWNER", "ADMIN"), ...deleteVariantValidator],
     productVariantsController.deleteVariant
   );
 

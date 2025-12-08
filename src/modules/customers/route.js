@@ -24,12 +24,12 @@ router
   .route("/:id")
   .get(authenticateToken, getCustomerById)
   .put([authenticateToken, ...customerValidators.update], updateCustomer)
-  .delete([authenticateToken, authorizeRoles("ADMIN", "MANAGER")], deactivateCustomer);
+  .delete([authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")], deactivateCustomer);
 
 // Add loyalty points
 router.post(
   "/:id/loyalty",
-  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...customerValidators.addLoyalty],
+  [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...customerValidators.addLoyalty],
   addLoyaltyPoints
 );
 

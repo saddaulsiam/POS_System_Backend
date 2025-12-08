@@ -1,6 +1,43 @@
-import { sendSuccess, sendError } from "../../utils/response.js";
 import { validationResult } from "express-validator";
-import { loginService, getMeService, changePinService } from "./authService.js";
+import { sendError, sendSuccess } from "../../utils/response.js";
+import { changePinService, getMeService, loginService, registerStoreService } from "./authService.js";
+
+// Register new store with owner account
+export async function registerStore(req, res) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const messages = errors
+        .array()
+        .map((e) => e.msg)
+        .join(", ");
+      return sendError(res, 400, messages);
+    }
+
+    const { storeName, ownerName, ownerUsername, ownerPin, email, phone, address, city, country } = req.body;
+
+    const result = await registerStoreService({
+      storeName,
+      ownerName,
+      ownerUsername,
+      ownerPin,
+      email,
+      phone,
+      address,
+      city,
+      country,
+    });
+
+    if (result.error) {
+      return sendError(res, result.status || 400, result.error);
+    }
+
+    return sendSuccess(res, { data: result, message: "Store registered successfully" }, 201);
+  } catch (error) {
+    console.error("Store registration error:", error);
+    sendError(res, 500, "Store registration failed");
+  }
+}
 
 // Login with PIN
 export async function login(req, res) {

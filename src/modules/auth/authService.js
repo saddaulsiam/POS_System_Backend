@@ -1,6 +1,139 @@
 import prisma from "../../prisma.js";
 import { comparePassword, generateToken, hashPassword, logAudit } from "../../utils/helpers.js";
 
+export async function registerStoreService({
+  storeName,
+  ownerName,
+  ownerUsername,
+  ownerPin,
+  email,
+  phone,
+  address,
+  city,
+  country,
+}) {
+  // Check if username already exists
+  const existingUser = await prisma.employee.findUnique({
+    where: { username: ownerUsername },
+  });
+
+  if (existingUser) {
+    return { error: "Username already exists", status: 400 };
+  }
+
+  // Check if email already exists (if provided)
+  if (email) {
+    const existingEmail = await prisma.pOSSettings.findUnique({
+      where: { storeEmail: email },
+    });
+
+    if (existingEmail) {
+      return { error: "Email already registered", status: 400 };
+    }
+  }
+
+  // Hash the PIN
+  const hashedPin = await hashPassword(ownerPin);
+
+  try {
+    console.log("Registration data received:", {
+      storeName,
+      ownerName,
+      ownerUsername,
+      email,
+      phone,
+      address,
+      city,
+      country,
+    });
+
+    // Create store and owner in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      console.log("Step 1: Creating temp owner employee...");
+      // First, create a temporary owner employee without storeId
+      const tempOwner = await tx.employee.create({
+        data: {
+          name: ownerName,
+          username: ownerUsername,
+          pinCode: hashedPin,
+          role: "OWNER",
+          isActive: true,
+        },
+      });
+      console.log("Temp owner created:", tempOwner.id);
+
+      console.log("Step 2: Creating store...");
+      // Create the store with the owner
+      const store = await tx.store.create({
+        data: {
+          name: storeName,
+          ownerId: tempOwner.id,
+        },
+      });
+      console.log("Store created:", store.id);
+
+      console.log("Step 3: Updating owner with storeId...");
+      // Update the owner employee with the storeId
+      const owner = await tx.employee.update({
+        where: { id: tempOwner.id },
+        data: { storeId: store.id },
+      });
+      console.log("Owner updated");
+
+      console.log("Step 4: Creating POS settings...");
+      // Create default POS settings for the store with contact info
+      const posSettingsData = {
+        storeId: store.id,
+        storeName: storeName,
+        storeAddress: address || "",
+        storePhone: phone || "",
+        receiptFooterText: `Thank you for shopping at ${storeName}!`,
+        returnPolicy: "Returns accepted within 7 days with receipt.",
+        printReceiptAuto: false,
+        autoPrintThermal: false,
+      };
+
+      // Only add email if provided (to avoid unique constraint issues)
+      if (email && email.trim()) {
+        posSettingsData.storeEmail = email;
+      }
+
+      const posSettings = await tx.pOSSettings.create({
+        data: posSettingsData,
+      });
+      console.log("POS settings created:", posSettings.id);
+
+      return { store, owner };
+    });
+
+    // Generate token for auto-login
+    const token = generateToken(result.owner.id, result.owner.role, result.store.id);
+
+    return {
+      token,
+      store: {
+        id: result.store.id,
+        name: result.store.name,
+      },
+      user: {
+        id: result.owner.id,
+        name: result.owner.name,
+        username: result.owner.username,
+        role: result.owner.role,
+        storeId: result.store.id,
+      },
+    };
+  } catch (error) {
+    console.error("Store registration transaction error:", error);
+    console.error("Error details:", {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+    });
+    return { error: "Failed to create store. Please try again.", status: 500 };
+  }
+}
+
 export async function loginService(username, pinCode, req) {
   const employee = await prisma.employee.findUnique({ where: { username } });
   if (!employee || !employee.isActive) {

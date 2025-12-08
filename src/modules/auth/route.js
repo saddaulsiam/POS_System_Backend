@@ -5,6 +5,9 @@ import * as authController from "./authController.js";
 
 const router = express.Router();
 
+// Register new store with owner
+router.post("/register", authValidator.registerStore, authController.registerStore);
+
 // Login with PIN
 router.post("/login", authValidator.login, authController.login);
 

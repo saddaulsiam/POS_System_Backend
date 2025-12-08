@@ -13,18 +13,18 @@ router
   .route("/")
   .get(authenticateToken, quickSaleItemsController.getAllQuickSaleItems)
   .post(
-    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...createQuickSaleItemValidator],
+    [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...createQuickSaleItemValidator],
     quickSaleItemsController.createQuickSaleItem
   );
 
 router
   .route("/:id")
   .put(
-    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...updateQuickSaleItemValidator],
+    [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...updateQuickSaleItemValidator],
     quickSaleItemsController.updateQuickSaleItem
   )
   .delete(
-    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...deleteQuickSaleItemValidator],
+    [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...deleteQuickSaleItemValidator],
     quickSaleItemsController.deleteQuickSaleItem
   );
 

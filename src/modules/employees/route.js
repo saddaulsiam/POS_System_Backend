@@ -16,34 +16,34 @@ const upload = multer({ storage: multer.memoryStorage() });
 router
   .route("/")
   .post(
-    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...createEmployeeValidator],
+    [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...createEmployeeValidator],
     employeesController.createEmployee
   )
   .get(
-    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...getAllEmployeesValidator],
+    [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...getAllEmployeesValidator],
     employeesController.getAllEmployees
   );
 
 router
   .route("/:id")
-  .get([authenticateToken, authorizeRoles("ADMIN", "MANAGER")], employeesController.getEmployeeById)
+  .get([authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")], employeesController.getEmployeeById)
   .put(
-    [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...updateEmployeeValidator],
+    [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...updateEmployeeValidator],
     employeesController.updateEmployee
   )
-  .delete([authenticateToken, authorizeRoles("ADMIN", "MANAGER")], employeesController.deactivateEmployee);
+  .delete([authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")], employeesController.deactivateEmployee);
 
 // Reset employee PIN
 router.put(
   "/:id/reset-pin",
-  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...resetPinValidator],
+  [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...resetPinValidator],
   employeesController.resetEmployeePin
 );
 
 // Get employee performance report
 router.get(
   "/:id/performance",
-  [authenticateToken, authorizeRoles("ADMIN", "MANAGER"), ...getEmployeePerformanceValidator],
+  [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...getEmployeePerformanceValidator],
   employeesController.getEmployeePerformance
 );
 
@@ -51,7 +51,7 @@ router.get(
 router.post(
   "/:id/photo",
   authenticateToken,
-  authorizeRoles("ADMIN", "MANAGER"),
+  authorizeRoles("OWNER", "ADMIN", "MANAGER"),
   upload.single("photo"),
   employeesController.uploadEmployeePhoto
 );

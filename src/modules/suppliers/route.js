@@ -14,13 +14,13 @@ router.use(authenticateToken);
 
 router
   .route("/")
-  .get(authorizeRoles("ADMIN", "MANAGER"), getSuppliers)
-  .post(authorizeRoles("ADMIN", "MANAGER"), createSupplier);
+  .get(authorizeRoles("OWNER", "ADMIN", "MANAGER"), getSuppliers)
+  .post(authorizeRoles("OWNER", "ADMIN", "MANAGER"), createSupplier);
 
 router
   .route("/:id")
-  .get(authorizeRoles("ADMIN", "MANAGER"), getSupplierById)
-  .put(authorizeRoles("ADMIN", "MANAGER"), updateSupplier)
-  .delete(authorizeRoles("ADMIN"), deleteSupplier);
+  .get(authorizeRoles("OWNER", "ADMIN", "MANAGER"), getSupplierById)
+  .put(authorizeRoles("OWNER", "ADMIN", "MANAGER"), updateSupplier)
+  .delete(authorizeRoles("OWNER", "ADMIN"), deleteSupplier);
 
 export const SuppliersRoutes = router;

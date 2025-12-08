@@ -7,6 +7,6 @@ const router = express.Router();
 router
   .route("/")
   .get(authenticateToken, posSettingsController.getSettings)
-  .put([authenticateToken, authorizeRoles("ADMIN", "MANAGER")], posSettingsController.updateSettings);
+  .put([authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")], posSettingsController.updateSettings);
 
 export const PosSettingsRoutes = router;

@@ -37,7 +37,12 @@ router.get("/customers/:customerId/rewards", [authenticateToken, ...getCustomerI
 router.post("/award-points", [authenticateToken, ...awardPointsValidator], loyaltyController.awardPoints);
 
 // Check birthday rewards (should be called daily via cron)
-router.post("/birthday-rewards", authenticateToken, authorizeRoles("ADMIN"), loyaltyController.birthdayRewards);
+router.post(
+  "/birthday-rewards",
+  authenticateToken,
+  authorizeRoles("OWNER", "ADMIN"),
+  loyaltyController.birthdayRewards
+);
 
 // Get loyalty offers (Public - shows only active offers; Admin sees all)
 router.get("/offers", [optionalAuth], loyaltyController.getOffers);
@@ -46,7 +51,7 @@ router.get("/offers", [optionalAuth], loyaltyController.getOffers);
 router.post(
   "/offers",
   authenticateToken,
-  authorizeRoles("ADMIN", "MANAGER"),
+  authorizeRoles("OWNER", "ADMIN", "MANAGER"),
   ...createOfferValidator,
   loyaltyController.createOffer
 );
@@ -55,7 +60,7 @@ router.post(
 router.put(
   "/customers/:customerId/tier",
   authenticateToken,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("OWNER", "ADMIN"),
   ...getCustomerIdParam,
   ...updateTierValidator,
   loyaltyController.updateTier
@@ -72,7 +77,7 @@ router.get(
 router.put(
   "/offers/:offerId",
   authenticateToken,
-  authorizeRoles("ADMIN", "MANAGER"),
+  authorizeRoles("OWNER", "ADMIN", "MANAGER"),
   ...getOfferIdParam,
   ...updateOfferValidator,
   loyaltyController.updateOffer
@@ -82,7 +87,7 @@ router.put(
 router.delete(
   "/offers/:offerId",
   authenticateToken,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("OWNER", "ADMIN"),
   ...getOfferIdParam,
   loyaltyController.deleteOffer
 );
@@ -91,13 +96,18 @@ router.delete(
 router.post(
   "/tiers/config",
   authenticateToken,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("OWNER", "ADMIN"),
   ...loyaltyTierConfigValidator,
   loyaltyController.loyaltyTierConfig
 );
 
 // Get loyalty program statistics (Admin/Manager only)
-router.get("/statistics", authenticateToken, authorizeRoles("ADMIN", "MANAGER"), loyaltyController.getStatistics);
+router.get(
+  "/statistics",
+  authenticateToken,
+  authorizeRoles("OWNER", "ADMIN", "MANAGER"),
+  loyaltyController.getStatistics
+);
 
 export default router;
 export const LoyaltyRoutes = router;

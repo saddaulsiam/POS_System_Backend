@@ -3,7 +3,7 @@ import express from "express";
 import { authenticateToken, authorizeRoles } from "../../middleware/auth.js";
 const router = express.Router();
 
-router.get("/", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], cashDrawerController.getAll);
+router.get("/", [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")], cashDrawerController.getAll);
 
 router.get("/current", authenticateToken, cashDrawerController.getCurrent);
 
@@ -15,6 +15,10 @@ router.get("/:id", authenticateToken, cashDrawerController.getById);
 
 router.get("/:id/reconciliation", authenticateToken, cashDrawerController.getReconciliation);
 
-router.get("/stats/summary", [authenticateToken, authorizeRoles("ADMIN", "MANAGER")], cashDrawerController.getSummary);
+router.get(
+  "/stats/summary",
+  [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")],
+  cashDrawerController.getSummary
+);
 
 export const CashDrawerRoutes = router;
