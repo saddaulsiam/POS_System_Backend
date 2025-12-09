@@ -4,6 +4,8 @@ import { comparePassword, generateToken, hashPassword, logAudit } from "../../ut
 export async function registerStoreService({
   storeName,
   ownerName,
+  ownerEmail,
+  ownerPhone,
   ownerUsername,
   ownerPin,
   email,
@@ -21,14 +23,25 @@ export async function registerStoreService({
     return { error: "Username already exists", status: 400 };
   }
 
-  // Check if email already exists (if provided)
+  // Check if owner email already exists (if provided)
+  if (ownerEmail) {
+    const existingOwnerEmail = await prisma.employee.findUnique({
+      where: { email: ownerEmail },
+    });
+
+    if (existingOwnerEmail) {
+      return { error: "Owner email already registered", status: 400 };
+    }
+  }
+
+  // Check if store email already exists (if provided)
   if (email) {
-    const existingEmail = await prisma.pOSSettings.findUnique({
+    const existingStoreEmail = await prisma.pOSSettings.findUnique({
       where: { storeEmail: email },
     });
 
-    if (existingEmail) {
-      return { error: "Email already registered", status: 400 };
+    if (existingStoreEmail) {
+      return { error: "Store email already registered", status: 400 };
     }
   }
 
@@ -54,6 +67,8 @@ export async function registerStoreService({
       const tempOwner = await tx.employee.create({
         data: {
           name: ownerName,
+          email: ownerEmail || null,
+          phoneNumber: ownerPhone || null,
           username: ownerUsername,
           pinCode: hashedPin,
           role: "OWNER",
