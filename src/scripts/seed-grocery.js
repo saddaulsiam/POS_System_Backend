@@ -181,7 +181,21 @@ async function main() {
     where: { id: dummy.id },
     data: { storeId: store.id },
   });
-  console.log("✔ Store and admin setup complete");
+
+  // Create subscription with 10-day trial
+  const trialEndDate = new Date();
+  trialEndDate.setDate(trialEndDate.getDate() + 10);
+  await prisma.subscription.upsert({
+    where: { storeId: store.id },
+    update: {},
+    create: {
+      storeId: store.id,
+      status: "TRIAL",
+      trialStartDate: new Date(),
+      trialEndDate: trialEndDate,
+    },
+  });
+  console.log("✔ Store, admin, and subscription setup complete");
 
   // 3) Categories (real grocery categories)
   const categoryNames = [

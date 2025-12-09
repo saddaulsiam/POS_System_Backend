@@ -131,6 +131,21 @@ async function main() {
 
   await prisma.store.update({ where: { id: store.id }, data: { ownerId: admin.id } });
 
+  // Create subscription with 10-day trial
+  const trialEndDate = new Date();
+  trialEndDate.setDate(trialEndDate.getDate() + 10);
+  await prisma.subscription.upsert({
+    where: { storeId: store.id },
+    update: {},
+    create: {
+      storeId: store.id,
+      status: "TRIAL",
+      trialStartDate: new Date(),
+      trialEndDate: trialEndDate,
+    },
+  });
+  console.log("✔ Store and subscription created");
+
   // 2) Categories
   const categoryNames = [
     "Men's Running",
