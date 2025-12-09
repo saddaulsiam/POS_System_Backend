@@ -8,15 +8,20 @@ const router = express.Router();
 router.get("/status", authenticateToken, subscriptionController.getSubscriptionStatus);
 
 // Activate subscription after payment (OWNER only)
-router.post("/activate", authenticateToken, authorizeRoles("OWNER"), subscriptionController.activateSubscription);
+router.post(
+  "/activate",
+  authenticateToken,
+  authorizeRoles("OWNER", "ADMIN"),
+  subscriptionController.activateSubscription
+);
 
 // Renew subscription (OWNER only)
-router.post("/renew", authenticateToken, authorizeRoles("OWNER"), subscriptionController.renewSubscription);
+router.post("/renew", authenticateToken, authorizeRoles("OWNER", "ADMIN"), subscriptionController.renewSubscription);
 
 // Mark warning as shown
 router.post("/warning-shown", authenticateToken, subscriptionController.markWarningShown);
 
 // Cancel subscription (OWNER only)
-router.post("/cancel", authenticateToken, authorizeRoles("OWNER"), subscriptionController.cancelSubscription);
+router.post("/cancel", authenticateToken, authorizeRoles("OWNER", "ADMIN"), subscriptionController.cancelSubscription);
 
 export const SubscriptionRoutes = router;
