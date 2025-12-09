@@ -49,35 +49,21 @@ export async function registerStoreService({
   const hashedPin = await hashPassword(ownerPin);
 
   try {
-    console.log("Registration data received:", {
-      storeName,
-      ownerName,
-      ownerUsername,
-      email,
-      phone,
-      address,
-      city,
-      country,
-    });
-
     // Create store and owner in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      console.log("Step 1: Creating temp owner employee...");
       // First, create a temporary owner employee without storeId
       const tempOwner = await tx.employee.create({
         data: {
           name: ownerName,
           email: ownerEmail || null,
-          phoneNumber: ownerPhone || null,
+          phone: ownerPhone || null,
           username: ownerUsername,
           pinCode: hashedPin,
           role: "OWNER",
           isActive: true,
         },
       });
-      console.log("Temp owner created:", tempOwner.id);
 
-      console.log("Step 2: Creating store...");
       // Create the store with the owner
       const store = await tx.store.create({
         data: {
@@ -85,17 +71,13 @@ export async function registerStoreService({
           ownerId: tempOwner.id,
         },
       });
-      console.log("Store created:", store.id);
 
-      console.log("Step 3: Updating owner with storeId...");
-      // Update the owner employee with the storeId
+      // Update the owner with the storeId
       const owner = await tx.employee.update({
         where: { id: tempOwner.id },
         data: { storeId: store.id },
       });
-      console.log("Owner updated");
 
-      console.log("Step 4: Creating POS settings...");
       // Create default POS settings for the store with contact info
       const posSettingsData = {
         storeId: store.id,
@@ -116,9 +98,21 @@ export async function registerStoreService({
       const posSettings = await tx.pOSSettings.create({
         data: posSettingsData,
       });
-      console.log("POS settings created:", posSettings.id);
 
-      return { store, owner };
+      // Create subscription with 10-day trial period
+      const trialEndDate = new Date();
+      trialEndDate.setDate(trialEndDate.getDate() + 10);
+
+      const subscription = await tx.subscription.create({
+        data: {
+          storeId: store.id,
+          status: "TRIAL",
+          trialStartDate: new Date(),
+          trialEndDate: trialEndDate,
+        },
+      });
+
+      return { store, owner, subscription };
     });
 
     // Generate token for auto-login
@@ -139,13 +133,13 @@ export async function registerStoreService({
       },
     };
   } catch (error) {
-    console.error("Store registration transaction error:", error);
-    console.error("Error details:", {
-      message: error.message,
-      code: error.code,
-      meta: error.meta,
-    });
-    return { error: "Failed to create store. Please try again.", status: 500 };
+    // Return more specific error message if available
+    if (error.code === "P2002") {
+      const field = error.meta?.target?.[0] || "field";
+      return { error: `This ${field} is already registered`, status: 400 };
+    }
+
+    return { error: `Registration failed: ${error.message}`, status: 500 };
   }
 }
 

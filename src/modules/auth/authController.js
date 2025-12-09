@@ -14,11 +14,25 @@ export async function registerStore(req, res) {
       return sendError(res, 400, messages);
     }
 
-    const { storeName, ownerName, ownerUsername, ownerPin, email, phone, address, city, country } = req.body;
+    const {
+      storeName,
+      ownerName,
+      ownerEmail,
+      ownerPhone,
+      ownerUsername,
+      ownerPin,
+      email,
+      phone,
+      address,
+      city,
+      country,
+    } = req.body;
 
     const result = await registerStoreService({
       storeName,
       ownerName,
+      ownerEmail,
+      ownerPhone,
       ownerUsername,
       ownerPin,
       email,
@@ -34,8 +48,7 @@ export async function registerStore(req, res) {
 
     return sendSuccess(res, { data: result, message: "Store registered successfully" }, 201);
   } catch (error) {
-    console.error("Store registration error:", error);
-    sendError(res, 500, "Store registration failed");
+    sendError(res, 500, error.message || "Failed to create store. Please try again.");
   }
 }
 

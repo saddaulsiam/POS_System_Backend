@@ -20,6 +20,7 @@ import { ReportRoutes } from "../modules/reports/route.js";
 import { SalarySheetsRoutes } from "../modules/salarySheets/route.js";
 import { SalesRoutes } from "../modules/sales/route.js";
 import { SuppliersRoutes } from "../modules/suppliers/route.js";
+import { SubscriptionRoutes } from "../modules/subscription/route.js";
 
 const router = Router();
 
@@ -31,6 +32,10 @@ const moduleRoutes = [
   {
     path: "/auth",
     route: AuthRoutes,
+  },
+  {
+    path: "/subscription",
+    route: SubscriptionRoutes,
   },
   {
     path: "/products",

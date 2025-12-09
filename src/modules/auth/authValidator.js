@@ -12,6 +12,8 @@ const authValidator = {
   registerStore: [
     body("storeName").trim().notEmpty().withMessage("Store name is required"),
     body("ownerName").trim().notEmpty().withMessage("Owner name is required"),
+    body("ownerEmail").optional().isEmail().withMessage("Invalid owner email address"),
+    body("ownerPhone").optional().trim(),
     body("ownerUsername")
       .trim()
       .notEmpty()
@@ -19,7 +21,7 @@ const authValidator = {
       .isLength({ min: 3 })
       .withMessage("Username must be at least 3 characters"),
     body("ownerPin").isLength({ min: 4, max: 6 }).withMessage("PIN must be 4-6 digits"),
-    body("email").optional().isEmail().withMessage("Invalid email address"),
+    body("email").optional().isEmail().withMessage("Invalid store email address"),
     body("phone").optional().trim(),
     body("address").optional().trim(),
     body("city").optional().trim(),

@@ -24,6 +24,7 @@ model Store {
 
   // Relations
   owner              Employee            @relation("StoreOwner", fields: [ownerId], references: [id])
+  subscription       Subscription?
   categories         Category[]
   suppliers          Supplier[]
   products           Product[]
@@ -41,6 +42,36 @@ model Store {
   posSettings        POSSettings[]
   notifications      Notification[]
   auditLogs          AuditLog[]
+}
+
+// ==================================================
+// =               SUBSCRIPTION SYSTEM              =
+// ==================================================
+
+model Subscription {
+  id Int @id @default(autoincrement())
+
+  // FKs
+  storeId Int @unique
+
+  // Fields
+  status                String    @default("TRIAL") // TRIAL, ACTIVE, EXPIRED, CANCELLED
+  trialStartDate        DateTime  @default(now())
+  trialEndDate          DateTime
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+  plan                  String? // MONTHLY, YEARLY, LIFETIME
+  paymentMethod         String?
+  lastPaymentDate       DateTime?
+  warningShown          Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([status])
 }
 
 // ==================================================
