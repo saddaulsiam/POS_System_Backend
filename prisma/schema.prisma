@@ -42,6 +42,7 @@ model Store {
   posSettings        POSSettings[]
   notifications      Notification[]
   auditLogs          AuditLog[]
+  payments           Payment[]
 }
 
 // ==================================================
@@ -71,6 +72,43 @@ model Subscription {
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@index([storeId])
+  @@index([status])
+}
+
+enum Plan {
+  MONTHLY
+  YEARLY
+}
+
+model Payment {
+  id Int @id @default(autoincrement())
+
+  // FKs
+  storeId Int
+
+  // Fields
+  transactionId String    @unique
+  plan          Plan // MONTHLY, YEARLY
+  amount        Float
+  status        String    @default("PENDING") // PENDING, SUCCESS, FAILED, CANCELLED
+  paymentMethod String // SSL_COMMERZ
+  customerName  String
+  customerEmail String
+  customerPhone String
+  validationId  String?
+  cardType      String?
+  cardBrand     String?
+  storeAmount   Float?
+  failureReason String?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([transactionId])
   @@index([status])
 }
 

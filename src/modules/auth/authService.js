@@ -167,8 +167,11 @@ export async function loginService(username, pinCode, req) {
       id: employee.id,
       name: employee.name,
       username: employee.username,
+      email: employee.email,
       role: employee.role,
       storeId: employee.storeId,
+      createdAt: employee.createdAt,
+      updatedAt: employee.updatedAt,
     },
   };
 }
@@ -176,7 +179,17 @@ export async function loginService(username, pinCode, req) {
 export async function getMeService(userId) {
   return await prisma.employee.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, username: true, role: true, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      username: true,
+      email: true,
+      role: true,
+      isActive: true,
+      storeId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 }
 

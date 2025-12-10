@@ -10,10 +10,10 @@ export const updateProfile = async (req, res) => {
       return sendError(res, 400, errors.array());
     }
     const userId = req.user.id;
-    const { name, username } = req.body;
+    const { name, username, email } = req.body;
     let updated, updateData;
     try {
-      ({ updated, updateData } = await profileService.updateProfile(userId, name, username, req));
+      ({ updated, updateData } = await profileService.updateProfile(userId, name, username, email, req));
     } catch (err) {
       if (err.status === 400) {
         return sendError(res, 400, err.message);
