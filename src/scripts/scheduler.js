@@ -148,11 +148,9 @@ async function processBirthdayRewards() {
  * Start the automated scheduler
  */
 function startScheduler() {
-  console.log("\n⏰ Birthday Rewards Scheduler Starting...");
+  console.log("\n⏰ Automated Scheduler Starting...");
 
-  // Schedule: Run every day at 9:00 AM
-  // Cron format: second minute hour day month dayOfWeek
-  // '0 9 * * *' means: at 0 minutes, 9 hours, every day, every month, every day of week
+  // Schedule 1: Birthday Rewards - Run every day at 9:00 AM
   cron.schedule("0 9 * * *", async () => {
     console.log("\n📅 ==========================================");
     console.log("   Scheduled Birthday Rewards Check");
@@ -170,37 +168,134 @@ function startScheduler() {
     }
   });
 
-  console.log("✅ Birthday rewards scheduler is running");
-  console.log("📆 Schedule: Daily at 9:00 AM");
+  // Schedule 2: Subscription Expiration Check - Run every day at midnight
+  cron.schedule("0 0 * * *", async () => {
+    console.log("\n📅 ==========================================");
+    console.log("   Scheduled Subscription Expiration Check");
+    console.log("   Time:", new Date().toLocaleString());
+    console.log("==========================================");
+
+    try {
+      const result = await checkExpiredSubscriptions();
+
+      if (result.success && result.totalExpired > 0) {
+        console.log(`\n⚠️  Marked ${result.totalExpired} subscription(s) as expired`);
+      }
+    } catch (error) {
+      console.error("Scheduled subscription check failed:", error);
+    }
+  });
+
+  console.log("✅ Automated scheduler is running");
+  console.log("📆 Schedule 1: Birthday rewards - Daily at 9:00 AM");
+  console.log("📆 Schedule 2: Subscription expiration - Daily at midnight");
   console.log("🎂 Automatically checks for birthdays and awards bonuses");
+  console.log("💳 Automatically marks expired subscriptions");
 
   // Optional: Run once immediately on startup (for testing)
-  // Uncomment the next line to test immediately when server starts:
+  // Uncomment the next lines to test immediately when server starts:
   // processBirthdayRewards();
+  // checkExpiredSubscriptions();
+}
+
+/**
+ * Check and update expired subscriptions
+ */
+async function checkExpiredSubscriptions() {
+  try {
+    const now = new Date();
+    console.log(`\n🔍 Checking for expired subscriptions at ${now.toISOString()}...`);
+
+    // Find all TRIAL subscriptions where trial has expired
+    const expiredTrials = await prisma.subscription.updateMany({
+      where: {
+        status: "TRIAL",
+        trialEndDate: {
+          lt: now,
+        },
+      },
+      data: {
+        status: "EXPIRED",
+      },
+    });
+
+    // Find all ACTIVE subscriptions where subscription has expired
+    const expiredSubscriptions = await prisma.subscription.updateMany({
+      where: {
+        status: "ACTIVE",
+        subscriptionEndDate: {
+          not: null,
+          lt: now,
+        },
+      },
+      data: {
+        status: "EXPIRED",
+      },
+    });
+
+    const totalExpired = expiredTrials.count + expiredSubscriptions.count;
+
+    if (totalExpired > 0) {
+      console.log(`⚠️  Marked ${totalExpired} subscription(s) as expired:`);
+      console.log(`   - Trials: ${expiredTrials.count}`);
+      console.log(`   - Active subscriptions: ${expiredSubscriptions.count}`);
+    } else {
+      console.log("✅ No expired subscriptions found - all clear!");
+    }
+
+    return {
+      success: true,
+      expiredTrials: expiredTrials.count,
+      expiredSubscriptions: expiredSubscriptions.count,
+      totalExpired,
+    };
+  } catch (error) {
+    console.error("❌ Error checking expired subscriptions:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
 }
 
 /**
  * Stop the scheduler gracefully
  */
 async function stopScheduler() {
-  console.log("⏸️  Stopping birthday rewards scheduler...");
+  console.log("⏸️  Stopping scheduler...");
   await prisma.$disconnect();
   console.log("✅ Scheduler stopped");
 }
 
 // If running directly (for testing)
 if (process.argv[1] === __filename) {
-  console.log("🧪 Testing birthday rewards process...\n");
-  processBirthdayRewards()
-    .then((result) => {
-      console.log("\n📊 Test Results:");
-      console.log(JSON.stringify(result, null, 2));
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("Test failed:", error);
-      process.exit(1);
-    });
+  const testType = process.argv[2] || "birthday";
+
+  if (testType === "subscription") {
+    console.log("🧪 Testing subscription expiration check...\n");
+    checkExpiredSubscriptions()
+      .then((result) => {
+        console.log("\n📊 Test Results:");
+        console.log(JSON.stringify(result, null, 2));
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error("Test failed:", error);
+        process.exit(1);
+      });
+  } else {
+    console.log("🧪 Testing birthday rewards process...\n");
+    processBirthdayRewards()
+      .then((result) => {
+        console.log("\n📊 Test Results:");
+        console.log(JSON.stringify(result, null, 2));
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error("Test failed:", error);
+        process.exit(1);
+      });
+  }
 }
 
-export { processBirthdayRewards, startScheduler, stopScheduler };
+export { processBirthdayRewards, checkExpiredSubscriptions, startScheduler, stopScheduler };

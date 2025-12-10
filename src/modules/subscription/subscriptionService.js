@@ -14,7 +14,8 @@ export async function getSubscriptionStatus(storeId) {
 
   const now = new Date();
   const trialEndDate = new Date(subscription.trialEndDate);
-  const daysRemaining = Math.ceil((trialEndDate - now) / (1000 * 60 * 60 * 24));
+  let daysRemaining = Math.ceil((trialEndDate - now) / (1000 * 60 * 60 * 24));
+  let showWarning = false;
 
   // Check if trial has expired
   if (subscription.status === "TRIAL" && now > trialEndDate) {
@@ -25,8 +26,28 @@ export async function getSubscriptionStatus(storeId) {
     subscription.status = "EXPIRED";
   }
 
-  // Determine if warning should be shown (3 days before trial ends)
-  const showWarning = subscription.status === "TRIAL" && daysRemaining <= 3 && daysRemaining > 0;
+  // Check if ACTIVE subscription has expired (MONTHLY/YEARLY plans)
+  if (subscription.status === "ACTIVE" && subscription.subscriptionEndDate) {
+    const subscriptionEndDate = new Date(subscription.subscriptionEndDate);
+    const subscriptionDaysRemaining = Math.ceil((subscriptionEndDate - now) / (1000 * 60 * 60 * 24));
+
+    if (now > subscriptionEndDate) {
+      // Subscription expired - mark as expired
+      await prisma.subscription.update({
+        where: { storeId },
+        data: { status: "EXPIRED" },
+      });
+      subscription.status = "EXPIRED";
+      daysRemaining = 0;
+    } else {
+      // Active subscription - update days remaining and check for warning
+      daysRemaining = subscriptionDaysRemaining;
+      showWarning = subscriptionDaysRemaining <= 7 && subscriptionDaysRemaining > 0;
+    }
+  } else if (subscription.status === "TRIAL") {
+    // Trial - show warning 3 days before expiry
+    showWarning = daysRemaining <= 3 && daysRemaining > 0;
+  }
 
   return {
     subscription: {
@@ -35,7 +56,7 @@ export async function getSubscriptionStatus(storeId) {
       trialEndDate: subscription.trialEndDate,
       subscriptionEndDate: subscription.subscriptionEndDate,
       plan: subscription.plan,
-      daysRemaining: subscription.status === "TRIAL" ? daysRemaining : null,
+      daysRemaining: subscription.status === "EXPIRED" ? 0 : daysRemaining,
       showWarning,
       warningShown: subscription.warningShown,
       isExpired: subscription.status === "EXPIRED",
