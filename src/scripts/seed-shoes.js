@@ -189,7 +189,7 @@ async function main() {
       sellingPrice: 5.99,
       stockQuantity: 50,
       taxRate: 10,
-      image: "https://images.unsplash.com/photo-1627453308803-10d65b0c9530?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764152097/pos/products/scrtjzyn7ioaylzipmc9.png",
     },
     {
       name: "Premium Shoe Polish - Brown",
@@ -202,7 +202,7 @@ async function main() {
       sellingPrice: 5.99,
       stockQuantity: 40,
       taxRate: 10,
-      image: "https://images.unsplash.com/photo-1627453308803-10d65b0c9530?auto=format&fit=crop&w=800&q=80",
+      image: "https://res.cloudinary.com/dtkl4ic8s/image/upload/v1764152101/pos/products/hp8bmj1hfdf1ls0h0ib1.png",
     },
     {
       name: "Gel Insoles (One Size)",
