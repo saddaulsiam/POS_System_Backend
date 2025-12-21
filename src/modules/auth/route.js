@@ -17,4 +17,10 @@ router.get("/me", authenticateToken, authController.getMe);
 // Change PIN
 router.put("/change-pin", [authenticateToken, ...authValidator.changePin], authController.changePin);
 
+// Refresh access token
+router.post("/refresh", authController.refreshToken);
+
+// Logout user
+router.post("/logout", authenticateToken, authController.logout);
+
 export const AuthRoutes = router;

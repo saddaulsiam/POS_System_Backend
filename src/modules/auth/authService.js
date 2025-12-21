@@ -1,5 +1,12 @@
 import prisma from "../../prisma.js";
-import { comparePassword, generateToken, hashPassword, logAudit } from "../../utils/helpers.js";
+import {
+  comparePassword,
+  generateToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+  hashPassword,
+  logAudit,
+} from "../../utils/helpers.js";
 
 export async function registerStoreService({
   storeName,
@@ -148,21 +155,39 @@ export async function loginService(username, pinCode, req) {
   if (!employee || !employee.isActive) {
     return { error: "Invalid credentials or inactive account", status: 401 };
   }
+  
+  if (!employee.storeId) {
+    return { error: "Employee not assigned to a store", status: 400 };
+  }
+  
   const isValidPin = await comparePassword(pinCode, employee.pinCode);
   if (!isValidPin) {
     return { error: "Invalid credentials", status: 401 };
   }
+
+  // Generate both access token and refresh token
   const token = generateToken(employee.id, employee.role, employee.storeId);
+  const refreshToken = generateRefreshToken(employee.id);
+
+  // Store refresh token in database
+  await prisma.employee.update({
+    where: { id: employee.id },
+    data: { refreshToken },
+  });
+
   await logAudit({
-    userId: employee.id,
+    storeId: employee.storeId,
+    employeeId: employee.id,
     action: "LOGIN",
     entity: "Employee",
     entityId: employee.id,
     ipAddress: req.ip,
     userAgent: req.headers["user-agent"] || "",
   });
+
   return {
     token,
+    refreshToken,
     user: {
       id: employee.id,
       name: employee.name,
@@ -208,4 +233,42 @@ export async function changePinService(userId, currentPin, newPin, storeId) {
     data: { pinCode: hashedNewPin },
   });
   return { message: "PIN changed successfully" };
+}
+
+export async function refreshTokenService(refreshToken) {
+  if (!refreshToken) {
+    return { error: "Refresh token is required", status: 401 };
+  }
+
+  // Verify the refresh token
+  const decoded = verifyRefreshToken(refreshToken);
+  if (!decoded) {
+    return { error: "Invalid or expired refresh token", status: 401 };
+  }
+
+  // Find employee and verify refresh token matches
+  const employee = await prisma.employee.findUnique({
+    where: { id: decoded.userId },
+  });
+
+  if (!employee || !employee.isActive || employee.refreshToken !== refreshToken) {
+    return { error: "Invalid refresh token", status: 401 };
+  }
+
+  // Generate new access token
+  const newAccessToken = generateToken(employee.id, employee.role, employee.storeId);
+
+  return {
+    token: newAccessToken,
+  };
+}
+
+export async function logoutService(userId) {
+  // Clear the refresh token from database
+  await prisma.employee.update({
+    where: { id: userId },
+    data: { refreshToken: null },
+  });
+
+  return { message: "Logged out successfully" };
 }

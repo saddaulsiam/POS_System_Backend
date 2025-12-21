@@ -133,6 +133,7 @@ model Employee {
   contractDetails String?
   notes           String?
   pinCode         String
+  refreshToken    String?
   role            String    @default("CASHIER")
   isActive        Boolean   @default(true)
   createdAt       DateTime  @default(now())

@@ -43,7 +43,25 @@ export const comparePassword = async (password, hash) => {
 };
 
 export const generateToken = (userId, role, storeId) => {
-  return jwt.sign({ userId, role, storeId }, process.env.JWT_SECRET, { expiresIn: "24h" });
+  return jwt.sign({ userId, role, storeId }, process.env.JWT_SECRET, { expiresIn: "15m" });
+};
+
+export const generateRefreshToken = (userId) => {
+  return jwt.sign({ userId, type: "refresh" }, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
+};
+
+export const verifyRefreshToken = (token) => {
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
+    if (decoded.type !== "refresh") {
+      return null;
+    }
+    return decoded;
+  } catch (error) {
+    return null;
+  }
 };
 
 export const generateReceiptId = () => {

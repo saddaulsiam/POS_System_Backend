@@ -1,6 +1,13 @@
 import { validationResult } from "express-validator";
 import { sendError, sendSuccess } from "../../utils/response.js";
-import { changePinService, getMeService, loginService, registerStoreService } from "./authService.js";
+import {
+  changePinService,
+  getMeService,
+  loginService,
+  logoutService,
+  refreshTokenService,
+  registerStoreService,
+} from "./authService.js";
 
 // Register new store with owner account
 export async function registerStore(req, res) {
@@ -71,7 +78,9 @@ export async function login(req, res) {
     sendSuccess(res, result);
   } catch (error) {
     console.error("Login error:", error);
-    sendError(res, 500, "Login failed");
+    console.error("Error details:", error.message);
+    console.error("Error stack:", error.stack);
+    sendError(res, 500, "Login failed", error);
   }
 }
 
@@ -114,5 +123,32 @@ export async function changePin(req, res) {
   } catch (error) {
     console.error("Change PIN error:", error);
     sendError(res, 500, "Failed to change PIN");
+  }
+}
+
+// Refresh access token
+export async function refreshToken(req, res) {
+  try {
+    const { refreshToken } = req.body;
+    const result = await refreshTokenService(refreshToken);
+    if (result.error) {
+      return sendError(res, result.status || 401, result.error);
+    }
+    sendSuccess(res, result);
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    sendError(res, 500, "Failed to refresh token");
+  }
+}
+
+// Logout user
+export async function logout(req, res) {
+  try {
+    const userId = req.user.id;
+    const result = await logoutService(userId);
+    sendSuccess(res, { message: result.message });
+  } catch (error) {
+    console.error("Logout error:", error);
+    sendError(res, 500, "Failed to logout");
   }
 }
