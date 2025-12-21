@@ -40,7 +40,10 @@ const authenticateToken = async (req, res, next) => {
     req.user = employee;
     next();
   } catch (error) {
-    return res.status(403).json({ error: "Invalid token" });
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Token expired" });
+    }
+    return res.status(401).json({ error: "Invalid token" });
   }
 };
 
