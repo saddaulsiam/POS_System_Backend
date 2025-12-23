@@ -11,7 +11,7 @@ const is_live = process.env.SSLCOMMERZ_IS_LIVE === "true";
  */
 export async function initiatePayment(paymentData) {
   try {
-    const { storeId, userId, plan, amount, customerName, customerEmail, customerPhone } = paymentData;
+    const { storeId, userId, plan, amount, customerName, customerEmail, customerPhone, platform = "web" } = paymentData;
 
     // Validate required data
     if (!storeId || !userId) {
@@ -61,9 +61,9 @@ export async function initiatePayment(paymentData) {
       total_amount: amount,
       currency: "BDT",
       tran_id: transactionId,
-      success_url: `${process.env.BACKEND_URL}/api/payment/sslcommerz/success`,
-      fail_url: `${process.env.BACKEND_URL}/api/payment/sslcommerz/fail`,
-      cancel_url: `${process.env.BACKEND_URL}/api/payment/sslcommerz/cancel`,
+      success_url: `${process.env.BACKEND_URL}/api/payment/sslcommerz/success?platform=${platform}`,
+      fail_url: `${process.env.BACKEND_URL}/api/payment/sslcommerz/fail?platform=${platform}`,
+      cancel_url: `${process.env.BACKEND_URL}/api/payment/sslcommerz/cancel?platform=${platform}`,
       ipn_url: `${process.env.BACKEND_URL}/api/payment/sslcommerz/ipn`,
       shipping_method: "NO",
       product_name: `POS Subscription - ${plan}`,
