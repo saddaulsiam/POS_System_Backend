@@ -4,7 +4,7 @@ import prisma from "../../prisma.js";
 // SSL Commerz Configuration
 const store_id = process.env.SSLCOMMERZ_STORE_ID;
 const store_passwd = process.env.SSLCOMMERZ_STORE_PASSWORD;
-const is_live = process.env.NODE_ENV === "production"; // true for live, false for sandbox
+const is_live = process.env.SSLCOMMERZ_IS_LIVE === "true";
 
 /**
  * Initialize SSL Commerz Payment
