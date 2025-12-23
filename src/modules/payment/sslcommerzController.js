@@ -39,7 +39,7 @@ export async function initiatePayment(req, res) {
     );
   } catch (error) {
     console.error("Payment initiation error:", error);
-    return sendError(res, 500, "Failed to initiate payment");
+    return sendError(res, 500, "Failed to initiate payment", error);
   }
 }
 
