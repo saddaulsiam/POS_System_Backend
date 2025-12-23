@@ -77,9 +77,6 @@ export async function login(req, res) {
     }
     sendSuccess(res, result);
   } catch (error) {
-    console.error("Login error:", error);
-    console.error("Error details:", error.message);
-    console.error("Error stack:", error.stack);
     sendError(res, 500, "Login failed", error);
   }
 }

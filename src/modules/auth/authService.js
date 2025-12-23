@@ -155,11 +155,11 @@ export async function loginService(username, pinCode, req) {
   if (!employee || !employee.isActive) {
     return { error: "Invalid credentials or inactive account", status: 401 };
   }
-  
+
   if (!employee.storeId) {
     return { error: "Employee not assigned to a store", status: 400 };
   }
-  
+
   const isValidPin = await comparePassword(pinCode, employee.pinCode);
   if (!isValidPin) {
     return { error: "Invalid credentials", status: 401 };
@@ -195,6 +195,7 @@ export async function loginService(username, pinCode, req) {
       email: employee.email,
       role: employee.role,
       storeId: employee.storeId,
+      phone: employee.phone,
       createdAt: employee.createdAt,
       updatedAt: employee.updatedAt,
     },
