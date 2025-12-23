@@ -1,10 +1,11 @@
 import prisma from "../../prisma.js";
 
-export const updateProfile = async (userId, name, username, email, req) => {
+export const updateProfile = async (userId, name, username, email, phone, req) => {
   const updateData = {};
   if (name) updateData.name = name.trim();
   if (username) updateData.username = username.trim();
   if (email !== undefined) updateData.email = email ? email.trim() : null;
+  if (phone !== undefined) updateData.phone = phone ? phone.trim() : null;
 
   // Check for username conflict
   if (username) {
@@ -38,6 +39,7 @@ export const updateProfile = async (userId, name, username, email, req) => {
       name: true,
       username: true,
       email: true,
+      phone: true,
       role: true,
       isActive: true,
       storeId: true,

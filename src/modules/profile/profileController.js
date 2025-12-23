@@ -10,10 +10,11 @@ export const updateProfile = async (req, res) => {
       return sendError(res, 400, errors.array());
     }
     const userId = req.user.id;
-    const { name, username, email } = req.body;
+    const storeId = req.user.storeId;
+    const { name, username, email, phone } = req.body;
     let updated, updateData;
     try {
-      ({ updated, updateData } = await profileService.updateProfile(userId, name, username, email, req));
+      ({ updated, updateData } = await profileService.updateProfile(userId, name, username, email, phone, req));
     } catch (err) {
       if (err.status === 400) {
         return sendError(res, 400, err.message);
@@ -21,7 +22,8 @@ export const updateProfile = async (req, res) => {
       throw err;
     }
     logAudit({
-      userId,
+      storeId,
+      employeeId: userId,
       action: "UPDATE_PROFILE",
       entity: "Employee",
       entityId: userId,
