@@ -24,7 +24,7 @@ app.use(
       process.env.FRONTEND_URL,
       "http://localhost:3000",
       "http://localhost:4173",
-      "https://smart-pos-grocery.vercel.app",
+      "https://smartpossystem.vercel.app",
       "file://",
     ],
     credentials: true,
@@ -32,7 +32,7 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     exposedHeaders: ["Content-Range", "X-Content-Range"],
     optionsSuccessStatus: 200,
-  })
+  }),
 );
 app.use(morgan("combined"));
 app.use(express.json({ limit: "10mb" }));
