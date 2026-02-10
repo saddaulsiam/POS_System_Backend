@@ -43,12 +43,12 @@ export const comparePassword = async (password, hash) => {
 };
 
 export const generateToken = (userId, role, storeId) => {
-  return jwt.sign({ userId, role, storeId }, process.env.JWT_SECRET, { expiresIn: "15m" });
+  return jwt.sign({ userId, role, storeId }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
 
 export const generateRefreshToken = (userId) => {
   return jwt.sign({ userId, type: "refresh" }, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
-    expiresIn: "7d",
+    expiresIn: "30d",
   });
 };
 
