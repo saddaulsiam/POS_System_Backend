@@ -29,7 +29,7 @@ app.use(
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Silent-Error", "x-silent-error"],
     exposedHeaders: ["Content-Range", "X-Content-Range"],
     optionsSuccessStatus: 200,
   }),
