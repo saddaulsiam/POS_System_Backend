@@ -25,14 +25,11 @@ async function getAll(query, storeId) {
   }));
   return {
     cashDrawers: cashDrawersWithDifference,
-    total,
-    page: Number(page),
-    limit: Number(limit),
     pagination: {
       page: Number(page),
       limit: Number(limit),
-      pages: Math.ceil(total / limit),
       total,
+      pages: Math.ceil(total / Number(limit)) || 1,
     },
   };
 }
