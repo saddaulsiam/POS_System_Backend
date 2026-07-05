@@ -99,6 +99,7 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
     offerId = null,
     offerTitle = null,
     offerDiscount = 0,
+    receiptId: clientReceiptId,
   } = body;
   const employeeId = user.id;
 
@@ -221,7 +222,7 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
       await tx.stockMovement.createMany({ data: stockMovements });
 
       const finalAmount = subtotal + totalTax - discountAmount - loyaltyDiscount - (offerDiscount || 0);
-      const receiptId = generateReceiptId();
+      const receiptId = clientReceiptId || generateReceiptId();
       if (paymentMethod === "MIXED") {
         const totalSplitAmount = paymentSplits.reduce((sum, split) => sum + split.amount, 0);
         if (Math.abs(totalSplitAmount - finalAmount) > 0.01) {
