@@ -125,10 +125,18 @@ export const deleteVariant = async (id, storeId) => {
 };
 
 export const lookupVariant = async (identifier, storeId) => {
+  const parsedId = isNaN(identifier) ? -1 : parseInt(identifier);
+  // Ensure parsedId fits in a 32-bit signed integer to prevent database overflow crashes
+  const idQuery = (parsedId > 0 && parsedId <= 2147483647) ? parsedId : -1;
+
   // Only return variant if its parent product belongs to storeId
   return await prisma.productVariant.findFirst({
     where: {
-      OR: [{ id: isNaN(identifier) ? -1 : parseInt(identifier) }, { sku: identifier }, { barcode: identifier }],
+      OR: [
+        { id: idQuery },
+        { sku: identifier },
+        { barcode: identifier }
+      ],
       isActive: true,
       product: { storeId },
     },
