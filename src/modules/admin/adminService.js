@@ -94,7 +94,7 @@ export async function getAdminStatsService() {
   };
 }
 
-export async function getStoresService(page = 1, limit = 10, search = "", status = "") {
+export async function getStoresService(page = 1, limit = 10, search = "", status = "", plan = "", sortBy = "", dateJoined = "") {
   const skip = (page - 1) * limit;
 
   const andConditions = [];
@@ -117,7 +117,36 @@ export async function getStoresService(page = 1, limit = 10, search = "", status
     }
   }
 
+  if (plan) {
+    andConditions.push({ subscription: { plan } });
+  }
+
+  if (dateJoined) {
+    const dateLimit = new Date();
+    if (dateJoined === "7days") {
+      dateLimit.setDate(dateLimit.getDate() - 7);
+      andConditions.push({ createdAt: { gte: dateLimit } });
+    } else if (dateJoined === "30days") {
+      dateLimit.setDate(dateLimit.getDate() - 30);
+      andConditions.push({ createdAt: { gte: dateLimit } });
+    }
+  }
+
   const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
+
+  // Dynamic sorting
+  let orderBy = { createdAt: "desc" };
+  if (sortBy === "oldest") {
+    orderBy = { createdAt: "asc" };
+  } else if (sortBy === "name_asc") {
+    orderBy = { name: "asc" };
+  } else if (sortBy === "name_desc") {
+    orderBy = { name: "desc" };
+  } else if (sortBy === "sales_desc") {
+    orderBy = { sales: { _count: "desc" } };
+  } else if (sortBy === "products_desc") {
+    orderBy = { products: { _count: "desc" } };
+  }
 
   const total = await prisma.store.count({ where: whereClause });
 
@@ -125,7 +154,7 @@ export async function getStoresService(page = 1, limit = 10, search = "", status
     where: whereClause,
     skip,
     take: limit,
-    orderBy: { createdAt: "desc" },
+    orderBy,
     include: {
       owner: {
         select: {
@@ -199,9 +228,25 @@ export async function toggleStoreStatusService(storeId, isActive) {
   return { message: `Store status updated to ${isActive ? "Active" : "Suspended"}` };
 }
 
-export async function getSubscriptionsService(page = 1, limit = 10, status = "") {
+export async function getSubscriptionsService(page = 1, limit = 10, search = "", status = "", plan = "") {
   const skip = (page - 1) * limit;
-  const whereClause = status ? { status } : {};
+  const whereClause = {};
+
+  if (status) {
+    whereClause.status = status;
+  }
+
+  if (plan) {
+    whereClause.plan = plan;
+  }
+
+  if (search) {
+    whereClause.OR = [
+      { store: { name: { contains: search, mode: "insensitive" } } },
+      { store: { owner: { name: { contains: search, mode: "insensitive" } } } },
+      { store: { owner: { email: { contains: search, mode: "insensitive" } } } },
+    ];
+  }
 
   const total = await prisma.subscription.count({ where: whereClause });
 

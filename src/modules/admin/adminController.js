@@ -27,7 +27,10 @@ export async function getStores(req, res) {
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || "";
     const status = req.query.status || "";
-    const result = await getStoresService(page, limit, search, status);
+    const plan = req.query.plan || "";
+    const sortBy = req.query.sortBy || "";
+    const dateJoined = req.query.dateJoined || "";
+    const result = await getStoresService(page, limit, search, status, plan, sortBy, dateJoined);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to retrieve stores list");
@@ -57,8 +60,10 @@ export async function getSubscriptions(req, res) {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || "";
     const status = req.query.status || "";
-    const result = await getSubscriptionsService(page, limit, status);
+    const plan = req.query.plan || "";
+    const result = await getSubscriptionsService(page, limit, search, status, plan);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to retrieve subscriptions list");
