@@ -32,7 +32,7 @@ const authenticateToken = async (req, res, next) => {
     }
     console.log("[AUTH] employee:", employee);
     console.log("[AUTH] storeId:", employee.storeId);
-    if (employee.storeId === null || employee.storeId === undefined) {
+    if ((employee.storeId === null || employee.storeId === undefined) && employee.role !== "SUPER_ADMIN") {
       return res.status(403).json({
         error: "Access denied: Your account is not assigned to any store. Please contact your administrator.",
       });

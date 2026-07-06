@@ -22,10 +22,15 @@ import { SalesRoutes } from "../modules/sales/route.js";
 import { SuppliersRoutes } from "../modules/suppliers/route.js";
 import { SubscriptionRoutes } from "../modules/subscription/route.js";
 import { sslcommerzRoutes } from "../modules/payment/routes.js";
+import { AdminRoutes } from "../modules/admin/route.js";
 
 const router = Router();
 
 const moduleRoutes = [
+  {
+    path: "/admin",
+    route: AdminRoutes,
+  },
   {
     path: "/notification",
     route: NotificationRoutes,

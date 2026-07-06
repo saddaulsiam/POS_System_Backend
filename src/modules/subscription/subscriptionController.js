@@ -6,17 +6,36 @@ import * as subscriptionService from "./subscriptionService.js";
  */
 export async function getSubscriptionStatus(req, res) {
   try {
-    const { storeId } = req.user;
+    const { storeId, role } = req.user;
+
+    // Super Admin has bypass access
+    if (role === "SUPER_ADMIN") {
+      return sendSuccess(res, {
+        subscription: {
+          status: "ACTIVE",
+          trialStartDate: new Date().toISOString(),
+          trialEndDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365).toISOString(),
+          subscriptionEndDate: null,
+          plan: "LIFETIME",
+          daysRemaining: 365,
+          showWarning: false,
+          warningShown: false,
+          isExpired: false,
+          isActive: true,
+        },
+      });
+    }
+
     const result = await subscriptionService.getSubscriptionStatus(storeId);
 
     if (result.error) {
-      return sendError(res, result.error, result.status);
+      return sendError(res, result.status || 500, result.error);
     }
 
     return sendSuccess(res, result);
   } catch (error) {
     console.error("Get subscription status error:", error);
-    return sendError(res, "Failed to get subscription status", 500);
+    return sendError(res, 500, "Failed to get subscription status");
   }
 }
 
@@ -35,13 +54,13 @@ export async function activateSubscription(req, res) {
     });
 
     if (result.error) {
-      return sendError(res, result.error, result.status);
+      return sendError(res, result.status || 500, result.error);
     }
 
     return sendSuccess(res, result, 200);
   } catch (error) {
     console.error("Activate subscription error:", error);
-    return sendError(res, "Failed to activate subscription", 500);
+    return sendError(res, 500, "Failed to activate subscription");
   }
 }
 
@@ -59,13 +78,13 @@ export async function renewSubscription(req, res) {
     });
 
     if (result.error) {
-      return sendError(res, result.error, result.status);
+      return sendError(res, result.status || 500, result.error);
     }
 
     return sendSuccess(res, result, 200);
   } catch (error) {
     console.error("Renew subscription error:", error);
-    return sendError(res, "Failed to renew subscription", 500);
+    return sendError(res, 500, "Failed to renew subscription");
   }
 }
 
@@ -80,7 +99,7 @@ export async function markWarningShown(req, res) {
     return sendSuccess(res, result, 200);
   } catch (error) {
     console.error("Mark warning shown error:", error);
-    return sendError(res, "Failed to update warning status", 500);
+    return sendError(res, 500, "Failed to update warning status");
   }
 }
 
@@ -95,6 +114,6 @@ export async function cancelSubscription(req, res) {
     return sendSuccess(res, result, 200);
   } catch (error) {
     console.error("Cancel subscription error:", error);
-    return sendError(res, "Failed to cancel subscription", 500);
+    return sendError(res, 500, "Failed to cancel subscription");
   }
 }

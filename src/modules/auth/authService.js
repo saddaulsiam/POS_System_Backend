@@ -152,11 +152,18 @@ export async function registerStoreService({
 
 export async function loginService(username, pinCode, req) {
   const employee = await prisma.employee.findUnique({ where: { username } });
-  if (!employee || !employee.isActive) {
-    return { error: "Invalid credentials or inactive account", status: 401 };
+  if (!employee) {
+    return { error: "Invalid credentials", status: 401 };
   }
 
-  if (!employee.storeId) {
+  if (!employee.isActive) {
+    if (employee.role === "OWNER") {
+      return { error: "Your store has been suspended. Please contact platform administration.", status: 403 };
+    }
+    return { error: "Your account has been deactivated. Please contact your store administrator.", status: 403 };
+  }
+
+  if (!employee.storeId && employee.role !== "SUPER_ADMIN") {
     return { error: "Employee not assigned to a store", status: 400 };
   }
 
@@ -175,15 +182,17 @@ export async function loginService(username, pinCode, req) {
     data: { refreshToken },
   });
 
-  await logAudit({
-    storeId: employee.storeId,
-    employeeId: employee.id,
-    action: "LOGIN",
-    entity: "Employee",
-    entityId: employee.id,
-    ipAddress: req.ip,
-    userAgent: req.headers["user-agent"] || "",
-  });
+  if (employee.storeId) {
+    await logAudit({
+      storeId: employee.storeId,
+      employeeId: employee.id,
+      action: "LOGIN",
+      entity: "Employee",
+      entityId: employee.id,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"] || "",
+    });
+  }
 
   return {
     token,
