@@ -69,7 +69,10 @@ export async function getPayments(req, res) {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const result = await getPaymentsService(page, limit);
+    const search = req.query.search || "";
+    const status = req.query.status || "";
+    const plan = req.query.plan || "";
+    const result = await getPaymentsService(page, limit, search, status, plan);
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to retrieve payments list");

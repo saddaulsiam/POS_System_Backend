@@ -3,15 +3,15 @@ import { hashPassword, generateToken, generateRefreshToken } from "../../utils/h
 
 export async function getAdminStatsService() {
   const totalStores = await prisma.store.count();
-  
+
   const activeSubs = await prisma.subscription.count({
     where: { status: "ACTIVE" },
   });
-  
+
   const trialSubs = await prisma.subscription.count({
     where: { status: "TRIAL" },
   });
-  
+
   const expiredSubs = await prisma.subscription.count({
     where: { status: { in: ["EXPIRED", "CANCELLED"] } },
   });
@@ -23,7 +23,7 @@ export async function getAdminStatsService() {
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  
+
   const monthlyPayments = await prisma.payment.aggregate({
     where: {
       status: "SUCCESS",
@@ -120,7 +120,7 @@ export async function getStoresService(page = 1, limit = 10, search = "", status
   const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
 
   const total = await prisma.store.count({ where: whereClause });
-  
+
   const stores = await prisma.store.findMany({
     where: whereClause,
     skip,
@@ -159,7 +159,7 @@ export async function getStoresService(page = 1, limit = 10, search = "", status
           revenue: salesSum._sum.finalAmount || 0,
         },
       };
-    })
+    }),
   );
 
   return {
@@ -204,7 +204,7 @@ export async function getSubscriptionsService(page = 1, limit = 10, status = "")
   const whereClause = status ? { status } : {};
 
   const total = await prisma.subscription.count({ where: whereClause });
-  
+
   const subscriptions = await prisma.subscription.findMany({
     where: whereClause,
     skip,
@@ -229,7 +229,7 @@ export async function getSubscriptionsService(page = 1, limit = 10, status = "")
   const totalPaid = await prisma.subscription.count({ where: { status: "ACTIVE" } });
   const totalTrial = await prisma.subscription.count({ where: { status: "TRIAL" } });
   const totalExpired = await prisma.subscription.count({ where: { status: "EXPIRED" } });
-  
+
   const threeDaysFromNow = new Date();
   threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
   const totalExpiringSoon = await prisma.subscription.count({
@@ -270,12 +270,32 @@ export async function getSubscriptionsService(page = 1, limit = 10, status = "")
   };
 }
 
-export async function getPaymentsService(page = 1, limit = 10) {
+export async function getPaymentsService(page = 1, limit = 10, search = "", status = "", plan = "") {
   const skip = (page - 1) * limit;
+  const whereClause = {};
 
-  const total = await prisma.payment.count();
-  
+  if (status) {
+    whereClause.status = status;
+  }
+
+  if (plan) {
+    whereClause.plan = plan;
+  }
+
+  if (search) {
+    whereClause.OR = [
+      { transactionId: { contains: search, mode: "insensitive" } },
+      { customerName: { contains: search, mode: "insensitive" } },
+      { customerEmail: { contains: search, mode: "insensitive" } },
+      { customerPhone: { contains: search, mode: "insensitive" } },
+      { store: { name: { contains: search, mode: "insensitive" } } },
+    ];
+  }
+
+  const total = await prisma.payment.count({ where: whereClause });
+
   const payments = await prisma.payment.findMany({
+    where: whereClause,
     skip,
     take: limit,
     orderBy: { createdAt: "desc" },
