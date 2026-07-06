@@ -282,13 +282,18 @@ export async function getCustomerStats(query, storeId) {
     endDate = new Date();
     endDate.setHours(23, 59, 59, 999);
   }
-  const totalCustomers = await prisma.customer.count({ where: { isActive: true, storeId } });
-  const newCustomers = await prisma.customer.count({
-    where: { createdAt: { gte: startDate, lte: endDate }, storeId },
+  const totalCustomers = await prisma.customer.count({
+    where: { isActive: true, customerStores: { some: { storeId } } },
   });
-  const tierDistribution = await prisma.customer.groupBy({
+  const newCustomers = await prisma.customer.count({
+    where: {
+      createdAt: { gte: startDate, lte: endDate },
+      customerStores: { some: { storeId } },
+    },
+  });
+  const tierDistribution = await prisma.customerStore.groupBy({
     by: ["loyaltyTier"],
-    where: { isActive: true, storeId },
+    where: { storeId, customer: { isActive: true } },
     _count: { loyaltyTier: true },
   });
   const topCustomers = await prisma.sale.groupBy({
@@ -306,10 +311,25 @@ export async function getCustomerStats(query, storeId) {
   });
   const topCustomersWithDetails = await Promise.all(
     topCustomers.map(async (customer) => {
-      const details = await prisma.customer.findFirst({
-        where: { id: customer.customerId, storeId },
-        select: { id: true, name: true, phoneNumber: true, loyaltyTier: true, loyaltyPoints: true },
+      const customerStore = await prisma.customerStore.findFirst({
+        where: { customerId: customer.customerId, storeId },
+        include: { customer: true },
       });
+      const details = customerStore
+        ? {
+            id: customerStore.customer.id,
+            name: customerStore.customer.name,
+            phoneNumber: customerStore.customer.phoneNumber,
+            loyaltyTier: customerStore.loyaltyTier,
+            loyaltyPoints: customerStore.loyaltyPoints,
+          }
+        : {
+            id: customer.customerId,
+            name: "Unknown Customer",
+            phoneNumber: null,
+            loyaltyTier: "BRONZE",
+            loyaltyPoints: 0,
+          };
       return {
         ...details,
         totalSpent: customer._sum.finalAmount,

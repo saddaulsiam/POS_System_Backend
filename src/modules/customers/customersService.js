@@ -3,7 +3,10 @@ import prisma from "../../prisma.js";
 async function fetchCustomers(where, skip, limit, storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   return prisma.customer.findMany({
-    where: { ...where },
+    where: {
+      ...where,
+      customerStores: { some: { storeId } },
+    },
     include: {
       customerStores: {
         where: { storeId },
@@ -30,7 +33,11 @@ async function countCustomers(countWhere, storeId) {
 async function findCustomerByPhone(phone, storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   return prisma.customer.findFirst({
-    where: { phoneNumber: phone, isActive: true },
+    where: {
+      phoneNumber: phone,
+      isActive: true,
+      customerStores: { some: { storeId } },
+    },
     select: {
       id: true,
       name: true,
@@ -53,6 +60,7 @@ async function searchCustomers(query, storeId) {
   return prisma.customer.findMany({
     where: {
       isActive: true,
+      customerStores: { some: { storeId } },
       OR: [{ name: { contains: query } }, { phoneNumber: { contains: query } }, { email: { contains: query } }],
     },
     select: {
@@ -73,7 +81,11 @@ async function searchCustomers(query, storeId) {
 async function findCustomerById(customerId, storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   return prisma.customer.findFirst({
-    where: { id: customerId, isActive: true },
+    where: {
+      id: customerId,
+      isActive: true,
+      customerStores: { some: { storeId } },
+    },
     include: {
       customerStores: {
         where: { storeId },

@@ -46,38 +46,59 @@ export async function getPointsHistoryService(customerId, storeId) {
 
 export async function redeemService({ customerId, pointsCost, rewardType, rewardValue, description, storeId }) {
   return prisma.$transaction(async (tx) => {
-    const customer = await tx.customer.findUnique({ where: { id: customerId, storeId } });
-    if (!customer) throw new Error("Customer not found");
-    if (customer.loyaltyPoints < pointsCost)
-      throw new Error(`Insufficient points. Customer has ${customer.loyaltyPoints}, needs ${pointsCost}`);
-    await tx.customer.update({
-      where: { id: customerId, storeId },
+    const customerStore = await tx.customerStore.findUnique({
+      where: { customerId_storeId: { customerId, storeId } }
+    });
+    if (!customerStore) throw new Error("Customer not found in this store");
+    if (customerStore.loyaltyPoints < pointsCost)
+      throw new Error(`Insufficient points. Customer has ${customerStore.loyaltyPoints}, needs ${pointsCost}`);
+    
+    const updatedCustomerStore = await tx.customerStore.update({
+      where: { id: customerStore.id },
       data: { loyaltyPoints: { decrement: pointsCost } },
     });
+    
     await tx.pointsTransaction.create({
-      data: { customerId, storeId, type: "REDEEMED", points: -pointsCost, description: `Redeemed: ${description}` },
+      data: {
+        customerStoreId: customerStore.id,
+        customerId,
+        type: "REDEEMED",
+        points: -pointsCost,
+        description: `Redeemed: ${description}`
+      },
     });
     const reward = await tx.loyaltyReward.create({
-      data: { customerId, storeId, rewardType, rewardValue, pointsCost, description, redeemedAt: new Date() },
+      data: {
+        customerStoreId: customerStore.id,
+        customerId,
+        rewardType,
+        rewardValue,
+        pointsCost,
+        description,
+        redeemedAt: new Date()
+      },
     });
-    return { reward, newBalance: customer.loyaltyPoints - pointsCost };
+    return { reward, newBalance: updatedCustomerStore.loyaltyPoints };
   });
 }
 
 export async function redeemPointsService({ customerId, points, rewardType, rewardValue, description, storeId }) {
   return prisma.$transaction(async (tx) => {
-    const customer = await tx.customer.findUnique({ where: { id: customerId, storeId } });
-    if (!customer) throw new Error("Customer not found");
-    if (customer.loyaltyPoints < points)
-      throw new Error(`Insufficient points. Customer has ${customer.loyaltyPoints}, needs ${points}`);
-    const updatedCustomer = await tx.customer.update({
-      where: { id: customerId, storeId },
+    const customerStore = await tx.customerStore.findUnique({
+      where: { customerId_storeId: { customerId, storeId } }
+    });
+    if (!customerStore) throw new Error("Customer not found in this store");
+    if (customerStore.loyaltyPoints < points)
+      throw new Error(`Insufficient points. Customer has ${customerStore.loyaltyPoints}, needs ${points}`);
+    
+    const updatedCustomerStore = await tx.customerStore.update({
+      where: { id: customerStore.id },
       data: { loyaltyPoints: { decrement: points } },
     });
     await tx.pointsTransaction.create({
       data: {
+        customerStoreId: customerStore.id,
         customerId,
-        storeId,
         type: "REDEEMED",
         points: -points,
         description: description || `Redeemed ${points} points for ${rewardType}`,
@@ -87,10 +108,11 @@ export async function redeemPointsService({ customerId, points, rewardType, rewa
     if (rewardType === "DISCOUNT") dbRewardType = "DISCOUNT_FIXED";
     else if (rewardType === "FREE_PRODUCT") dbRewardType = "FREE_PRODUCT";
     else if (["STORE_CREDIT", "SPECIAL_OFFER"].includes(rewardType)) dbRewardType = "DISCOUNT_FIXED";
+    
     const reward = await tx.loyaltyReward.create({
       data: {
+        customerStoreId: customerStore.id,
         customerId,
-        storeId,
         rewardType: dbRewardType,
         rewardValue: parseFloat(rewardValue),
         pointsCost: points,
@@ -102,7 +124,7 @@ export async function redeemPointsService({ customerId, points, rewardType, rewa
     return {
       success: true,
       reward,
-      newBalance: updatedCustomer.loyaltyPoints,
+      newBalance: updatedCustomerStore.loyaltyPoints,
       pointsRedeemed: points,
       discountAmount: parseFloat(rewardValue),
     };
@@ -111,46 +133,53 @@ export async function redeemPointsService({ customerId, points, rewardType, rewa
 
 export async function getRewardsService(customerId, storeId) {
   return prisma.loyaltyReward.findMany({
-    where: { customerId, storeId, isActive: true, OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }] },
+    where: { customerStore: { customerId, storeId }, isActive: true, OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }] },
     orderBy: { createdAt: "desc" },
   });
 }
 
 export async function awardPointsService({ customerId, saleId, amount, storeId }) {
   return prisma.$transaction(async (tx) => {
-    const customer = await tx.customer.findUnique({ where: { id: customerId, storeId } });
-    if (!customer) throw new Error("Customer not found");
-    const tierConfig = LOYALTY_TIERS[customer.loyaltyTier] || LOYALTY_TIERS.BRONZE;
+    const customerStore = await tx.customerStore.findUnique({
+      where: { customerId_storeId: { customerId, storeId } }
+    });
+    if (!customerStore) throw new Error("Customer not found in this store");
+    
+    const tierConfig = await tx.loyaltyTierConfig.findFirst({ where: { tier: customerStore.loyaltyTier } });
+    const defaultMultipliers = { BRONZE: 1.0, SILVER: 1.25, GOLD: 1.5, PLATINUM: 2.0 };
+    const multiplier = tierConfig?.pointsMultiplier || defaultMultipliers[customerStore.loyaltyTier] || 1.0;
+    
     const basePoints = Math.floor(amount / 10);
-    const bonusPoints = Math.floor(basePoints * (tierConfig.multiplier - 1));
+    const bonusPoints = Math.floor(basePoints * (multiplier - 1));
     const totalPoints = basePoints + bonusPoints;
-    await tx.customer.update({
-      where: { id: customerId, storeId },
+    
+    const updatedCustomerStore = await tx.customerStore.update({
+      where: { id: customerStore.id },
       data: { loyaltyPoints: { increment: totalPoints } },
     });
     const transaction = await tx.pointsTransaction.create({
       data: {
+        customerStoreId: customerStore.id,
         customerId,
-        storeId,
         saleId,
         type: "EARNED",
         points: totalPoints,
         description: `Earned ${basePoints} base points${
-          bonusPoints > 0 ? ` + ${bonusPoints} tier bonus (${customer.loyaltyTier})` : ""
+          bonusPoints > 0 ? ` + ${bonusPoints} tier bonus (${customerStore.loyaltyTier})` : ""
         }`,
       },
     });
     // Calculate new tier
     const newTier = (() => {
-      if (customer.loyaltyPoints + totalPoints >= LOYALTY_TIERS.PLATINUM.min) return "PLATINUM";
-      if (customer.loyaltyPoints + totalPoints >= LOYALTY_TIERS.GOLD.min) return "GOLD";
-      if (customer.loyaltyPoints + totalPoints >= LOYALTY_TIERS.SILVER.min) return "SILVER";
+      if (customerStore.loyaltyPoints + totalPoints >= LOYALTY_TIERS.PLATINUM.min) return "PLATINUM";
+      if (customerStore.loyaltyPoints + totalPoints >= LOYALTY_TIERS.GOLD.min) return "GOLD";
+      if (customerStore.loyaltyPoints + totalPoints >= LOYALTY_TIERS.SILVER.min) return "SILVER";
       return "BRONZE";
     })();
-    if (newTier !== customer.loyaltyTier) {
-      await tx.customer.update({ where: { id: customerId, storeId }, data: { loyaltyTier: newTier } });
+    if (newTier !== customerStore.loyaltyTier) {
+      await tx.customerStore.update({ where: { id: customerStore.id }, data: { loyaltyTier: newTier } });
     }
-    return { transaction, pointsAwarded: totalPoints, newBalance: customer.loyaltyPoints + totalPoints, newTier };
+    return { transaction, pointsAwarded: totalPoints, newBalance: updatedCustomerStore.loyaltyPoints, newTier };
   });
 }
 
@@ -161,28 +190,33 @@ export async function birthdayRewardsService(storeId) {
   const customers = await prisma.customer.findMany({
     where: {
       isActive: true,
-      storeId,
+      customerStores: { some: { storeId } },
       dateOfBirth: { not: null },
       AND: [
         prisma.$queryRaw`CAST(strftime('%m', dateOfBirth) AS INTEGER) = ${todayMonth}`,
         prisma.$queryRaw`CAST(strftime('%d', dateOfBirth) AS INTEGER) = ${todayDay}`,
       ],
     },
+    include: {
+      customerStores: { where: { storeId } }
+    }
   });
   const results = [];
   for (const customer of customers) {
-    const birthdayBonus = LOYALTY_TIERS[customer.loyaltyTier]?.birthdayBonus || LOYALTY_TIERS.BRONZE.birthdayBonus;
-    await prisma.customer.update({
-      where: { id: customer.id, storeId },
+    const customerStore = customer.customerStores[0];
+    if (!customerStore) continue;
+    const birthdayBonus = LOYALTY_TIERS[customerStore.loyaltyTier]?.birthdayBonus || LOYALTY_TIERS.BRONZE.birthdayBonus;
+    await prisma.customerStore.update({
+      where: { id: customerStore.id },
       data: { loyaltyPoints: { increment: birthdayBonus } },
     });
     await prisma.pointsTransaction.create({
       data: {
+        customerStoreId: customerStore.id,
         customerId: customer.id,
-        storeId,
         type: "BIRTHDAY_BONUS",
         points: birthdayBonus,
-        description: `Birthday bonus - ${customer.loyaltyTier} tier`,
+        description: `Birthday bonus - ${customerStore.loyaltyTier} tier`,
       },
     });
     results.push({ customerId: customer.id, name: customer.name, bonus: birthdayBonus });
@@ -245,7 +279,7 @@ export async function deleteOfferService(offerId, storeId) {
 
 export async function loyaltyTierConfigService(data, storeId) {
   return prisma.loyaltyTierConfig.upsert({
-    where: { tier_storeId: { tier: data.tier, storeId } },
+    where: { tier: data.tier },
     update: {
       minimumPoints: data.minimumPoints,
       pointsMultiplier: data.pointsMultiplier,
@@ -255,7 +289,6 @@ export async function loyaltyTierConfigService(data, storeId) {
     },
     create: {
       tier: data.tier,
-      storeId,
       minimumPoints: data.minimumPoints,
       pointsMultiplier: data.pointsMultiplier,
       discountPercentage: data.discountPercentage,
@@ -266,17 +299,17 @@ export async function loyaltyTierConfigService(data, storeId) {
 }
 
 export async function getStatisticsService(user, storeId) {
-  const customersByTier = await prisma.customer.groupBy({
+  const customersByTier = await prisma.customerStore.groupBy({
     by: ["loyaltyTier"],
-    where: { isActive: true, storeId },
+    where: { storeId, customer: { isActive: true } },
     _count: true,
   });
   const totalPointsIssued = await prisma.pointsTransaction.aggregate({
-    where: { points: { gt: 0 }, storeId },
+    where: { points: { gt: 0 }, customerStore: { storeId } },
     _sum: { points: true },
   });
   const totalPointsRedeemed = await prisma.pointsTransaction.aggregate({
-    where: { type: "REDEEMED", storeId },
+    where: { type: "REDEEMED", customerStore: { storeId } },
     _sum: { points: true },
   });
   const now = new Date();
@@ -284,17 +317,23 @@ export async function getStatisticsService(user, storeId) {
     where: { isActive: true, storeId, startDate: { lte: now }, endDate: { gte: now } },
   });
   const recentRedemptions = await prisma.loyaltyReward.findMany({
-    where: { redeemedAt: { not: null }, storeId },
+    where: { redeemedAt: { not: null }, customerStore: { storeId } },
     include: { customer: { select: { id: true, name: true } } },
     orderBy: { redeemedAt: "desc" },
     take: 10,
   });
-  const topCustomers = await prisma.customer.findMany({
-    where: { isActive: true, storeId },
+  const topCustomersStore = await prisma.customerStore.findMany({
+    where: { storeId, customer: { isActive: true } },
     orderBy: { loyaltyPoints: "desc" },
     take: 10,
-    select: { id: true, name: true, loyaltyPoints: true, loyaltyTier: true },
+    include: { customer: { select: { id: true, name: true } } },
   });
+  const topCustomers = topCustomersStore.map((cs) => ({
+    id: cs.customer.id,
+    name: cs.customer.name,
+    loyaltyPoints: cs.loyaltyPoints,
+    loyaltyTier: cs.loyaltyTier,
+  }));
   const tierDistribution = {};
   const allTiers = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
   allTiers.forEach((tier) => {
@@ -314,45 +353,61 @@ export async function getStatisticsService(user, storeId) {
 }
 
 export async function updateCustomerTierService(customerId, tier, storeId) {
-  return prisma.customer.update({
-    where: { id: customerId, storeId },
+  return prisma.customerStore.update({
+    where: { customerId_storeId: { customerId, storeId } },
     data: { loyaltyTier: tier },
   });
 }
 
 export async function getLoyaltyStatusService(customerId, storeId) {
   const customer = await prisma.customer.findUnique({
-    where: { id: customerId, storeId },
+    where: { id: customerId },
     include: {
-      pointsTransactions: { where: { storeId }, orderBy: { createdAt: "desc" }, take: 10 },
-      loyaltyRewards: { where: { storeId, OR: [{ redeemedAt: null }, { expiresAt: { gte: new Date() } }] } },
+      customerStores: {
+        where: { storeId },
+        select: { loyaltyPoints: true, loyaltyTier: true },
+      },
+      pointsTransactions: {
+        where: { customerStore: { storeId } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      },
+      loyaltyRewards: {
+        where: {
+          customerStore: { storeId },
+          OR: [{ redeemedAt: null }, { expiresAt: { gte: new Date() } }],
+        },
+      },
     },
   });
   if (!customer) return null;
+  const customerStore = customer.customerStores[0];
+  if (!customerStore) return null;
+
   const earnedPoints = await prisma.pointsTransaction.aggregate({
-    where: { customerId, storeId, points: { gt: 0 } },
+    where: { customerId, customerStore: { storeId }, points: { gt: 0 } },
     _sum: { points: true },
   });
   const lifetimePoints = earnedPoints._sum.points || 0;
   const tierConfig = await prisma.loyaltyTierConfig.findUnique({
-    where: { tier_storeId: { tier: customer.loyaltyTier, storeId } },
+    where: { tier: customerStore.loyaltyTier },
   });
   const currentTierConfig = tierConfig || {
-    tier: customer.loyaltyTier,
-    minimumPoints: TIER_MINIMUMS[customer.loyaltyTier] || 0,
-    pointsMultiplier: LOYALTY_TIERS[customer.loyaltyTier]?.multiplier || 1,
-    discountPercentage: LOYALTY_TIERS[customer.loyaltyTier]?.discount || 0,
-    birthdayBonus: LOYALTY_TIERS[customer.loyaltyTier]?.birthdayBonus || 0,
+    tier: customerStore.loyaltyTier,
+    minimumPoints: TIER_MINIMUMS[customerStore.loyaltyTier] || 0,
+    pointsMultiplier: LOYALTY_TIERS[customerStore.loyaltyTier]?.multiplier || 1,
+    discountPercentage: LOYALTY_TIERS[customerStore.loyaltyTier]?.discount || 0,
+    birthdayBonus: LOYALTY_TIERS[customerStore.loyaltyTier]?.birthdayBonus || 0,
   };
-  const currentIndex = TIER_ORDER.indexOf(customer.loyaltyTier);
+  const currentIndex = TIER_ORDER.indexOf(customerStore.loyaltyTier);
   const nextTier = currentIndex < TIER_ORDER.length - 1 ? TIER_ORDER[currentIndex + 1] : null;
   const nextTierConfigFromDb = nextTier
-    ? await prisma.loyaltyTierConfig.findUnique({ where: { tier_storeId: { tier: nextTier, storeId } } })
+    ? await prisma.loyaltyTierConfig.findUnique({ where: { tier: nextTier } })
     : null;
   const nextTierConfig = nextTierConfigFromDb || (nextTier ? LOYALTY_TIERS[nextTier] : null);
-  const currentTierMin = TIER_MINIMUMS[customer.loyaltyTier] || 0;
+  const currentTierMin = TIER_MINIMUMS[customerStore.loyaltyTier] || 0;
   const nextTierMin = nextTier ? TIER_MINIMUMS[nextTier] || 0 : currentTierMin;
-  const currentPoints = customer.loyaltyPoints;
+  const currentPoints = customerStore.loyaltyPoints;
   const pointsNeededInTier = nextTierMin - currentTierMin;
   const pointsStillNeeded = Math.max(0, nextTierMin - currentPoints);
   const pointsInCurrentTier = Math.max(0, currentPoints - currentTierMin);
@@ -363,23 +418,23 @@ export async function getLoyaltyStatusService(customerId, storeId) {
       isActive: true,
       startDate: { lte: now },
       endDate: { gte: now },
-      OR: [{ requiredTier: customer.loyaltyTier }, { requiredTier: "BRONZE" }],
+      OR: [{ requiredTier: customerStore.loyaltyTier }, { requiredTier: "BRONZE" }],
     },
   });
   return {
     customer: {
       id: customer.id,
       name: customer.name,
-      tier: customer.loyaltyTier,
-      points: customer.loyaltyPoints,
+      tier: customerStore.loyaltyTier,
+      points: customerStore.loyaltyPoints,
       dateOfBirth: customer.dateOfBirth,
     },
     points: {
-      current: customer.loyaltyPoints,
+      current: customerStore.loyaltyPoints,
       lifetime: lifetimePoints,
     },
     tier: {
-      current: customer.loyaltyTier,
+      current: customerStore.loyaltyTier,
       multiplier: currentTierConfig.pointsMultiplier,
       discountPercentage: currentTierConfig.discountPercentage,
       birthdayBonus: currentTierConfig.birthdayBonus,

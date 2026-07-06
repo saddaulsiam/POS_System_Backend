@@ -232,20 +232,21 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
       // --- Loyalty points calculation ---
       let pointsEarned = 0;
       let qualifiedTier = null;
+      let customerStore = null;
       if (customerId) {
-        const customer = await tx.customer.findFirst({
-          where: { id: customerId, storeId },
-          select: { loyaltyTier: true, loyaltyPoints: true },
+        customerStore = await tx.customerStore.findUnique({
+          where: { customerId_storeId: { customerId, storeId } },
+          select: { id: true, loyaltyTier: true, loyaltyPoints: true },
         });
-        if (customer) {
+        if (customerStore) {
           const settings = await tx.pOSSettings.findFirst({
             where: { storeId },
             select: { loyaltyPointsPerUnit: true },
           });
           const pointsPerUnit = settings?.loyaltyPointsPerUnit || 10;
-          const tierConfig = await tx.loyaltyTierConfig.findFirst({ where: { tier: customer.loyaltyTier } });
+          const tierConfig = await tx.loyaltyTierConfig.findFirst({ where: { tier: customerStore.loyaltyTier } });
           const defaultMultipliers = { BRONZE: 1.0, SILVER: 1.25, GOLD: 1.5, PLATINUM: 2.0 };
-          const multiplier = tierConfig?.pointsMultiplier || defaultMultipliers[customer.loyaltyTier] || 1.0;
+          const multiplier = tierConfig?.pointsMultiplier || defaultMultipliers[customerStore.loyaltyTier] || 1.0;
           const basePoints = Math.floor(finalAmount / pointsPerUnit);
           const bonusPoints = Math.floor(basePoints * (multiplier - 1));
           pointsEarned = basePoints + bonusPoints;
@@ -288,13 +289,14 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
         },
       });
       // --- Update customer points, tier, and create points transaction ---
-      if (customerId && pointsEarned > 0) {
-        await tx.customer.update({
-          where: { id: customerId, storeId },
+      if (customerId && pointsEarned > 0 && customerStore) {
+        await tx.customerStore.update({
+          where: { id: customerStore.id },
           data: { loyaltyPoints: { increment: pointsEarned } },
         });
         await tx.pointsTransaction.create({
           data: {
+            customerStoreId: customerStore.id,
             customerId,
             saleId: sale.id,
             type: "EARNED",
@@ -315,7 +317,7 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
           GOLD: { min: 1500 },
           PLATINUM: { min: 3000 },
         };
-        const customerTier = sale.customer?.loyaltyTier || "BRONZE";
+        const customerTier = customerStore.loyaltyTier || "BRONZE";
         const currentTierIndex = TIER_ORDER.indexOf(customerTier);
         qualifiedTier = (() => {
           if (lifetimePoints >= LOYALTY_TIERS.PLATINUM.min) return "PLATINUM";
@@ -325,14 +327,17 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
         })();
         const qualifiedTierIndex = TIER_ORDER.indexOf(qualifiedTier);
         if (qualifiedTierIndex > currentTierIndex) {
-          await tx.customer.update({ where: { id: customerId, storeId }, data: { loyaltyTier: qualifiedTier } });
+          await tx.customerStore.update({
+            where: { id: customerStore.id },
+            data: { loyaltyTier: qualifiedTier },
+          });
           await tx.pointsTransaction.create({
             data: {
+              customerStoreId: customerStore.id,
               customerId,
               type: "ADJUSTED",
               points: 0,
               description: `🎉 Tier upgraded from ${customerTier} to ${qualifiedTier}! You've earned ${lifetimePoints} lifetime points.`,
-              storeId,
             },
           });
         }
@@ -458,19 +463,25 @@ export const processReturn = async (id, body, user, storeId) => {
     const finalRefundAmount = Math.max(0, refundAmount - restockingFee);
     if (originalSale.pointsEarned && originalSale.pointsEarned > 0 && originalSale.customerId) {
       const pointsToDeduct = Math.floor(originalSale.pointsEarned * (refundAmount / originalSale.finalAmount));
-      await tx.pointsTransaction.create({
-        data: {
-          customerId: originalSale.customerId,
-          type: "ADJUSTED",
-          points: -pointsToDeduct,
-          description: `Points deducted for return of sale ${originalSale.receiptId}`,
-          saleId: originalSale.id,
-        },
+      const customerStore = await tx.customerStore.findUnique({
+        where: { customerId_storeId: { customerId: originalSale.customerId, storeId } },
       });
-      await tx.customer.update({
-        where: { id: originalSale.customerId },
-        data: { loyaltyPoints: { decrement: pointsToDeduct } },
-      });
+      if (customerStore) {
+        await tx.pointsTransaction.create({
+          data: {
+            customerStoreId: customerStore.id,
+            customerId: originalSale.customerId,
+            type: "ADJUSTED",
+            points: -pointsToDeduct,
+            description: `Points deducted for return of sale ${originalSale.receiptId}`,
+            saleId: originalSale.id,
+          },
+        });
+        await tx.customerStore.update({
+          where: { id: customerStore.id },
+          data: { loyaltyPoints: { decrement: pointsToDeduct } },
+        });
+      }
     }
     let refundPaymentMethod = refundMethod;
     if (refundMethod === "ORIGINAL_PAYMENT") {
@@ -723,49 +734,81 @@ export const voidSale = async (id, body, user) => {
         }
       }
     }
+    const storeId = sale.storeId;
+    const settings = await prisma.pOSSettings.findFirst({
+      where: { storeId },
+    });
+    const redemptionRate = settings?.pointsRedemptionRate || 100;
+    const pointsRedeemed = Math.round(sale.loyaltyDiscount * redemptionRate);
+
     if (sale.customerId && sale.pointsEarned > 0) {
-      const customer = await tx.customer.update({
-        where: { id: sale.customerId },
-        data: {
-          points: { decrement: sale.pointsEarned },
-          lifetimePoints: { decrement: sale.pointsEarned },
-        },
+      const customerStore = await tx.customerStore.findUnique({
+        where: { customerId_storeId: { customerId: sale.customerId, storeId } },
       });
-      const tierOrder = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
-      const calculateTier = (lifetimePoints) => {
-        if (lifetimePoints >= 3000) return "PLATINUM";
-        if (lifetimePoints >= 1500) return "GOLD";
-        if (lifetimePoints >= 500) return "SILVER";
-        return "BRONZE";
-      };
-      const newTier = calculateTier(customer.lifetimePoints);
-      if (newTier !== customer.tier) {
-        await tx.customer.update({ where: { id: sale.customerId }, data: { tier: newTier } });
+      if (customerStore) {
+        await tx.customerStore.update({
+          where: { id: customerStore.id },
+          data: { loyaltyPoints: { decrement: sale.pointsEarned } },
+        });
+        await tx.pointsTransaction.create({
+          data: {
+            customerStoreId: customerStore.id,
+            customerId: sale.customerId,
+            type: "DEDUCTION",
+            points: sale.pointsEarned,
+            description: `Reversed from voided sale #${sale.receiptId}`,
+            saleId: sale.id,
+          },
+        });
+
+        // Calculate lifetime points and tier
+        const earnedPointsSum = await tx.pointsTransaction.aggregate({
+          where: { customerId: sale.customerId, points: { gt: 0 } },
+          _sum: { points: true },
+        });
+        const lifetimePoints = earnedPointsSum._sum.points || 0;
+        const TIER_ORDER = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
+        const LOYALTY_TIERS = {
+          BRONZE: { min: 0 },
+          SILVER: { min: 500 },
+          GOLD: { min: 1500 },
+          PLATINUM: { min: 3000 },
+        };
+        const customerTier = customerStore.loyaltyTier || "BRONZE";
+        const newTier = (() => {
+          if (lifetimePoints >= LOYALTY_TIERS.PLATINUM.min) return "PLATINUM";
+          if (lifetimePoints >= LOYALTY_TIERS.GOLD.min) return "GOLD";
+          if (lifetimePoints >= LOYALTY_TIERS.SILVER.min) return "SILVER";
+          return "BRONZE";
+        })();
+        if (newTier !== customerTier) {
+          await tx.customerStore.update({
+            where: { id: customerStore.id },
+            data: { loyaltyTier: newTier },
+          });
+        }
       }
-      await tx.pointsTransaction.create({
-        data: {
-          customerId: sale.customerId,
-          type: "DEDUCTION",
-          points: sale.pointsEarned,
-          description: `Reversed from voided sale #${sale.receiptId}`,
-          saleId: sale.id,
-        },
-      });
     }
-    if (sale.customerId && sale.pointsRedeemed > 0) {
-      await tx.customer.update({
-        where: { id: sale.customerId },
-        data: { points: { increment: sale.pointsRedeemed } },
+    if (sale.customerId && pointsRedeemed > 0) {
+      const customerStore = await tx.customerStore.findUnique({
+        where: { customerId_storeId: { customerId: sale.customerId, storeId } },
       });
-      await tx.pointsTransaction.create({
-        data: {
-          customerId: sale.customerId,
-          type: "EARNED",
-          points: sale.pointsRedeemed,
-          description: `Refunded from voided sale #${sale.receiptId}`,
-          saleId: sale.id,
-        },
-      });
+      if (customerStore) {
+        await tx.customerStore.update({
+          where: { id: customerStore.id },
+          data: { loyaltyPoints: { increment: pointsRedeemed } },
+        });
+        await tx.pointsTransaction.create({
+          data: {
+            customerStoreId: customerStore.id,
+            customerId: sale.customerId,
+            type: "EARNED",
+            points: pointsRedeemed,
+            description: `Refunded from voided sale #${sale.receiptId}`,
+            saleId: sale.id,
+          },
+        });
+      }
     }
     await tx.auditLog.create({
       data: {

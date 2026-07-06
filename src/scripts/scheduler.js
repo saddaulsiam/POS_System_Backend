@@ -53,67 +53,76 @@ async function processBirthdayRewards() {
     // Process each birthday customer
     for (const customer of customers) {
       try {
-        // Check if birthday bonus already awarded today
-        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
-        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-
-        const existingBonus = await prisma.pointsTransaction.findFirst({
-          where: {
-            customerId: customer.id,
-            type: "BIRTHDAY_BONUS",
-            createdAt: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
-          },
+        const customerStores = await prisma.customerStore.findMany({
+          where: { customerId: customer.id },
         });
 
-        if (existingBonus) {
-          console.log(`  ⏭️  ${customer.name}: Already received birthday bonus today (skipping)`);
+        for (const customerStore of customerStores) {
+          // Check if birthday bonus already awarded today for this store
+          const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+          const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+
+          const existingBonus = await prisma.pointsTransaction.findFirst({
+            where: {
+              customerStoreId: customerStore.id,
+              type: "BIRTHDAY_BONUS",
+              createdAt: {
+                gte: startOfDay,
+                lte: endOfDay,
+              },
+            },
+          });
+
+          if (existingBonus) {
+            console.log(`  ⏭️  ${customer.name} (Store ${customerStore.storeId}): Already received birthday bonus today (skipping)`);
+            results.push({
+              customerId: customer.id,
+              storeId: customerStore.storeId,
+              name: customer.name,
+              tier: customerStore.loyaltyTier,
+              bonus: 0,
+              success: true,
+              skipped: true,
+              reason: "Already awarded today",
+            });
+            continue;
+          }
+
+          // Get tier-specific birthday bonus
+          const tierConfig = LOYALTY_TIERS[customerStore.loyaltyTier] || LOYALTY_TIERS.BRONZE;
+          const birthdayBonus = tierConfig.birthdayBonus;
+
+          // Award points and create transaction in a single database transaction
+          await prisma.$transaction(async (tx) => {
+            // Add birthday points to customer balance in this store
+            await tx.customerStore.update({
+              where: { id: customerStore.id },
+              data: { loyaltyPoints: { increment: birthdayBonus } },
+            });
+
+            // Create transaction record for audit trail
+            await tx.pointsTransaction.create({
+              data: {
+                customerStoreId: customerStore.id,
+                customerId: customer.id,
+                type: "BIRTHDAY_BONUS",
+                points: birthdayBonus,
+                description: `🎉 Happy Birthday ${customer.name}! ${customerStore.loyaltyTier} tier birthday bonus`,
+              },
+            });
+          });
+
+          console.log(`  🎁 ${customer.name} (Store ${customerStore.storeId}): +${birthdayBonus} points (${customerStore.loyaltyTier})`);
+
           results.push({
             customerId: customer.id,
+            storeId: customerStore.storeId,
             name: customer.name,
-            tier: customer.loyaltyTier,
-            bonus: 0,
+            tier: customerStore.loyaltyTier,
+            bonus: birthdayBonus,
             success: true,
-            skipped: true,
-            reason: "Already awarded today",
           });
-          continue;
         }
-
-        // Get tier-specific birthday bonus
-        const tierConfig = LOYALTY_TIERS[customer.loyaltyTier] || LOYALTY_TIERS.BRONZE;
-        const birthdayBonus = tierConfig.birthdayBonus;
-
-        // Award points and create transaction in a single database transaction
-        await prisma.$transaction(async (tx) => {
-          // Add birthday points to customer balance
-          await tx.customer.update({
-            where: { id: customer.id },
-            data: { loyaltyPoints: { increment: birthdayBonus } },
-          });
-
-          // Create transaction record for audit trail
-          await tx.pointsTransaction.create({
-            data: {
-              customerId: customer.id,
-              type: "BIRTHDAY_BONUS",
-              points: birthdayBonus,
-              description: `🎉 Happy Birthday ${customer.name}! ${customer.loyaltyTier} tier birthday bonus`,
-            },
-          });
-        });
-
-        console.log(`  🎁 ${customer.name} (${customer.loyaltyTier}): +${birthdayBonus} points`);
-
-        results.push({
-          customerId: customer.id,
-          name: customer.name,
-          tier: customer.loyaltyTier,
-          bonus: birthdayBonus,
-          success: true,
-        });
       } catch (error) {
         console.error(`  ❌ Failed to award bonus to ${customer.name}:`, error.message);
         results.push({
