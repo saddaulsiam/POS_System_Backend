@@ -273,3 +273,15 @@ export async function logoutService(userId) {
 
   return { message: "Logged out successfully" };
 }
+
+export async function checkUsernameAvailabilityService(username) {
+  return prisma.employee.findUnique({
+    where: { username: username.trim() },
+  });
+}
+
+export async function checkEmailAvailabilityService(email) {
+  return prisma.employee.findUnique({
+    where: { email: email.trim().toLowerCase() },
+  });
+}

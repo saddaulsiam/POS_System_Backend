@@ -7,6 +7,8 @@ import {
   logoutService,
   refreshTokenService,
   registerStoreService,
+  checkUsernameAvailabilityService,
+  checkEmailAvailabilityService,
 } from "./authService.js";
 
 // Register new store with owner account
@@ -147,5 +149,31 @@ export async function logout(req, res) {
   } catch (error) {
     console.error("Logout error:", error);
     sendError(res, 500, "Failed to logout");
+  }
+}
+
+export async function checkUsernameAvailability(req, res) {
+  try {
+    const { username } = req.query;
+    if (!username) {
+      return sendError(res, 400, "Username is required");
+    }
+    const existing = await checkUsernameAvailabilityService(username);
+    sendSuccess(res, { available: !existing });
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to check username availability");
+  }
+}
+
+export async function checkEmailAvailability(req, res) {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return sendError(res, 400, "Email is required");
+    }
+    const existing = await checkEmailAvailabilityService(email);
+    sendSuccess(res, { available: !existing });
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to check email availability");
   }
 }

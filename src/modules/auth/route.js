@@ -5,6 +5,12 @@ import * as authController from "./authController.js";
 
 const router = express.Router();
 
+// Check username availability (public for registration page)
+router.get("/check-username", authController.checkUsernameAvailability);
+
+// Check email availability (public for registration page)
+router.get("/check-email", authController.checkEmailAvailability);
+
 // Register new store with owner
 router.post("/register", authValidator.registerStore, authController.registerStore);
 
