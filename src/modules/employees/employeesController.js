@@ -109,3 +109,18 @@ export async function uploadEmployeePhoto(req, res) {
     sendError(res, 500, error.message || "Failed to upload photo");
   }
 }
+
+export async function checkUsernameAvailability(req, res) {
+  try {
+    const { username } = req.query;
+    if (!username) {
+      return sendError(res, 400, "Username is required");
+    }
+    const existing = await prisma.employee.findUnique({
+      where: { username: username.trim() },
+    });
+    sendSuccess(res, { available: !existing });
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to check username availability");
+  }
+}

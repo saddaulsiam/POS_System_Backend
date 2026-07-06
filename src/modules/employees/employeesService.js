@@ -104,40 +104,48 @@ export async function getEmployeeByIdService(id, storeId) {
 export async function createEmployeeService(data, storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const { name, username, pinCode, role, email, phone, photo, joinedDate, salary, contractDetails, notes } = data;
-  const existing = await prisma.employee.findFirst({ where: { username: username.trim(), storeId } });
-  if (existing) throw new Error("Username already exists in this store");
+  const existing = await prisma.employee.findUnique({ where: { username: username.trim() } });
+  if (existing) throw new Error("Username already taken. Please choose a different username.");
   const hashedPin = await hashPassword(pinCode);
-  return prisma.employee.create({
-    data: {
-      name: name.trim(),
-      username: username.trim(),
-      pinCode: hashedPin,
-      role,
-      email,
-      phone,
-      photo,
-      joinedDate: joinedDate ? new Date(joinedDate) : undefined,
-      salary,
-      contractDetails,
-      notes,
-      storeId,
-    },
-    select: {
-      id: true,
-      name: true,
-      username: true,
-      email: true,
-      phone: true,
-      photo: true,
-      joinedDate: true,
-      salary: true,
-      contractDetails: true,
-      notes: true,
-      role: true,
-      isActive: true,
-      createdAt: true,
-    },
-  });
+  try {
+    return await prisma.employee.create({
+      data: {
+        name: name.trim(),
+        username: username.trim(),
+        pinCode: hashedPin,
+        role,
+        email,
+        phone,
+        photo,
+        joinedDate: joinedDate ? new Date(joinedDate) : undefined,
+        salary,
+        contractDetails,
+        notes,
+        storeId,
+      },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        email: true,
+        phone: true,
+        photo: true,
+        joinedDate: true,
+        salary: true,
+        contractDetails: true,
+        notes: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+  } catch (error) {
+    if (error.code === "P2002") {
+      const field = error.meta?.target?.[0] || "field";
+      throw new Error(`This ${field} is already registered`);
+    }
+    throw error;
+  }
 }
 
 export async function updateEmployeeService(id, data, user, storeId) {
@@ -146,10 +154,12 @@ export async function updateEmployeeService(id, data, user, storeId) {
   const existingEmployee = await prisma.employee.findFirst({ where: { id: employeeId, storeId } });
   if (!existingEmployee) throw new Error("Employee not found in this store");
   if (data.username) {
-    const usernameConflict = await prisma.employee.findFirst({
-      where: { username: data.username.trim(), id: { not: employeeId }, storeId },
+    const usernameConflict = await prisma.employee.findUnique({
+      where: { username: data.username.trim() },
     });
-    if (usernameConflict) throw new Error("Username already taken by another employee in this store");
+    if (usernameConflict && usernameConflict.id !== employeeId) {
+      throw new Error("Username already taken. Please choose a different username.");
+    }
   }
   if (user.id === employeeId && data.isActive === false) {
     throw new Error("Cannot deactivate your own account");
@@ -161,26 +171,34 @@ export async function updateEmployeeService(id, data, user, storeId) {
     updateData.pinCode = await hashPassword(updateData.pinCode);
   }
   if (updateData.joinedDate) updateData.joinedDate = new Date(updateData.joinedDate);
-  return prisma.employee.update({
-    where: { id: employeeId },
-    data: updateData,
-    select: {
-      id: true,
-      name: true,
-      username: true,
-      email: true,
-      phone: true,
-      photo: true,
-      joinedDate: true,
-      salary: true,
-      contractDetails: true,
-      notes: true,
-      role: true,
-      isActive: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
+  try {
+    return await prisma.employee.update({
+      where: { id: employeeId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        email: true,
+        phone: true,
+        photo: true,
+        joinedDate: true,
+        salary: true,
+        contractDetails: true,
+        notes: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  } catch (error) {
+    if (error.code === "P2002") {
+      const field = error.meta?.target?.[0] || "field";
+      throw new Error(`This ${field} is already registered`);
+    }
+    throw error;
+  }
 }
 
 export async function resetEmployeePinService(id, newPin) {

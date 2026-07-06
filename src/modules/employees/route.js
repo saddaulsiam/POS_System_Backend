@@ -13,15 +13,21 @@ import {
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+router.get(
+  "/check-username",
+  [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")],
+  employeesController.checkUsernameAvailability,
+);
+
 router
   .route("/")
   .post(
     [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...createEmployeeValidator],
-    employeesController.createEmployee
+    employeesController.createEmployee,
   )
   .get(
     [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...getAllEmployeesValidator],
-    employeesController.getAllEmployees
+    employeesController.getAllEmployees,
   );
 
 router
@@ -29,22 +35,22 @@ router
   .get([authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")], employeesController.getEmployeeById)
   .put(
     [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...updateEmployeeValidator],
-    employeesController.updateEmployee
+    employeesController.updateEmployee,
   )
-  .delete([authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")], employeesController.deactivateEmployee);
+  .delete([authenticateToken, authorizeRoles("OWNER", "ADMIN")], employeesController.deactivateEmployee);
 
 // Reset employee PIN
 router.put(
   "/:id/reset-pin",
   [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...resetPinValidator],
-  employeesController.resetEmployeePin
+  employeesController.resetEmployeePin,
 );
 
 // Get employee performance report
 router.get(
   "/:id/performance",
   [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...getEmployeePerformanceValidator],
-  employeesController.getEmployeePerformance
+  employeesController.getEmployeePerformance,
 );
 
 // Upload employee photo
@@ -53,7 +59,7 @@ router.post(
   authenticateToken,
   authorizeRoles("OWNER", "ADMIN", "MANAGER"),
   upload.single("photo"),
-  employeesController.uploadEmployeePhoto
+  employeesController.uploadEmployeePhoto,
 );
 
 export const EmployeeRoutes = router;
