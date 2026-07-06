@@ -49,6 +49,14 @@ export async function getSubscriptionStatus(storeId) {
     showWarning = daysRemaining <= 3 && daysRemaining > 0;
   }
 
+  // Calculate Grace Period
+  const expiredDate = subscription.plan ? new Date(subscription.subscriptionEndDate) : new Date(subscription.trialEndDate);
+  const diffTime = now - expiredDate;
+  const daysPast = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  const isGracePeriod = subscription.status === "EXPIRED" && daysPast >= 0 && daysPast <= (subscription.gracePeriodDays || 0);
+  const graceDaysRemaining = isGracePeriod ? (subscription.gracePeriodDays - daysPast) : 0;
+
   return {
     subscription: {
       status: subscription.status,
@@ -59,8 +67,11 @@ export async function getSubscriptionStatus(storeId) {
       daysRemaining: subscription.status === "EXPIRED" ? 0 : daysRemaining,
       showWarning,
       warningShown: subscription.warningShown,
-      isExpired: subscription.status === "EXPIRED",
-      isActive: subscription.status === "ACTIVE" || (subscription.status === "TRIAL" && daysRemaining > 0),
+      isExpired: subscription.status === "EXPIRED" && !isGracePeriod,
+      isActive: subscription.status === "ACTIVE" || (subscription.status === "TRIAL" && daysRemaining > 0) || isGracePeriod,
+      isGracePeriod,
+      graceDaysRemaining,
+      gracePeriodDays: subscription.gracePeriodDays || 0,
     },
   };
 }

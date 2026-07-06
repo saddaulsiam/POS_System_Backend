@@ -225,8 +225,42 @@ export async function getSubscriptionsService(page = 1, limit = 10, status = "")
     },
   });
 
+  // Calculate SaaS Summary Statistics
+  const totalPaid = await prisma.subscription.count({ where: { status: "ACTIVE" } });
+  const totalTrial = await prisma.subscription.count({ where: { status: "TRIAL" } });
+  const totalExpired = await prisma.subscription.count({ where: { status: "EXPIRED" } });
+  
+  const threeDaysFromNow = new Date();
+  threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+  const totalExpiringSoon = await prisma.subscription.count({
+    where: {
+      OR: [
+        {
+          status: "ACTIVE",
+          subscriptionEndDate: {
+            gte: new Date(),
+            lte: threeDaysFromNow,
+          },
+        },
+        {
+          status: "TRIAL",
+          trialEndDate: {
+            gte: new Date(),
+            lte: threeDaysFromNow,
+          },
+        },
+      ],
+    },
+  });
+
   return {
     data: subscriptions,
+    summary: {
+      totalPaid,
+      totalTrial,
+      totalExpired,
+      totalExpiringSoon,
+    },
     pagination: {
       page,
       limit,
@@ -285,7 +319,7 @@ export async function resetStoreOwnerPinService(storeId, newPin) {
   return { message: "Store owner PIN reset successfully" };
 }
 
-export async function updateStoreSubscriptionService(storeId, { status, plan, endDate }) {
+export async function updateStoreSubscriptionService(storeId, { status, plan, endDate, gracePeriodDays }) {
   const subscription = await prisma.subscription.findUnique({
     where: { storeId },
   });
@@ -303,6 +337,10 @@ export async function updateStoreSubscriptionService(storeId, { status, plan, en
     updateData.subscriptionEndDate = new Date(endDate);
   } else if (endDate === null) {
     updateData.subscriptionEndDate = null;
+  }
+
+  if (typeof gracePeriodDays === "number") {
+    updateData.gracePeriodDays = gracePeriodDays;
   }
 
   const updated = await prisma.subscription.update({
@@ -382,4 +420,42 @@ export async function deleteStoreService(storeId) {
   });
 
   return { message: "Store and all associated data purged successfully" };
+}
+
+export async function extendSubscriptionService(id, days) {
+  const sub = await prisma.subscription.findUnique({
+    where: { id },
+  });
+
+  if (!sub) {
+    throw new Error("Subscription record not found");
+  }
+
+  let updateData = {};
+
+  if (sub.status === "TRIAL") {
+    const currentEnd = new Date(sub.trialEndDate);
+    const baseDate = currentEnd > new Date() ? currentEnd : new Date();
+    baseDate.setDate(baseDate.getDate() + days);
+    updateData = {
+      trialEndDate: baseDate,
+      status: "TRIAL", // Keep trial
+    };
+  } else {
+    // ACTIVE, EXPIRED, CANCELLED
+    const currentEnd = sub.subscriptionEndDate ? new Date(sub.subscriptionEndDate) : new Date();
+    const baseDate = currentEnd > new Date() ? currentEnd : new Date();
+    baseDate.setDate(baseDate.getDate() + days);
+    updateData = {
+      subscriptionEndDate: baseDate,
+      status: "ACTIVE", // Force status back to active
+    };
+  }
+
+  const updated = await prisma.subscription.update({
+    where: { id },
+    data: updateData,
+  });
+
+  return { message: `Subscription extended by ${days} days successfully`, subscription: updated };
 }

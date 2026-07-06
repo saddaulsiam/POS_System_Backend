@@ -9,6 +9,7 @@ import {
   updateStoreSubscriptionService,
   impersonateStoreService,
   deleteStoreService,
+  extendSubscriptionService,
 } from "./adminService.js";
 
 export async function getAdminStats(req, res) {
@@ -97,7 +98,7 @@ export async function resetStoreOwnerPin(req, res) {
 export async function updateStoreSubscription(req, res) {
   try {
     const storeId = parseInt(req.params.id);
-    const { status, plan, endDate } = req.body;
+    const { status, plan, endDate, gracePeriodDays } = req.body;
 
     if (isNaN(storeId)) {
       return sendError(res, 400, "Invalid store ID");
@@ -106,7 +107,7 @@ export async function updateStoreSubscription(req, res) {
       return sendError(res, 400, "Subscription status and plan are required");
     }
 
-    const result = await updateStoreSubscriptionService(storeId, { status, plan, endDate });
+    const result = await updateStoreSubscriptionService(storeId, { status, plan, endDate, gracePeriodDays });
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to update subscription");
@@ -136,5 +137,22 @@ export async function deleteStore(req, res) {
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to delete store");
+  }
+}
+
+export async function extendSubscription(req, res) {
+  try {
+    const subscriptionId = parseInt(req.params.id);
+    const { days } = req.body;
+    if (isNaN(subscriptionId)) {
+      return sendError(res, 400, "Invalid subscription ID");
+    }
+    if (typeof days !== "number" || days <= 0) {
+      return sendError(res, 400, "Invalid duration days parameter");
+    }
+    const result = await extendSubscriptionService(subscriptionId, days);
+    sendSuccess(res, result);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to extend subscription");
   }
 }

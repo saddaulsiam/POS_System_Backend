@@ -21,6 +21,7 @@ router.delete("/stores/:id", adminController.deleteStore);
 
 // Subscriptions & billing routes
 router.get("/subscriptions", adminController.getSubscriptions);
+router.post("/subscriptions/:id/extend", adminController.extendSubscription);
 router.get("/payments", adminController.getPayments);
 
 export const AdminRoutes = router;
