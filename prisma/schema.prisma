@@ -63,7 +63,7 @@ model Subscription {
   subscriptionEndDate   DateTime?
   plan                  String? // MONTHLY, YEARLY, LIFETIME
   paymentMethod         String?
-  gracePeriodDays       Int       @default(0)
+  gracePeriodDays       Int       @default(3)
   lastPaymentDate       DateTime?
   warningShown          Boolean   @default(false)
   createdAt             DateTime  @default(now())
