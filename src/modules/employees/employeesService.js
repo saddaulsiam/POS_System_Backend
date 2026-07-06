@@ -290,3 +290,9 @@ export async function uploadEmployeePhotoService(id, fileBuffer) {
   });
   return url;
 }
+
+export async function checkUsernameAvailabilityService(username) {
+  return prisma.employee.findUnique({
+    where: { username: username.trim() },
+  });
+}

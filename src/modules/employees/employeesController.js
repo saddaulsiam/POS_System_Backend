@@ -9,6 +9,7 @@ import {
   resetEmployeePinService,
   updateEmployeeService,
   uploadEmployeePhotoService,
+  checkUsernameAvailabilityService,
 } from "./employeesService.js";
 
 export async function getAllEmployees(req, res) {
@@ -116,9 +117,7 @@ export async function checkUsernameAvailability(req, res) {
     if (!username) {
       return sendError(res, 400, "Username is required");
     }
-    const existing = await prisma.employee.findUnique({
-      where: { username: username.trim() },
-    });
+    const existing = await checkUsernameAvailabilityService(username);
     sendSuccess(res, { available: !existing });
   } catch (error) {
     sendError(res, 500, error.message || "Failed to check username availability");
