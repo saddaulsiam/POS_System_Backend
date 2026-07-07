@@ -203,6 +203,9 @@ async function getProductBarcode(req, res) {
     const { id } = req.params;
     const storeId = req.user.storeId;
     const result = await getProductBarcodeService(id, storeId);
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     res.header("Content-Type", "image/png");
     res.send(result.image);
   } catch (error) {
