@@ -38,4 +38,6 @@ router.get(
 
 router.get("/lookup/:identifier", authenticateToken, productVariantsController.lookupVariant);
 
+router.get("/:id/barcode", authenticateToken, productVariantsController.getVariantBarcode);
+
 export const ProductVariantRoutes = router;

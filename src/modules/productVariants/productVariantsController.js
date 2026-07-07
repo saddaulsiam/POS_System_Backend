@@ -116,3 +116,18 @@ export const lookupVariant = async (req, res) => {
     sendError(res, 500, "Failed to lookup variant");
   }
 };
+
+export const getVariantBarcode = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const storeId = req.user.storeId;
+    const result = await productVariantsService.getVariantBarcodeService(parseInt(id), storeId);
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.header("Content-Type", "image/png");
+    res.send(result.image);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to generate barcode");
+  }
+};

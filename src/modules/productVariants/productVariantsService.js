@@ -1,4 +1,5 @@
 import prisma from "../../prisma.js";
+import bwipjs from "bwip-js";
 import { checkAndCreateAlerts } from "../notifications/notificationService.js";
 
 export const getVariantById = async (id, storeId) => {
@@ -181,4 +182,28 @@ export const lookupVariant = async (identifier, storeId) => {
       },
     },
   });
+};
+
+export const getVariantBarcodeService = async (id, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  const variant = await prisma.productVariant.findFirst({
+    where: {
+      id,
+      product: { storeId },
+    },
+    include: { product: true }
+  });
+  if (!variant) throw new Error("Variant not found in this store");
+  
+  const barcodeText = variant.barcode || variant.sku || variant.product.barcode || variant.product.sku || String(variant.product.id);
+  
+  // Generate barcode image as PNG buffer
+  const png = await bwipjs.toBuffer({
+    bcid: "code128",
+    text: barcodeText,
+    scale: 3,
+    height: 10,
+    includetext: true,
+  });
+  return { barcode: barcodeText, image: png };
 };
