@@ -10,6 +10,13 @@ import {
   impersonateStoreService,
   deleteStoreService,
   extendSubscriptionService,
+  getSystemSettingsService,
+  updateSystemSettingsService,
+  getPublicSettingsService,
+  logPlatformAction,
+  broadcastAnnouncementsService,
+  sendRenewalReminderService,
+  testSmtpConnectionService,
 } from "./adminService.js";
 
 export async function getAdminStats(req, res) {
@@ -162,5 +169,95 @@ export async function extendSubscription(req, res) {
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to extend subscription");
+  }
+}
+
+export async function getSystemSettings(req, res) {
+  try {
+    const settings = await getSystemSettingsService();
+    sendSuccess(res, settings);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to retrieve system settings");
+  }
+}
+
+export async function updateSystemSettings(req, res) {
+  try {
+    const settings = await updateSystemSettingsService(req.body);
+    await logPlatformAction(
+      "SETTINGS_UPDATE",
+      `System settings updated: ${req.user?.username || "Admin"}`,
+      req.ip,
+      req.headers["user-agent"] || "",
+      req.user?.username,
+    );
+    sendSuccess(res, settings);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to update system settings");
+  }
+}
+
+export async function getPublicSettings(req, res) {
+  try {
+    const settings = await getPublicSettingsService();
+    sendSuccess(res, settings);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to retrieve public settings");
+  }
+}
+
+export async function broadcastAnnouncements(req, res) {
+  try {
+    const { subject, body, targetAudience } = req.body;
+    if (!subject || !body || !targetAudience) {
+      return sendError(res, 400, "Subject, body, and targetAudience are required");
+    }
+
+    const result = await broadcastAnnouncementsService({ subject, body, targetAudience });
+
+    await logPlatformAction(
+      "BROADCAST_SEND",
+      `Broadcast sent: ${targetAudience}. Sent: ${result.successCount}, Failed: ${result.failCount}`,
+      req.ip,
+      req.headers["user-agent"] || "",
+      req.user?.username,
+    );
+
+    sendSuccess(res, result);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to broadcast announcements");
+  }
+}
+
+export async function sendRenewalReminder(req, res) {
+  try {
+    const subscriptionId = parseInt(req.params.id);
+    if (isNaN(subscriptionId)) {
+      return sendError(res, 400, "Invalid subscription ID");
+    }
+
+    const result = await sendRenewalReminderService(subscriptionId);
+
+    await logPlatformAction(
+      "REMINDER_SEND",
+      `Manual renewal reminder sent for subscription ID ${subscriptionId}`,
+      req.ip,
+      req.headers["user-agent"] || "",
+      req.user?.username,
+    );
+
+    sendSuccess(res, result);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to send renewal reminder");
+  }
+}
+
+export async function testSmtpConnection(req, res) {
+  try {
+    const { smtpHost, smtpPort, smtpUser, smtpPass } = req.body;
+    const result = await testSmtpConnectionService({ smtpHost, smtpPort, smtpUser, smtpPass });
+    sendSuccess(res, result);
+  } catch (error) {
+    sendError(res, 400, error.message || "SMTP connection check failed");
   }
 }

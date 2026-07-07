@@ -39,7 +39,7 @@ router
     authenticateToken,
     authorizeRoles("OWNER", "ADMIN", "MANAGER"),
     uploadMemory.single("image"),
-    uploadProductImage
+    uploadProductImage,
   )
   .delete(authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), deleteProductImage);
 
@@ -47,11 +47,11 @@ router
 router.post(
   "/:id/barcode/regenerate",
   [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")],
-  regenerateProductBarcode
+  regenerateProductBarcode,
 );
 
 // Get product barcode
-router.get("/:id/barcode", getProductBarcode);
+router.get("/:id/barcode", authenticateToken, getProductBarcode);
 
 // Export products as CSV
 router.get("/export", [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")], exportProductsCSV);
@@ -60,7 +60,7 @@ router.get("/export", [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANA
 router.post(
   "/import",
   [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), csvUpload.single("file")],
-  importProductsCSV
+  importProductsCSV,
 );
 
 // Export products as Excel
@@ -70,7 +70,7 @@ router.get("/export/excel", [authenticateToken, authorizeRoles("OWNER", "ADMIN",
 router.post(
   "/import/excel",
   [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), csvUpload.single("file")],
-  importProductsExcel
+  importProductsExcel,
 );
 
 export const ProductRoutes = router;

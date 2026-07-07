@@ -11,7 +11,17 @@ const is_live = process.env.SSLCOMMERZ_IS_LIVE === "true";
  */
 export async function initiatePayment(paymentData) {
   try {
-    const { storeId, userId, plan, amount, customerName, customerEmail, customerPhone, platform = "web" } = paymentData;
+    const {
+      storeId,
+      userId,
+      plan,
+      amount,
+      customerName,
+      customerEmail,
+      customerPhone,
+      couponCode,
+      platform = "web",
+    } = paymentData;
 
     // Validate required data
     if (!storeId || !userId) {
@@ -26,10 +36,50 @@ export async function initiatePayment(paymentData) {
       throw new Error("Customer name, email, and phone number are required for payment");
     }
 
-    // Validate amount
+    // Validate amount against dynamic pricing in system settings
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       throw new Error("Invalid payment amount. Amount must be greater than zero");
+    }
+
+    const systemSettings = await prisma.systemSettings.findUnique({
+      where: { id: 1 },
+    });
+
+    if (!systemSettings) {
+      throw new Error("System configurations not loaded. Please contact administrator.");
+    }
+
+    let baseAmount = 0;
+    if (plan === "MONTHLY") {
+      baseAmount = systemSettings.monthlyPrice;
+    } else if (plan === "YEARLY") {
+      baseAmount = systemSettings.yearlyPrice * 12;
+    } else {
+      throw new Error("Invalid subscription plan selection.");
+    }
+
+    // Validate coupon if provided
+    let discountAmount = 0;
+    let promoCodeName = null;
+
+    if (couponCode) {
+      const { validatePromoCodeService } = await import("../promo/promoService.js");
+      try {
+        const promoResult = await validatePromoCodeService({ code: couponCode, plan, storeId });
+        discountAmount = promoResult.discountAmount;
+        promoCodeName = promoResult.code;
+      } catch (couponErr) {
+        throw new Error(`Coupon Code Error: ${couponErr.message}`);
+      }
+    }
+
+    const expectedAmount = Math.max(0, baseAmount - discountAmount);
+
+    if (Math.abs(parsedAmount - expectedAmount) > 0.01) {
+      throw new Error(
+        `Payment verification failed: Amount mismatch. Expected $${expectedAmount} (Base: $${baseAmount}, Discount: $${discountAmount}) for ${plan} plan.`,
+      );
     }
 
     // Create transaction ID
@@ -42,6 +92,8 @@ export async function initiatePayment(paymentData) {
         transactionId,
         plan,
         amount: parsedAmount,
+        discountAmount,
+        promoCode: promoCodeName,
         status: "PENDING",
         paymentMethod: "SSL_COMMERZ",
         customerName,
@@ -255,6 +307,19 @@ export async function handlePaymentSuccess(paymentData) {
       },
     });
 
+    // Increment promo code usage count if coupon was used
+    if (updatedPayment.promoCode) {
+      try {
+        await prisma.promoCode.update({
+          where: { code: updatedPayment.promoCode },
+          data: { usedCount: { increment: 1 } },
+        });
+        console.log(`🎟️ Incremented usedCount for promo code: ${updatedPayment.promoCode}`);
+      } catch (promoErr) {
+        console.error("❌ Failed to increment promo code usedCount:", promoErr.message);
+      }
+    }
+
     // Activate subscription
     try {
       const subscriptionService = await import("../subscription/subscriptionService.js");
@@ -266,9 +331,64 @@ export async function handlePaymentSuccess(paymentData) {
       console.error("Subscription activation error:", subError);
       // Payment succeeded but subscription activation failed
       throw new Error(
-        `Payment successful but subscription activation failed: ${subError.message}. Please contact support`
+        `Payment successful but subscription activation failed: ${subError.message}. Please contact support`,
       );
     }
+
+    // Fetch store details to include in invoice
+    const store = await prisma.store.findUnique({
+      where: { id: payment.storeId },
+    });
+
+    // Asynchronously generate and send invoice email (non-blocking)
+    (async () => {
+      try {
+        const { generateInvoicePdf } = await import("../../utils/invoiceGenerator.js");
+        const { sendEmail } = await import("../../utils/mailer.js");
+
+        if (store) {
+          const pdfBuffer = await generateInvoicePdf(updatedPayment, store);
+          await sendEmail({
+            to: updatedPayment.customerEmail,
+            subject: `Payment Invoice - ${store.name}`,
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <h2 style="color: #4f46e5; margin-bottom: 20px;">Thank You for Your Payment!</h2>
+                <p>Hello <strong>${updatedPayment.customerName}</strong>,</p>
+                <p>Your subscription payment for <strong>${store.name}</strong> was processed successfully. Your Smart POS subscription is now active.</p>
+                <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 5px 0; color: #4b5563;">Transaction ID:</td>
+                      <td style="padding: 5px 0; text-align: right; font-weight: bold;">${updatedPayment.transactionId}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 5px 0; color: #4b5563;">Plan:</td>
+                      <td style="padding: 5px 0; text-align: right; font-weight: bold;">${updatedPayment.plan}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 5px 0; color: #4b5563;">Amount:</td>
+                      <td style="padding: 5px 0; text-align: right; font-weight: bold; color: #111827;">$${updatedPayment.amount.toFixed(2)}</td>
+                    </tr>
+                  </table>
+                </div>
+                <p>We have attached the official PDF invoice receipt to this email for your records.</p>
+                <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+                <p style="font-size: 12px; color: #9ca3af; text-align: center;">Smart POS SaaS Inc. &bull; Dhaka, Bangladesh &bull; support@pos-platform.com</p>
+              </div>
+            `,
+            attachments: [
+              {
+                filename: `Invoice_${updatedPayment.transactionId}.pdf`,
+                content: pdfBuffer,
+              },
+            ],
+          });
+        }
+      } catch (emailErr) {
+        console.error("❌ Failed to automatically send PDF invoice email:", emailErr);
+      }
+    })();
 
     return {
       success: true,

@@ -30,8 +30,8 @@ const authenticateToken = async (req, res, next) => {
     if (!employee || !employee.isActive) {
       return res.status(401).json({ error: "Invalid or inactive user" });
     }
-    console.log("[AUTH] employee:", employee);
-    console.log("[AUTH] storeId:", employee.storeId);
+    // console.log("[AUTH] employee:", employee);
+    // console.log("[AUTH] storeId:", employee.storeId);
     if ((employee.storeId === null || employee.storeId === undefined) && employee.role !== "SUPER_ADMIN") {
       return res.status(403).json({
         error: "Access denied: Your account is not assigned to any store. Please contact your administrator.",

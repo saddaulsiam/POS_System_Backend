@@ -74,7 +74,9 @@ async function processBirthdayRewards() {
           });
 
           if (existingBonus) {
-            console.log(`  ⏭️  ${customer.name} (Store ${customerStore.storeId}): Already received birthday bonus today (skipping)`);
+            console.log(
+              `  ⏭️  ${customer.name} (Store ${customerStore.storeId}): Already received birthday bonus today (skipping)`,
+            );
             results.push({
               customerId: customer.id,
               storeId: customerStore.storeId,
@@ -112,7 +114,9 @@ async function processBirthdayRewards() {
             });
           });
 
-          console.log(`  🎁 ${customer.name} (Store ${customerStore.storeId}): +${birthdayBonus} points (${customerStore.loyaltyTier})`);
+          console.log(
+            `  🎁 ${customer.name} (Store ${customerStore.storeId}): +${birthdayBonus} points (${customerStore.loyaltyTier})`,
+          );
 
           results.push({
             customerId: customer.id,
@@ -195,11 +199,27 @@ function startScheduler() {
     }
   });
 
+  // Schedule 3: Subscription Renewal Warnings Check - Run every day at 10:00 AM
+  cron.schedule("0 10 * * *", async () => {
+    console.log("\n📅 ==========================================");
+    console.log("   Scheduled Subscription Renewal Reminders Check");
+    console.log("   Time:", new Date().toLocaleString());
+    console.log("==========================================");
+
+    try {
+      await autoSendExpiringReminders();
+    } catch (error) {
+      console.error("Scheduled renewal warnings check failed:", error);
+    }
+  });
+
   console.log("✅ Automated scheduler is running");
   console.log("📆 Schedule 1: Birthday rewards - Daily at 9:00 AM");
   console.log("📆 Schedule 2: Subscription expiration - Daily at midnight");
+  console.log("📆 Schedule 3: Renewal warning reminders - Daily at 10:00 AM");
   console.log("🎂 Automatically checks for birthdays and awards bonuses");
   console.log("💳 Automatically marks expired subscriptions");
+  console.log("✉️  Automatically sends renewal reminders 3 days before expiry");
 
   // Optional: Run once immediately on startup (for testing)
   // Uncomment the next lines to test immediately when server starts:
@@ -268,6 +288,81 @@ async function checkExpiredSubscriptions() {
 }
 
 /**
+ * Automatically send renewal reminder emails to owners whose subscriptions expire in exactly 3 days.
+ */
+async function autoSendExpiringReminders() {
+  try {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + 3);
+
+    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
+    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59);
+
+    console.log(
+      `\n🔍 Checking for subscriptions expiring between ${startOfDay.toISOString()} and ${endOfDay.toISOString()}...`,
+    );
+
+    const subscriptions = await prisma.subscription.findMany({
+      where: {
+        OR: [
+          {
+            status: "ACTIVE",
+            subscriptionEndDate: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+          {
+            status: "TRIAL",
+            trialEndDate: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        ],
+      },
+      include: {
+        store: {
+          include: {
+            owner: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (subscriptions.length === 0) {
+      console.log("✅ No subscriptions expiring in 3 days - all clear!");
+      return { success: true, count: 0 };
+    }
+
+    console.log(`✉️ Sending renewal reminders to ${subscriptions.length} expiring store(s)...`);
+
+    const { sendRenewalReminderService } = await import("../modules/admin/adminService.js");
+    let sentCount = 0;
+
+    for (const sub of subscriptions) {
+      try {
+        await sendRenewalReminderService(sub.id);
+        sentCount++;
+      } catch (err) {
+        console.error(`Failed to send auto reminder for subscription ID ${sub.id}:`, err.message);
+      }
+    }
+
+    console.log(`✅ Completed: Sent ${sentCount}/${subscriptions.length} reminders successfully.`);
+    return { success: true, count: sentCount };
+  } catch (error) {
+    console.error("❌ Auto renewal reminder dispatch failed:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Stop the scheduler gracefully
  */
 async function stopScheduler() {
@@ -292,6 +387,18 @@ if (process.argv[1] === __filename) {
         console.error("Test failed:", error);
         process.exit(1);
       });
+  } else if (testType === "reminder") {
+    console.log("🧪 Testing subscription renewal reminders check...\n");
+    autoSendExpiringReminders()
+      .then((result) => {
+        console.log("\n📊 Test Results:");
+        console.log(JSON.stringify(result, null, 2));
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error("Test failed:", error);
+        process.exit(1);
+      });
   } else {
     console.log("🧪 Testing birthday rewards process...\n");
     processBirthdayRewards()
@@ -307,4 +414,4 @@ if (process.argv[1] === __filename) {
   }
 }
 
-export { processBirthdayRewards, checkExpiredSubscriptions, startScheduler, stopScheduler };
+export { processBirthdayRewards, checkExpiredSubscriptions, autoSendExpiringReminders, startScheduler, stopScheduler };

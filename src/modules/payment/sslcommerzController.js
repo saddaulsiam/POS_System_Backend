@@ -7,7 +7,7 @@ import * as sslcommerzService from "./sslcommerzService.js";
 export async function initiatePayment(req, res) {
   try {
     const { id: userId, storeId } = req.user;
-    const { plan, amount, customerName, customerEmail, customerPhone, platform = "web" } = req.body;
+    const { plan, amount, customerName, customerEmail, customerPhone, couponCode, platform = "web" } = req.body;
 
     // Validate required fields
     if (!plan || !amount || !customerName || !customerEmail || !customerPhone) {
@@ -22,6 +22,7 @@ export async function initiatePayment(req, res) {
       customerName,
       customerEmail,
       customerPhone,
+      couponCode,
       platform,
     });
 
@@ -36,7 +37,7 @@ export async function initiatePayment(req, res) {
         transactionId: result.transactionId,
         paymentId: result.paymentId,
       },
-      200
+      200,
     );
   } catch (error) {
     console.error("Payment initiation error:", error);
@@ -52,26 +53,21 @@ export async function handleSuccess(req, res) {
     const paymentData = req.body;
     const platform = req.query.platform || "web";
     const result = await sslcommerzService.handlePaymentSuccess(paymentData);
-    
+
     // Determine redirect URL based on platform
-    const frontendUrl = platform === "electron" 
-      ? process.env.FRONTEND_URL_ELECTRON 
-      : process.env.FRONTEND_URL_WEB;
+    const frontendUrl = platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
 
     if (!result.success) {
       // Redirect to frontend failure page
-      return res.redirect(
-        `${frontendUrl}?status=failed&message=${encodeURIComponent(result.error)}`
-      );
+      return res.redirect(`${frontendUrl}?status=failed&message=${encodeURIComponent(result.error)}`);
     }
 
     // Redirect to frontend success page
     return res.redirect(`${frontendUrl}?status=success&transaction=${paymentData.tran_id}`);
   } catch (error) {
     console.error("Payment success callback error:", error);
-    const frontendUrl = req.query.platform === "electron" 
-      ? process.env.FRONTEND_URL_ELECTRON 
-      : process.env.FRONTEND_URL_WEB;
+    const frontendUrl =
+      req.query.platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
     return res.redirect(`${frontendUrl}?status=error&message=Payment%20processing%20failed`);
   }
 }
@@ -84,19 +80,14 @@ export async function handleFailure(req, res) {
     const { tran_id, error } = req.body;
     const platform = req.query.platform || "web";
     await sslcommerzService.handlePaymentFailure(tran_id, error);
-    
-    const frontendUrl = platform === "electron" 
-      ? process.env.FRONTEND_URL_ELECTRON 
-      : process.env.FRONTEND_URL_WEB;
 
-    return res.redirect(
-      `${frontendUrl}?status=failed&message=${encodeURIComponent(error || "Payment failed")}`
-    );
+    const frontendUrl = platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
+
+    return res.redirect(`${frontendUrl}?status=failed&message=${encodeURIComponent(error || "Payment failed")}`);
   } catch (error) {
     console.error("Payment failure callback error:", error);
-    const frontendUrl = req.query.platform === "electron" 
-      ? process.env.FRONTEND_URL_ELECTRON 
-      : process.env.FRONTEND_URL_WEB;
+    const frontendUrl =
+      req.query.platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
     return res.redirect(`${frontendUrl}?status=error&message=Payment%20processing%20failed`);
   }
 }
@@ -109,17 +100,14 @@ export async function handleCancel(req, res) {
     const { tran_id } = req.body;
     const platform = req.query.platform || "web";
     await sslcommerzService.handlePaymentCancellation(tran_id);
-    
-    const frontendUrl = platform === "electron" 
-      ? process.env.FRONTEND_URL_ELECTRON 
-      : process.env.FRONTEND_URL_WEB;
+
+    const frontendUrl = platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
 
     return res.redirect(`${frontendUrl}?status=cancelled&message=Payment%20was%20cancelled`);
   } catch (error) {
     console.error("Payment cancel callback error:", error);
-    const frontendUrl = req.query.platform === "electron" 
-      ? process.env.FRONTEND_URL_ELECTRON 
-      : process.env.FRONTEND_URL_WEB;
+    const frontendUrl =
+      req.query.platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
     return res.redirect(`${frontendUrl}?status=error&message=Payment%20processing%20failed`);
   }
 }
