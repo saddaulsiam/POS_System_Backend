@@ -52,19 +52,66 @@ export async function checkAndCreateAlerts(productId, storeId) {
   }
 
   // Low Stock Alert
-  if (settings?.enableLowStockAlerts && product.stockQuantity <= settings.lowStockThreshold) {
-    try {
-      await prisma.notification.create({
-        data: {
-          type: "low_stock",
-          message: `Stock for ${product.name} is low (${product.stockQuantity} left)`,
-          productId: product.id,
-          storeId,
-          isRead: false,
-        },
-      });
-    } catch (err) {
-      console.error("Failed to create low stock notification:", err);
+  if (settings?.enableLowStockAlerts) {
+    if (product.hasVariants) {
+      try {
+        const variants = await prisma.productVariant.findMany({
+          where: { productId, isActive: true }
+        });
+        for (const variant of variants) {
+          if (variant.stockQuantity <= settings.lowStockThreshold) {
+            const existingAlert = await prisma.notification.findFirst({
+              where: {
+                storeId,
+                productId,
+                type: "low_stock",
+                message: { contains: `Variant: ${variant.name}` },
+                isRead: false
+              }
+            });
+            if (!existingAlert) {
+              await prisma.notification.create({
+                data: {
+                  type: "low_stock",
+                  message: `Stock for ${product.name} - Variant: ${variant.name} is low (${variant.stockQuantity} left)`,
+                  productId: product.id,
+                  storeId,
+                  isRead: false,
+                },
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to create low stock notification for variant:", err);
+      }
+    } else {
+      if (product.stockQuantity <= settings.lowStockThreshold) {
+        try {
+          const existingAlert = await prisma.notification.findFirst({
+            where: {
+              storeId,
+              productId,
+              type: "low_stock",
+              message: { startsWith: `Stock for ${product.name}` },
+              isRead: false
+            }
+          });
+          if (!existingAlert) {
+            await prisma.notification.create({
+              data: {
+                type: "low_stock",
+                message: `Stock for ${product.name} is low (${product.stockQuantity} left)`,
+                productId: product.id,
+                storeId,
+                isRead: false,
+              },
+            });
+          }
+        } catch (err) {
+          console.error("Failed to create low stock notification:", err);
+        }
+      }
     }
   }
 

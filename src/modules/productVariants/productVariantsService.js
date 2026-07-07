@@ -1,4 +1,5 @@
 import prisma from "../../prisma.js";
+import { checkAndCreateAlerts } from "../notifications/notificationService.js";
 
 export const getVariantById = async (id, storeId) => {
   // Only return variant if its parent product belongs to storeId
@@ -85,6 +86,11 @@ export const createVariant = async (body, storeId) => {
     data: { hasVariants: true },
   });
   await syncProductStock(productId);
+  try {
+    await checkAndCreateAlerts(productId, storeId);
+  } catch (err) {
+    console.error("Failed to check alerts after creating variant:", err);
+  }
   return variant;
 };
 
@@ -120,6 +126,11 @@ export const updateVariant = async (id, body, storeId) => {
     data: updateData,
   });
   await syncProductStock(existingVariant.productId);
+  try {
+    await checkAndCreateAlerts(existingVariant.productId, storeId);
+  } catch (err) {
+    console.error("Failed to check alerts after updating variant:", err);
+  }
   return updatedVariant;
 };
 
@@ -137,6 +148,11 @@ export const deleteVariant = async (id, storeId) => {
     await prisma.product.update({ where: { id: variant.productId }, data: { hasVariants: false } });
   }
   await syncProductStock(variant.productId);
+  try {
+    await checkAndCreateAlerts(variant.productId, storeId);
+  } catch (err) {
+    console.error("Failed to check alerts after deleting variant:", err);
+  }
   return { message: "Variant deleted successfully" };
 };
 
