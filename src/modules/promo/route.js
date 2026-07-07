@@ -16,6 +16,7 @@ router.use(authorizeRoles("SUPER_ADMIN"));
 
 router.get("/", promoController.getPromoCodes);
 router.post("/", promoController.createPromoCode);
+router.put("/:id", promoController.updatePromoCode);
 router.put("/:id/toggle", promoController.togglePromoCodeStatus);
 router.delete("/:id", promoController.deletePromoCode);
 

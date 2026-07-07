@@ -88,24 +88,24 @@ model Payment {
   storeId Int
 
   // Fields
-  transactionId String    @unique
-  plan          Plan // MONTHLY, YEARLY
-  amount        Float
+  transactionId  String    @unique
+  plan           Plan // MONTHLY, YEARLY
+  amount         Float
   discountAmount Float     @default(0)
   promoCode      String?
-  status        String    @default("PENDING") // PENDING, SUCCESS, FAILED, CANCELLED
-  paymentMethod String // SSL_COMMERZ
-  customerName  String
-  customerEmail String
-  customerPhone String
-  validationId  String?
-  cardType      String?
-  cardBrand     String?
-  storeAmount   Float?
-  failureReason String?
-  completedAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  status         String    @default("PENDING") // PENDING, SUCCESS, FAILED, CANCELLED
+  paymentMethod  String // SSL_COMMERZ
+  customerName   String
+  customerEmail  String
+  customerPhone  String
+  validationId   String?
+  cardType       String?
+  cardBrand      String?
+  storeAmount    Float?
+  failureReason  String?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Relations
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -755,17 +755,17 @@ model Notification {
 }
 
 model SystemSettings {
-  id                  Int      @id @default(1)
-  defaultTrialDays    Int      @default(10)
-  monthlyPrice        Float    @default(79.0)
-  yearlyPrice         Float    @default(59.0)
-  supportEmail        String   @default("support@pos-platform.com")
-  smtpHost            String?
-  smtpPort            Int?     @default(587)
-  smtpUser            String?
-  smtpPass            String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id               Int      @id @default(1)
+  defaultTrialDays Int      @default(10)
+  monthlyPrice     Float    @default(79.0)
+  yearlyPrice      Float    @default(59.0)
+  supportEmail     String   @default("support@pos-platform.com")
+  smtpHost         String?
+  smtpPort         Int?     @default(587)
+  smtpUser         String?
+  smtpPass         String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model PlatformAuditLog {
@@ -779,14 +779,15 @@ model PlatformAuditLog {
 }
 
 model PromoCode {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique
-  type      String   // PERCENTAGE, FIXED, TRIAL_EXTENSION
-  value     Float    // discount value or extended trial days
-  maxUses   Int?     // null represents unlimited uses
-  usedCount Int      @default(0)
-  expiresAt DateTime?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             Int       @id @default(autoincrement())
+  code           String    @unique
+  type           String // PERCENTAGE, FIXED, TRIAL_EXTENSION
+  value          Float // discount value or extended trial days
+  applicablePlan String    @default("ALL") // "MONTHLY", "YEARLY", or "ALL"
+  maxUses        Int? // null represents unlimited uses
+  usedCount      Int       @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }

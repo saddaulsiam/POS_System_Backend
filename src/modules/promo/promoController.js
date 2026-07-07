@@ -6,6 +6,7 @@ import {
   getPromoCodesService,
   togglePromoCodeStatusService,
   deletePromoCodeService,
+  updatePromoCodeService,
   applyTrialPromoService,
 } from "./promoService.js";
 
@@ -13,7 +14,7 @@ export async function validatePromoCode(req, res) {
   try {
     const { code, plan } = req.body;
     const storeId = req.user?.storeId; // Optional, only if logged in
-    
+
     if (!code || !plan) {
       return sendError(res, 400, "Code and plan details are required");
     }
@@ -27,20 +28,44 @@ export async function validatePromoCode(req, res) {
 
 export async function createPromoCode(req, res) {
   try {
-    const { code, type, value, maxUses, expiresAt } = req.body;
-    const result = await createPromoCodeService({ code, type, value, maxUses, expiresAt });
-    
+    const { code, type, value, applicablePlan, maxUses, expiresAt } = req.body;
+    const result = await createPromoCodeService({ code, type, value, applicablePlan, maxUses, expiresAt });
+
     await logPlatformAction(
       "PROMO_CREATE",
       `Created coupon code: ${code.toUpperCase()} (${type}: ${value})`,
       req.ip,
       req.headers["user-agent"] || "",
-      req.user?.username
+      req.user?.username,
     );
 
-    sendSuccess(res, result, "Promo code created successfully");
+    sendSuccess(res, result);
   } catch (error) {
     sendError(res, 400, error.message || "Failed to create promo code");
+  }
+}
+
+export async function updatePromoCode(req, res) {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return sendError(res, 400, "Invalid promo code ID");
+    }
+
+    const { code, type, value, applicablePlan, maxUses, expiresAt } = req.body;
+    const result = await updatePromoCodeService(id, { code, type, value, applicablePlan, maxUses, expiresAt });
+
+    await logPlatformAction(
+      "PROMO_UPDATE",
+      `Updated coupon ID ${id} (${result.code})`,
+      req.ip,
+      req.headers["user-agent"] || "",
+      req.user?.username,
+    );
+
+    sendSuccess(res, result);
+  } catch (error) {
+    sendError(res, 400, error.message || "Failed to update promo code");
   }
 }
 
@@ -61,16 +86,16 @@ export async function togglePromoCodeStatus(req, res) {
     }
 
     const result = await togglePromoCodeStatusService(id);
-    
+
     await logPlatformAction(
       "PROMO_TOGGLE",
       `Toggled status of coupon ID ${id} to ${result.isActive}`,
       req.ip,
       req.headers["user-agent"] || "",
-      req.user?.username
+      req.user?.username,
     );
 
-    sendSuccess(res, result, "Promo code status updated");
+    sendSuccess(res, result);
   } catch (error) {
     sendError(res, 400, error.message || "Failed to toggle status");
   }
@@ -84,16 +109,16 @@ export async function deletePromoCode(req, res) {
     }
 
     const result = await deletePromoCodeService(id);
-    
+
     await logPlatformAction(
       "PROMO_DELETE",
       `Deleted coupon ID ${id} (${result.code})`,
       req.ip,
       req.headers["user-agent"] || "",
-      req.user?.username
+      req.user?.username,
     );
 
-    sendSuccess(res, result, "Promo code deleted successfully");
+    sendSuccess(res, result);
   } catch (error) {
     sendError(res, 400, error.message || "Failed to delete promo code");
   }
@@ -113,7 +138,7 @@ export async function applyTrialPromo(req, res) {
     }
 
     const result = await applyTrialPromoService({ storeId, code });
-    sendSuccess(res, result, "Trial period extended successfully!");
+    sendSuccess(res, result);
   } catch (error) {
     sendError(res, 400, error.message || "Failed to apply trial code");
   }

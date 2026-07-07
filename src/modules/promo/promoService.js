@@ -28,6 +28,11 @@ export async function validatePromoCodeService({ code, plan, storeId }) {
     throw new Error("Promo code usage limit has been reached");
   }
 
+  // Restrict to plan if configured
+  if (promo.applicablePlan && promo.applicablePlan !== "ALL" && promo.applicablePlan !== plan) {
+    throw new Error(`This promo code is only valid for ${promo.applicablePlan.toLowerCase()} subscription checkouts`);
+  }
+
   // Get current plan pricing dynamically
   const settings = await prisma.systemSettings.findFirst({ where: { id: 1 } });
   const monthlyPrice = settings?.monthlyPrice || 79.0;
@@ -62,7 +67,7 @@ export async function validatePromoCodeService({ code, plan, storeId }) {
 /**
  * Create a new promo code
  */
-export async function createPromoCodeService({ code, type, value, maxUses, expiresAt }) {
+export async function createPromoCodeService({ code, type, value, applicablePlan, maxUses, expiresAt }) {
   if (!code || !type || value === undefined) {
     throw new Error("Code, type, and value are required");
   }
@@ -81,6 +86,7 @@ export async function createPromoCodeService({ code, type, value, maxUses, expir
       code: cleanCode,
       type,
       value: parseFloat(value.toString()),
+      applicablePlan: applicablePlan || "ALL",
       maxUses: maxUses ? parseInt(maxUses.toString()) : null,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
     },
@@ -121,6 +127,38 @@ export async function deletePromoCodeService(id) {
   }
 
   return await prisma.promoCode.delete({ where: { id } });
+}
+
+/**
+ * Update an existing promo code
+ */
+export async function updatePromoCodeService(id, { code, type, value, applicablePlan, maxUses, expiresAt }) {
+  const promo = await prisma.promoCode.findUnique({ where: { id } });
+  if (!promo) {
+    throw new Error("Promo code not found");
+  }
+
+  const cleanCode = code ? code.toUpperCase().trim() : undefined;
+  if (cleanCode && cleanCode !== promo.code) {
+    const existing = await prisma.promoCode.findUnique({
+      where: { code: cleanCode },
+    });
+    if (existing) {
+      throw new Error("Promo code name already exists");
+    }
+  }
+
+  return await prisma.promoCode.update({
+    where: { id },
+    data: {
+      code: cleanCode,
+      type,
+      value: value !== undefined ? parseFloat(value.toString()) : undefined,
+      applicablePlan,
+      maxUses: maxUses !== undefined ? (maxUses ? parseInt(maxUses.toString()) : null) : undefined,
+      expiresAt: expiresAt !== undefined ? (expiresAt ? new Date(expiresAt) : null) : undefined,
+    },
+  });
 }
 
 /**
