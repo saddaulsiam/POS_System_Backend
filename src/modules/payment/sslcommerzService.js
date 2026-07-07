@@ -291,6 +291,61 @@ export async function handlePaymentSuccess(paymentData) {
       );
     }
 
+    // Fetch store details to include in invoice
+    const store = await prisma.store.findUnique({
+      where: { id: payment.storeId },
+    });
+
+    // Asynchronously generate and send invoice email (non-blocking)
+    (async () => {
+      try {
+        const { generateInvoicePdf } = await import("../../utils/invoiceGenerator.js");
+        const { sendEmail } = await import("../../utils/mailer.js");
+
+        if (store) {
+          const pdfBuffer = await generateInvoicePdf(updatedPayment, store);
+          await sendEmail({
+            to: updatedPayment.customerEmail,
+            subject: `Payment Invoice - ${store.name}`,
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <h2 style="color: #4f46e5; margin-bottom: 20px;">Thank You for Your Payment!</h2>
+                <p>Hello <strong>${updatedPayment.customerName}</strong>,</p>
+                <p>Your subscription payment for <strong>${store.name}</strong> was processed successfully. Your Smart POS subscription is now active.</p>
+                <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 5px 0; color: #4b5563;">Transaction ID:</td>
+                      <td style="padding: 5px 0; text-align: right; font-weight: bold;">${updatedPayment.transactionId}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 5px 0; color: #4b5563;">Plan:</td>
+                      <td style="padding: 5px 0; text-align: right; font-weight: bold;">${updatedPayment.plan}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 5px 0; color: #4b5563;">Amount:</td>
+                      <td style="padding: 5px 0; text-align: right; font-weight: bold; color: #111827;">$${updatedPayment.amount.toFixed(2)}</td>
+                    </tr>
+                  </table>
+                </div>
+                <p>We have attached the official PDF invoice receipt to this email for your records.</p>
+                <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+                <p style="font-size: 12px; color: #9ca3af; text-align: center;">Smart POS SaaS Inc. &bull; Dhaka, Bangladesh &bull; support@pos-platform.com</p>
+              </div>
+            `,
+            attachments: [
+              {
+                filename: `Invoice_${updatedPayment.transactionId}.pdf`,
+                content: pdfBuffer,
+              },
+            ],
+          });
+        }
+      } catch (emailErr) {
+        console.error("❌ Failed to automatically send PDF invoice email:", emailErr);
+      }
+    })();
+
     return {
       success: true,
       payment: updatedPayment,

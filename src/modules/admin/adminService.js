@@ -582,3 +582,161 @@ export async function getPublicSettingsService() {
     },
   });
 }
+
+export async function broadcastAnnouncementsService({ subject, body, targetAudience }) {
+  const whereClause = {};
+  if (targetAudience === "TRIAL") {
+    whereClause.subscription = { status: "TRIAL" };
+  } else if (targetAudience === "ACTIVE") {
+    whereClause.subscription = { status: "ACTIVE" };
+  } else if (targetAudience === "EXPIRED") {
+    whereClause.subscription = { status: "EXPIRED" };
+  }
+
+  const stores = await prisma.store.findMany({
+    where: whereClause,
+    include: {
+      owner: {
+        select: {
+          email: true,
+          name: true,
+        },
+      },
+    },
+  });
+
+  const recipients = stores
+    .map((s) => s.owner)
+    .filter((o) => o && o.email);
+
+  const { sendEmail } = await import("../../utils/mailer.js");
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const recipient of recipients) {
+    try {
+      await sendEmail({
+        to: recipient.email,
+        subject: subject,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <h2 style="color: #4f46e5; margin-bottom: 20px;">Announcement from POS Platform</h2>
+            <p>Dear <strong>${recipient.name}</strong>,</p>
+            <div style="line-height: 1.6; color: #374151;">
+              ${body}
+            </div>
+            <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+            <p style="font-size: 11px; color: #9ca3af; text-align: center;">This is an administrative broadcast from Smart POS Platform. support@pos-platform.com</p>
+          </div>
+        `,
+      });
+      successCount++;
+    } catch (err) {
+      console.error(`Failed to send broadcast email to ${recipient.email}:`, err);
+      failCount++;
+    }
+  }
+
+  return {
+    totalRecipients: recipients.length,
+    successCount,
+    failCount,
+  };
+}
+
+export async function sendRenewalReminderService(subscriptionId) {
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: {
+      store: {
+        include: {
+          owner: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!subscription) {
+    throw new Error("Subscription record not found");
+  }
+
+  if (!subscription.store?.owner?.email) {
+    throw new Error("Store owner email address is not registered");
+  }
+
+  const { sendEmail } = await import("../../utils/mailer.js");
+  const owner = subscription.store.owner;
+
+  const expiredDate = subscription.plan 
+    ? new Date(subscription.subscriptionEndDate) 
+    : new Date(subscription.trialEndDate);
+
+  const formattedDate = expiredDate.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const now = new Date();
+  const daysRemaining = Math.ceil((expiredDate - now) / (1000 * 60 * 60 * 24));
+
+  await sendEmail({
+    to: owner.email,
+    subject: `Action Required: Renew Your Smart POS Subscription`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+        <h2 style="color: #ea580c; margin-bottom: 20px;">POS Subscription Renewal Alert</h2>
+        <p>Hello <strong>${owner.name}</strong>,</p>
+        <p>This is a reminder that your subscription for <strong>${subscription.store.name}</strong> is expiring soon.</p>
+        <div style="background-color: #fff7ed; border-left: 4px solid #ea580c; padding: 15px; margin: 20px 0; border-radius: 4px;">
+          <p style="margin: 0; color: #9a3412; font-weight: bold;">
+            Expiry Date: ${formattedDate} (${daysRemaining > 0 ? `${daysRemaining} days remaining` : "Expired"})
+          </p>
+          <p style="margin: 5px 0 0 0; font-size: 13px; color: #c2410c;">
+            Plan level: ${subscription.plan || "Trial"}
+          </p>
+        </div>
+        <p>To prevent any service interruptions or losing features, please log in to your account and renew your plan.</p>
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${process.env.FRONTEND_URL || "http://localhost:3000"}/subscription" style="background-color: #ea580c; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 6px; display: inline-block;">Renew Subscription Now</a>
+        </div>
+        <p>If you have already processed your renewal, please ignore this notice.</p>
+        <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+        <p style="font-size: 11px; color: #9ca3af; text-align: center;">Smart POS SaaS Inc. &bull; support@pos-platform.com</p>
+      </div>
+    `,
+  });
+
+  return { message: "Renewal reminder email sent successfully" };
+}
+
+export async function testSmtpConnectionService({ smtpHost, smtpPort, smtpUser, smtpPass }) {
+  if (!smtpHost || !smtpUser || !smtpPass) {
+    throw new Error("SMTP host, username, and password are required for verification");
+  }
+
+  const port = smtpPort ? parseInt(smtpPort.toString()) : 587;
+  const { default: nodemailer } = await import("nodemailer");
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port,
+    secure: port === 465,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+    connectionTimeout: 8000, // 8 seconds timeout
+    greetingTimeout: 8000,
+    socketTimeout: 8000,
+  });
+
+  await transporter.verify();
+  return { success: true, message: "SMTP connection established successfully!" };
+}

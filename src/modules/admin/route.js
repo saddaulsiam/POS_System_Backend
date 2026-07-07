@@ -14,6 +14,11 @@ router.use(authorizeRoles("SUPER_ADMIN"));
 // Settings routes
 router.get("/settings", adminController.getSystemSettings);
 router.put("/settings", adminController.updateSystemSettings);
+router.post("/settings/test-smtp", adminController.testSmtpConnection);
+
+// Broadcast & Email routes
+router.post("/broadcast", adminController.broadcastAnnouncements);
+router.post("/subscriptions/:id/remind", adminController.sendRenewalReminder);
 
 // Get system overview statistics
 router.get("/stats", adminController.getAdminStats);
