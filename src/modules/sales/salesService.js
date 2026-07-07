@@ -207,8 +207,12 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
       // Batch update stock
       for (const upd of stockUpdates) {
         if (upd.type === "variant") {
-          await tx.productVariant.update({
+          const variant = await tx.productVariant.update({
             where: { id: upd.id },
+            data: { stockQuantity: { decrement: upd.quantity } },
+          });
+          await tx.product.update({
+            where: { id: variant.productId, storeId: upd.storeId },
             data: { stockQuantity: { decrement: upd.quantity } },
           });
         } else {

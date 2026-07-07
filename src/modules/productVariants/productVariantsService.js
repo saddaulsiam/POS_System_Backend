@@ -42,6 +42,18 @@ export const getVariantsByProduct = async (productId, storeId) => {
   });
 };
 
+async function syncProductStock(productId) {
+  const variants = await prisma.productVariant.findMany({
+    where: { productId, isActive: true },
+    select: { stockQuantity: true }
+  });
+  const totalStock = variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
+  await prisma.product.update({
+    where: { id: productId },
+    data: { stockQuantity: totalStock }
+  });
+}
+
 export const createVariant = async (body, storeId) => {
   const { productId, name, sku, barcode, purchasePrice, sellingPrice, stockQuantity, isActive } = body;
   // Check if product exists and belongs to store
@@ -72,6 +84,7 @@ export const createVariant = async (body, storeId) => {
     where: { id: productId },
     data: { hasVariants: true },
   });
+  await syncProductStock(productId);
   return variant;
 };
 
@@ -102,10 +115,12 @@ export const updateVariant = async (id, body, storeId) => {
   if (sellingPrice !== undefined) updateData.sellingPrice = sellingPrice;
   if (stockQuantity !== undefined) updateData.stockQuantity = stockQuantity;
   if (isActive !== undefined) updateData.isActive = isActive;
-  return await prisma.productVariant.update({
+  const updatedVariant = await prisma.productVariant.update({
     where: { id },
     data: updateData,
   });
+  await syncProductStock(existingVariant.productId);
+  return updatedVariant;
 };
 
 export const deleteVariant = async (id, storeId) => {
@@ -121,6 +136,7 @@ export const deleteVariant = async (id, storeId) => {
   if (remainingVariants === 0) {
     await prisma.product.update({ where: { id: variant.productId }, data: { hasVariants: false } });
   }
+  await syncProductStock(variant.productId);
   return { message: "Variant deleted successfully" };
 };
 

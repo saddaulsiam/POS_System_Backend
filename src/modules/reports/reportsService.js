@@ -168,6 +168,10 @@ export const inventoryReport = async (storeId) => {
     include: {
       category: { select: { name: true } },
       supplier: { select: { name: true } },
+      variants: {
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+      },
     },
     orderBy: { stockQuantity: "asc" },
   });

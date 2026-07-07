@@ -21,3 +21,31 @@ export async function initializeSettings() {
     console.error("❌ Failed to initialize system settings:", err.message);
   }
 }
+
+/**
+ * Automatically synchronizes parent product stock levels with the sum of their variants' stocks.
+ */
+export async function syncAllProductStocks() {
+  try {
+    const productsWithVariants = await prisma.product.findMany({
+      where: { hasVariants: true },
+      include: { variants: true }
+    });
+    let syncedCount = 0;
+    for (const product of productsWithVariants) {
+      const totalVariantStock = product.variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
+      if (product.stockQuantity !== totalVariantStock) {
+        await prisma.product.update({
+          where: { id: product.id },
+          data: { stockQuantity: totalVariantStock }
+        });
+        syncedCount++;
+      }
+    }
+    if (syncedCount > 0) {
+      console.log(`✅ Dynamically synchronized stock levels for ${syncedCount} parent products with variants.`);
+    }
+  } catch (err) {
+    console.error("❌ Failed to synchronize product stock levels:", err.message);
+  }
+}

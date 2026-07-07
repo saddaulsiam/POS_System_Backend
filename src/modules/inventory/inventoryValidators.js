@@ -11,6 +11,7 @@ export const inventoryValidators = {
   ],
   createStockAdjustment: [
     body("productId").isInt().withMessage("Product ID is required"),
+    body("productVariantId").optional().isInt().withMessage("Variant ID must be an integer"),
     body("quantity").isFloat().withMessage("Quantity is required"),
     body("movementType")
       .isString()

@@ -20,23 +20,39 @@ export async function getStockMovementsService({ page, limit, productId, movemen
     orderBy: { createdAt: "desc" },
     include: {
       product: { select: { id: true, name: true, sku: true } },
+      productVariant: { select: { id: true, name: true, sku: true } },
     },
   });
 }
 
 export async function createStockAdjustmentService(data, userId, storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
-  const { productId, quantity, movementType, reason } = data;
+  const { productId, productVariantId, quantity, movementType, reason } = data;
   const result = await prisma.$transaction(async (tx) => {
     const product = await tx.product.findFirst({ where: { id: productId, storeId } });
     if (!product) throw new Error("Product not found in this store");
+
+    if (productVariantId) {
+      const variant = await tx.productVariant.findFirst({
+        where: { id: productVariantId, productId }
+      });
+      if (!variant) throw new Error("Product variant not found");
+
+      await tx.productVariant.update({
+        where: { id: productVariantId },
+        data: { stockQuantity: { increment: quantity } },
+      });
+    }
+
     const updatedProduct = await tx.product.update({
       where: { id: productId, storeId },
       data: { stockQuantity: { increment: quantity } },
     });
+
     const movement = await tx.stockMovement.create({
       data: {
         productId,
+        productVariantId: productVariantId || null,
         movementType,
         quantity,
         reason: reason || "Manual stock adjustment",
@@ -462,11 +478,11 @@ export async function receivePurchaseOrderItemsService(id, items, userId, storeI
         message:
           priceChange > 0
             ? `Price increased by ${Math.abs(parseFloat(percentChange)).toFixed(2)}% (৳${oldPurchasePrice.toFixed(
-                2
-              )} → ৳${newPurchasePrice.toFixed(2)})`
+              2
+            )} → ৳${newPurchasePrice.toFixed(2)})`
             : `Price decreased by ${Math.abs(parseFloat(percentChange)).toFixed(2)}% (৳${oldPurchasePrice.toFixed(
-                2
-              )} → ৳${newPurchasePrice.toFixed(2)})`,
+              2
+            )} → ৳${newPurchasePrice.toFixed(2)})`,
       });
     }
     if (margin < 0) {
