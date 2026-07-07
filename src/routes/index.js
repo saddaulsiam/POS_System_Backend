@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { AdminRoutes } from "../modules/admin/route.js";
 import { AnalyticsRoutes } from "../modules/analytics/route.js";
 import { AuditLogsRoutes } from "../modules/auditLogs/route.js";
 import { AuthRoutes } from "../modules/auth/route.js";
@@ -10,23 +11,27 @@ import { InventoryRoutes } from "../modules/inventory/route.js";
 import { LoyaltyRoutes } from "../modules/loyalty/route.js";
 import { NotificationRoutes } from "../modules/notifications/route.js";
 import { ParkedSalesRoutes } from "../modules/parkedSales/route.js";
+import { sslcommerzRoutes } from "../modules/payment/routes.js";
 import { PosSettingsRoutes } from "../modules/posSettings/route.js";
 import { ProductRoutes } from "../modules/products/route.js";
 import { ProductVariantRoutes } from "../modules/productVariants/route.js";
 import { ProfileRoutes } from "../modules/profile/route.js";
+import PromoRoutes from "../modules/promo/route.js";
 import { QuickSaleItemsRoutes } from "../modules/quickSaleItems/route.js";
 import { ReceiptsRoutes } from "../modules/receipts/route.js";
 import { ReportRoutes } from "../modules/reports/route.js";
 import { SalarySheetsRoutes } from "../modules/salarySheets/route.js";
 import { SalesRoutes } from "../modules/sales/route.js";
-import { SuppliersRoutes } from "../modules/suppliers/route.js";
 import { SubscriptionRoutes } from "../modules/subscription/route.js";
-import { sslcommerzRoutes } from "../modules/payment/routes.js";
-import { AdminRoutes } from "../modules/admin/route.js";
+import { SuppliersRoutes } from "../modules/suppliers/route.js";
 
 const router = Router();
 
 const moduleRoutes = [
+  {
+    path: "/promo",
+    route: PromoRoutes,
+  },
   {
     path: "/admin",
     route: AdminRoutes,

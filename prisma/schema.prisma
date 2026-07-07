@@ -91,6 +91,8 @@ model Payment {
   transactionId String    @unique
   plan          Plan // MONTHLY, YEARLY
   amount        Float
+  discountAmount Float     @default(0)
+  promoCode      String?
   status        String    @default("PENDING") // PENDING, SUCCESS, FAILED, CANCELLED
   paymentMethod String // SSL_COMMERZ
   customerName  String
@@ -774,4 +776,17 @@ model PlatformAuditLog {
   userAgent String?
   adminName String?
   createdAt DateTime @default(now())
+}
+
+model PromoCode {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  type      String   // PERCENTAGE, FIXED, TRIAL_EXTENSION
+  value     Float    // discount value or extended trial days
+  maxUses   Int?     // null represents unlimited uses
+  usedCount Int      @default(0)
+  expiresAt DateTime?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -11,7 +11,17 @@ const is_live = process.env.SSLCOMMERZ_IS_LIVE === "true";
  */
 export async function initiatePayment(paymentData) {
   try {
-    const { storeId, userId, plan, amount, customerName, customerEmail, customerPhone, platform = "web" } = paymentData;
+    const {
+      storeId,
+      userId,
+      plan,
+      amount,
+      customerName,
+      customerEmail,
+      customerPhone,
+      couponCode,
+      platform = "web",
+    } = paymentData;
 
     // Validate required data
     if (!storeId || !userId) {
@@ -40,17 +50,36 @@ export async function initiatePayment(paymentData) {
       throw new Error("System configurations not loaded. Please contact administrator.");
     }
 
-    let expectedAmount = 0;
+    let baseAmount = 0;
     if (plan === "MONTHLY") {
-      expectedAmount = systemSettings.monthlyPrice;
+      baseAmount = systemSettings.monthlyPrice;
     } else if (plan === "YEARLY") {
-      expectedAmount = systemSettings.yearlyPrice * 12; // Yearly plan bills monthly price * 12 months
+      baseAmount = systemSettings.yearlyPrice * 12;
     } else {
       throw new Error("Invalid subscription plan selection.");
     }
 
-    if (parsedAmount !== expectedAmount) {
-      throw new Error(`Payment verification failed: Amount mismatch. Expected $${expectedAmount} for ${plan} plan.`);
+    // Validate coupon if provided
+    let discountAmount = 0;
+    let promoCodeName = null;
+
+    if (couponCode) {
+      const { validatePromoCodeService } = await import("../promo/promoService.js");
+      try {
+        const promoResult = await validatePromoCodeService({ code: couponCode, plan, storeId });
+        discountAmount = promoResult.discountAmount;
+        promoCodeName = promoResult.code;
+      } catch (couponErr) {
+        throw new Error(`Coupon Code Error: ${couponErr.message}`);
+      }
+    }
+
+    const expectedAmount = Math.max(0, baseAmount - discountAmount);
+
+    if (Math.abs(parsedAmount - expectedAmount) > 0.01) {
+      throw new Error(
+        `Payment verification failed: Amount mismatch. Expected $${expectedAmount} (Base: $${baseAmount}, Discount: $${discountAmount}) for ${plan} plan.`,
+      );
     }
 
     // Create transaction ID
@@ -63,6 +92,8 @@ export async function initiatePayment(paymentData) {
         transactionId,
         plan,
         amount: parsedAmount,
+        discountAmount,
+        promoCode: promoCodeName,
         status: "PENDING",
         paymentMethod: "SSL_COMMERZ",
         customerName,
@@ -275,6 +306,19 @@ export async function handlePaymentSuccess(paymentData) {
         completedAt: new Date(),
       },
     });
+
+    // Increment promo code usage count if coupon was used
+    if (updatedPayment.promoCode) {
+      try {
+        await prisma.promoCode.update({
+          where: { code: updatedPayment.promoCode },
+          data: { usedCount: { increment: 1 } },
+        });
+        console.log(`🎟️ Incremented usedCount for promo code: ${updatedPayment.promoCode}`);
+      } catch (promoErr) {
+        console.error("❌ Failed to increment promo code usedCount:", promoErr.message);
+      }
+    }
 
     // Activate subscription
     try {
