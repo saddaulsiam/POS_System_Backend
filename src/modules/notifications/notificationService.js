@@ -1,4 +1,5 @@
 import prisma from "../../prisma.js";
+import { sendEmail } from "../../utils/mailer.js";
 
 // Get All notifications
 export async function getNotificationsService(storeId, page = 1, limit = 10) {
@@ -36,6 +37,47 @@ export async function markNotificationAsReadService(id, storeId) {
 // Delete notification
 export async function deleteNotificationService(id, storeId) {
   await prisma.notification.delete({ where: { id: parseInt(id), storeId } });
+}
+
+// Helper to send email alerts to admins and managers
+async function sendLowStockEmailAlert(storeId, alertMessage) {
+  try {
+    const employees = await prisma.employee.findMany({
+      where: {
+        storeId,
+        role: { in: ["ADMIN", "MANAGER", "OWNER"] },
+        email: { not: null },
+      },
+      select: { email: true, name: true },
+    });
+
+    const emails = employees.map((emp) => emp.email).filter(Boolean);
+    if (emails.length === 0) return;
+
+    const htmlContent = `
+      <div style="font-family: sans-serif; padding: 20px; color: #333; max-width: 600px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #e11d48; margin-top: 0; display: flex; items-center: center; gap: 8px;">⚠️ Low Stock Inventory Alert</h2>
+        <p>Dear POS Administrator / Manager,</p>
+        <p>This is an automated alert to notify you that the following inventory item has fallen below your minimum stock threshold:</p>
+        <div style="background-color: #fff1f2; padding: 15px; border-left: 4px solid #e11d48; margin: 20px 0; font-size: 15px; font-weight: 600; color: #9f1239; border-radius: 4px;">
+          ${alertMessage}
+        </div>
+        <p>Please log in to your POS dashboard to restock the product or adjust the settings.</p>
+        <hr style="border: 0; border-top: 1px solid #eaeaea; margin: 30px 0;" />
+        <p style="font-size: 11px; color: #999; line-height: 1.5;">This is a system generated notification from your Grocery POS Platform. Please do not reply directly to this email.</p>
+      </div>
+    `;
+
+    for (const email of emails) {
+      await sendEmail({
+        to: email,
+        subject: "⚠️ Low Stock Inventory Alert",
+        html: htmlContent,
+      });
+    }
+  } catch (err) {
+    console.error("Failed to send low stock alert emails:", err);
+  }
 }
 
 // Alerts for product status changes
@@ -79,6 +121,11 @@ export async function checkAndCreateAlerts(productId, storeId) {
                   isRead: false,
                 },
               });
+              // Send email alert to admins/managers
+              await sendLowStockEmailAlert(
+                storeId,
+                `Product: <strong>${product.name}</strong><br/>Variant: <strong>${variant.name}</strong><br/>Current Stock: <strong>${variant.stockQuantity}</strong> (Threshold: ${settings.lowStockThreshold})`
+              );
             }
           }
         }
@@ -107,6 +154,11 @@ export async function checkAndCreateAlerts(productId, storeId) {
                 isRead: false,
               },
             });
+            // Send email alert to admins/managers
+            await sendLowStockEmailAlert(
+              storeId,
+              `Product: <strong>${product.name}</strong><br/>Current Stock: <strong>${product.stockQuantity}</strong> (Threshold: ${settings.lowStockThreshold})`
+            );
           }
         } catch (err) {
           console.error("Failed to create low stock notification:", err);

@@ -317,19 +317,19 @@ export async function getCustomerStats(query, storeId) {
       });
       const details = customerStore
         ? {
-            id: customerStore.customer.id,
-            name: customerStore.customer.name,
-            phoneNumber: customerStore.customer.phoneNumber,
-            loyaltyTier: customerStore.loyaltyTier,
-            loyaltyPoints: customerStore.loyaltyPoints,
-          }
+          id: customerStore.customer.id,
+          name: customerStore.customer.name,
+          phoneNumber: customerStore.customer.phoneNumber,
+          loyaltyTier: customerStore.loyaltyTier,
+          loyaltyPoints: customerStore.loyaltyPoints,
+        }
         : {
-            id: customer.customerId,
-            name: "Unknown Customer",
-            phoneNumber: null,
-            loyaltyTier: "BRONZE",
-            loyaltyPoints: 0,
-          };
+          id: customer.customerId,
+          name: "Unknown Customer",
+          phoneNumber: null,
+          loyaltyTier: "BRONZE",
+          loyaltyPoints: 0,
+        };
       return {
         ...details,
         totalSpent: customer._sum.finalAmount,
