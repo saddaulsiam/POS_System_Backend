@@ -26,10 +26,31 @@ export async function initiatePayment(paymentData) {
       throw new Error("Customer name, email, and phone number are required for payment");
     }
 
-    // Validate amount
+    // Validate amount against dynamic pricing in system settings
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       throw new Error("Invalid payment amount. Amount must be greater than zero");
+    }
+
+    const systemSettings = await prisma.systemSettings.findUnique({
+      where: { id: 1 },
+    });
+
+    if (!systemSettings) {
+      throw new Error("System configurations not loaded. Please contact administrator.");
+    }
+
+    let expectedAmount = 0;
+    if (plan === "MONTHLY") {
+      expectedAmount = systemSettings.monthlyPrice;
+    } else if (plan === "YEARLY") {
+      expectedAmount = systemSettings.yearlyPrice * 12; // Yearly plan bills monthly price * 12 months
+    } else {
+      throw new Error("Invalid subscription plan selection.");
+    }
+
+    if (parsedAmount !== expectedAmount) {
+      throw new Error(`Payment verification failed: Amount mismatch. Expected $${expectedAmount} for ${plan} plan.`);
     }
 
     // Create transaction ID
@@ -266,7 +287,7 @@ export async function handlePaymentSuccess(paymentData) {
       console.error("Subscription activation error:", subError);
       // Payment succeeded but subscription activation failed
       throw new Error(
-        `Payment successful but subscription activation failed: ${subError.message}. Please contact support`
+        `Payment successful but subscription activation failed: ${subError.message}. Please contact support`,
       );
     }
 

@@ -4,9 +4,16 @@ import * as adminController from "./adminController.js";
 
 const router = express.Router();
 
+// Public platform settings (unauthenticated)
+router.get("/settings/public", adminController.getPublicSettings);
+
 // Apply super-admin authentication globally to this router
 router.use(authenticateToken);
 router.use(authorizeRoles("SUPER_ADMIN"));
+
+// Settings routes
+router.get("/settings", adminController.getSystemSettings);
+router.put("/settings", adminController.updateSystemSettings);
 
 // Get system overview statistics
 router.get("/stats", adminController.getAdminStats);

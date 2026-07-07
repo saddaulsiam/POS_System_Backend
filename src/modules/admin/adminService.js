@@ -94,7 +94,15 @@ export async function getAdminStatsService() {
   };
 }
 
-export async function getStoresService(page = 1, limit = 10, search = "", status = "", plan = "", sortBy = "", dateJoined = "") {
+export async function getStoresService(
+  page = 1,
+  limit = 10,
+  search = "",
+  status = "",
+  plan = "",
+  sortBy = "",
+  dateJoined = "",
+) {
   const skip = (page - 1) * limit;
 
   const andConditions = [];
@@ -523,4 +531,54 @@ export async function extendSubscriptionService(id, days) {
   });
 
   return { message: `Subscription extended by ${days} days successfully`, subscription: updated };
+}
+
+export async function logPlatformAction(action, details, ipAddress, userAgent, adminName) {
+  try {
+    await prisma.platformAuditLog.create({
+      data: {
+        action,
+        details,
+        ipAddress,
+        userAgent,
+        adminName,
+      },
+    });
+  } catch (error) {
+    console.error("[AUDIT LOG ERROR]", error);
+  }
+}
+
+export async function getSystemSettingsService() {
+  return await prisma.systemSettings.findUnique({
+    where: { id: 1 },
+  });
+}
+
+export async function updateSystemSettingsService(data) {
+  return await prisma.systemSettings.update({
+    where: { id: 1 },
+    data: {
+      defaultTrialDays: parseInt(data.defaultTrialDays),
+      monthlyPrice: parseFloat(data.monthlyPrice),
+      yearlyPrice: parseFloat(data.yearlyPrice),
+      supportEmail: data.supportEmail,
+      smtpHost: data.smtpHost || null,
+      smtpPort: data.smtpPort ? parseInt(data.smtpPort) : null,
+      smtpUser: data.smtpUser || null,
+      smtpPass: data.smtpPass || null,
+    },
+  });
+}
+
+export async function getPublicSettingsService() {
+  return await prisma.systemSettings.findUnique({
+    where: { id: 1 },
+    select: {
+      defaultTrialDays: true,
+      monthlyPrice: true,
+      yearlyPrice: true,
+      supportEmail: true,
+    },
+  });
 }

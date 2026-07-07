@@ -106,9 +106,15 @@ export async function registerStoreService({
         data: posSettingsData,
       });
 
-      // Create subscription with 10-day trial period
+      // Retrieve dynamic trial duration from system settings
+      const systemSettings = await tx.systemSettings.findUnique({
+        where: { id: 1 },
+      });
+      const trialDays = systemSettings?.defaultTrialDays ?? 10;
+
+      // Create subscription with trial period
       const trialEndDate = new Date();
-      trialEndDate.setDate(trialEndDate.getDate() + 10);
+      trialEndDate.setDate(trialEndDate.getDate() + trialDays);
 
       const subscription = await tx.subscription.create({
         data: {

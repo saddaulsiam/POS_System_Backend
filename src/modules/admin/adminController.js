@@ -10,6 +10,10 @@ import {
   impersonateStoreService,
   deleteStoreService,
   extendSubscriptionService,
+  getSystemSettingsService,
+  updateSystemSettingsService,
+  getPublicSettingsService,
+  logPlatformAction,
 } from "./adminService.js";
 
 export async function getAdminStats(req, res) {
@@ -162,5 +166,39 @@ export async function extendSubscription(req, res) {
     sendSuccess(res, result);
   } catch (error) {
     sendError(res, 500, error.message || "Failed to extend subscription");
+  }
+}
+
+export async function getSystemSettings(req, res) {
+  try {
+    const settings = await getSystemSettingsService();
+    sendSuccess(res, settings);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to retrieve system settings");
+  }
+}
+
+export async function updateSystemSettings(req, res) {
+  try {
+    const settings = await updateSystemSettingsService(req.body);
+    await logPlatformAction(
+      "SETTINGS_UPDATE",
+      `System settings updated: ${req.user?.username || "Admin"}`,
+      req.ip,
+      req.headers["user-agent"] || "",
+      req.user?.username
+    );
+    sendSuccess(res, settings);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to update system settings");
+  }
+}
+
+export async function getPublicSettings(req, res) {
+  try {
+    const settings = await getPublicSettingsService();
+    sendSuccess(res, settings);
+  } catch (error) {
+    sendError(res, 500, error.message || "Failed to retrieve public settings");
   }
 }
