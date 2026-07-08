@@ -39,7 +39,8 @@ app.use(
     optionsSuccessStatus: 200,
   }),
 );
-app.use(morgan("combined"));
+// 'tiny' in production: less I/O, faster request logging
+app.use(morgan(process.env.NODE_ENV === "production" ? "tiny" : "dev"));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -89,14 +90,15 @@ process.on("SIGINT", async () => {
   process.exit(0);
 });
 
-app.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+// Pre-warm the DB connection BEFORE the server accepts any traffic.
+// Without this, the very first user request pays the full Neon cold-start penalty.
+prisma.$connect()
+  .then(() => console.log("✅ Database connected."))
+  .catch((err) => console.error("❌ DB pre-connect failed:", err.message));
 
-  // Start birthday rewards automation
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT} [${process.env.NODE_ENV || "development"}]`);
   startScheduler();
-
-
 });
 
 export default app;
