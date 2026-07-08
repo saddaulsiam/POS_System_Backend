@@ -23,28 +23,54 @@ export async function initializeSettings() {
 }
 
 /**
- * Automatically synchronizes parent product stock levels with the sum of their variants' stocks.
+ * Automatically synchronizes parent product stock levels with the sum
+ * of their variants' stocks.
+ *
+ * Runs after a short delay so it doesn't compete with the first wave of
+ * incoming user requests and overwhelm Neon's connection pooler.
  */
 export async function syncAllProductStocks() {
+  // Wait 10 seconds after server start before touching the DB.
+  // This ensures normal API requests get DB connections first.
+  await new Promise((resolve) => setTimeout(resolve, 10_000));
+
   try {
     const productsWithVariants = await prisma.product.findMany({
       where: { hasVariants: true },
-      include: { variants: true }
+      select: {
+        id: true,
+        stockQuantity: true,
+        variants: { select: { stockQuantity: true } },
+      },
     });
-    let syncedCount = 0;
-    for (const product of productsWithVariants) {
-      const totalVariantStock = product.variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
-      if (product.stockQuantity !== totalVariantStock) {
-        await prisma.product.update({
-          where: { id: product.id },
-          data: { stockQuantity: totalVariantStock }
-        });
-        syncedCount++;
-      }
+
+    // Build list of products whose stock is actually out of sync
+    const toUpdate = productsWithVariants
+      .map((p) => ({
+        id: p.id,
+        total: p.variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0),
+        current: p.stockQuantity,
+      }))
+      .filter((p) => p.current !== p.total);
+
+    if (toUpdate.length === 0) {
+      console.log("✅ All product stock levels are already in sync.");
+      return;
     }
-    if (syncedCount > 0) {
-      console.log(`✅ Dynamically synchronized stock levels for ${syncedCount} parent products with variants.`);
-    }
+
+    // Run all updates in a single transaction to use one DB connection
+    await prisma.$transaction(
+      toUpdate.map((p) =>
+        prisma.product.update({
+          where: { id: p.id },
+          data: { stockQuantity: p.total },
+        }),
+      ),
+    );
+
+    console.log(
+      `✅ Synchronized stock for ${toUpdate.length} variant product(s).`,
+    );
   } catch (err) {
     console.error("❌ Failed to synchronize product stock levels:", err.message);
   }
