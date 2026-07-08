@@ -128,8 +128,12 @@ export async function registerStoreService({
       return { store, owner, subscription };
     });
 
-    // Generate token for auto-login
-    const token = generateToken(result.owner.id, result.owner.role, result.store.id);
+    // Generate token for auto-login (include profile fields so auth middleware needs no DB call)
+    const token = generateToken(result.owner.id, result.owner.role, result.store.id, {
+      name:     result.owner.name,
+      username: result.owner.username,
+      email:    result.owner.email ?? null,
+    });
 
     return {
       token,
@@ -179,7 +183,12 @@ export async function loginService(username, pinCode, req) {
   }
 
   // Generate both access token and refresh token
-  const token = generateToken(employee.id, employee.role, employee.storeId);
+  // Include profile fields so auth middleware needs no DB call per request
+  const token = generateToken(employee.id, employee.role, employee.storeId, {
+    name:     employee.name,
+    username: employee.username,
+    email:    employee.email ?? null,
+  });
   const refreshToken = generateRefreshToken(employee.id);
 
   // Store refresh token in database
@@ -271,8 +280,12 @@ export async function refreshTokenService(refreshToken) {
     return { error: "Invalid refresh token", status: 401 };
   }
 
-  // Generate new access token
-  const newAccessToken = generateToken(employee.id, employee.role, employee.storeId);
+  // Generate new access token (with profile fields)
+  const newAccessToken = generateToken(employee.id, employee.role, employee.storeId, {
+    name:     employee.name,
+    username: employee.username,
+    email:    employee.email ?? null,
+  });
 
   return {
     token: newAccessToken,

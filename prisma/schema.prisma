@@ -150,6 +150,9 @@ model Employee {
   sales        Sale[]
   salarySheets SalarySheet[]
   storesOwned  Store[]       @relation("StoreOwner")
+
+  @@index([storeId])
+  @@index([username])
 }
 
 model SalarySheet {
@@ -276,6 +279,11 @@ model Product {
   stockAlerts       StockAlert[]
   stockMovements    StockMovement[]
   notifications     Notification[]
+
+  @@index([storeId, isActive, isDeleted])
+  @@index([storeId, categoryId])
+  @@index([sku])
+  @@index([barcode])
 }
 
 model ProductVariant {
@@ -299,6 +307,10 @@ model ProductVariant {
   product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   saleItems      SaleItem[]
   stockMovements StockMovement[]
+
+  @@index([productId])
+  @@index([sku])
+  @@index([barcode])
 }
 
 // ==================================================
@@ -340,6 +352,10 @@ model Sale {
   saleItems          SaleItem[]
   paymentSplits      PaymentSplit[]
   pointsTransactions PointsTransaction[]
+
+  @@index([storeId, createdAt])
+  @@index([storeId, employeeId])
+  @@index([customerId])
 }
 
 model SaleItem {
@@ -362,6 +378,10 @@ model SaleItem {
   product        Product         @relation(fields: [productId], references: [id])
   productVariant ProductVariant? @relation(fields: [productVariantId], references: [id])
   store          Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@index([productId])
+  @@index([storeId])
 }
 
 model PaymentSplit {
@@ -667,6 +687,8 @@ model POSSettings {
   // Relations
   store             Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   updatedByEmployee Employee? @relation(fields: [updatedBy], references: [id])
+
+  @@index([storeId])
 }
 
 // ==================================================
@@ -751,6 +773,10 @@ model Notification {
   // Relations
   store   Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   product Product? @relation(fields: [productId], references: [id])
+
+  @@index([storeId, isRead])
+  @@index([storeId, createdAt])
+  @@index([productId])
 }
 
 model SystemSettings {

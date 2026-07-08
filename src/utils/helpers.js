@@ -42,8 +42,12 @@ export const comparePassword = async (password, hash) => {
   return await bcrypt.compare(password, hash);
 };
 
-export const generateToken = (userId, role, storeId) => {
-  return jwt.sign({ userId, role, storeId }, process.env.JWT_SECRET, { expiresIn: "7d" });
+export const generateToken = (userId, role, storeId, extra = {}) => {
+  return jwt.sign(
+    { userId, role, storeId, ...extra },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" },
+  );
 };
 
 export const generateRefreshToken = (userId) => {

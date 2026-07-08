@@ -1,7 +1,17 @@
 import jwt from "jsonwebtoken";
-import prisma from "../prisma.js";
 
-const authenticateToken = async (req, res, next) => {
+/**
+ * authenticateToken — JWT-only validation (NO database query).
+ *
+ * The JWT already contains userId, role, storeId, name, email at login time.
+ * We trust those claims here. The only time we hit the DB for user data is
+ * during login/refresh. This eliminates 1 DB round-trip from EVERY request.
+ *
+ * Security note: tokens expire (exp claim). If you need to invalidate a token
+ * before expiry (e.g. on account deactivation), add a token-revocation check
+ * in the login/refresh flow or use short expiry + refresh tokens.
+ */
+const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
@@ -12,32 +22,27 @@ const authenticateToken = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const employee = await prisma.employee.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        name: true,
-        username: true,
-        email: true,
-        role: true,
-        isActive: true,
-        storeId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    // Populate req.user from the JWT payload — same shape as before.
+    req.user = {
+      id:        decoded.userId,
+      name:      decoded.name      ?? null,
+      username:  decoded.username  ?? null,
+      email:     decoded.email     ?? null,
+      role:      decoded.role,
+      storeId:   decoded.storeId   ?? null,
+      isActive:  true, // token wouldn't exist if account were inactive at login
+    };
 
-    if (!employee || !employee.isActive) {
-      return res.status(401).json({ error: "Invalid or inactive user" });
-    }
-    // console.log("[AUTH] employee:", employee);
-    // console.log("[AUTH] storeId:", employee.storeId);
-    if ((employee.storeId === null || employee.storeId === undefined) && employee.role !== "SUPER_ADMIN") {
+    if (
+      (req.user.storeId === null || req.user.storeId === undefined) &&
+      req.user.role !== "SUPER_ADMIN"
+    ) {
       return res.status(403).json({
-        error: "Access denied: Your account is not assigned to any store. Please contact your administrator.",
+        error:
+          "Access denied: Your account is not assigned to any store. Please contact your administrator.",
       });
     }
-    req.user = employee;
+
     next();
   } catch (error) {
     if (error.name === "TokenExpiredError") {
@@ -52,17 +57,15 @@ const authorizeRoles = (...roles) => {
     if (!req.user) {
       return res.status(401).json({ error: "Authentication required" });
     }
-
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ error: "Insufficient permissions" });
     }
-
     next();
   };
 };
 
-// Optional authentication - doesn't fail if no token, just sets req.user if valid
-const optionalAuth = async (req, res, next) => {
+// Optional authentication — doesn't fail if no token, just sets req.user if valid
+const optionalAuth = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
@@ -73,21 +76,18 @@ const optionalAuth = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const employee = await prisma.employee.findUnique({
-      where: { id: decoded.userId },
-      select: { id: true, name: true, username: true, role: true, isActive: true },
-    });
-
-    if (employee && employee.isActive) {
-      req.user = employee;
-    } else {
-      req.user = null;
-    }
-    next();
-  } catch (error) {
+    req.user = {
+      id:       decoded.userId,
+      name:     decoded.name     ?? null,
+      username: decoded.username ?? null,
+      role:     decoded.role,
+      storeId:  decoded.storeId  ?? null,
+      isActive: true,
+    };
+  } catch {
     req.user = null;
-    next();
   }
+  next();
 };
 
 export { authenticateToken, authorizeRoles, optionalAuth };
