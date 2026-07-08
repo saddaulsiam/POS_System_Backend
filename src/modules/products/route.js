@@ -22,6 +22,31 @@ import productsValidator from "./productsValidator.js";
 const router = express.Router();
 const csvUpload = multer({ storage: multer.memoryStorage() });
 
+// ── Static routes MUST come before /:id to prevent "export"/"import" being
+//    treated as a product ID by Express param matching ──────────────────────
+
+// Export products as CSV
+router.get("/export", [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")], exportProductsCSV);
+
+// Export products as Excel
+router.get("/export/excel", [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")], exportProductsExcel);
+
+// Import products from CSV
+router.post(
+  "/import",
+  [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), csvUpload.single("file")],
+  importProductsCSV,
+);
+
+// Import products from Excel
+router.post(
+  "/import/excel",
+  [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), csvUpload.single("file")],
+  importProductsExcel,
+);
+
+// ── Dynamic :id routes ────────────────────────────────────────────────────
+
 router
   .route("/")
   .get([authenticateToken, ...productsValidator.list], listProducts)
@@ -52,25 +77,5 @@ router.post(
 
 // Get product barcode
 router.get("/:id/barcode", authenticateToken, getProductBarcode);
-
-// Export products as CSV
-router.get("/export", [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")], exportProductsCSV);
-
-// Import products from CSV
-router.post(
-  "/import",
-  [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), csvUpload.single("file")],
-  importProductsCSV,
-);
-
-// Export products as Excel
-router.get("/export/excel", [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")], exportProductsExcel);
-
-// Import products from Excel
-router.post(
-  "/import/excel",
-  [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), csvUpload.single("file")],
-  importProductsExcel,
-);
 
 export const ProductRoutes = router;

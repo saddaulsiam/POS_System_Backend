@@ -1,32 +1,42 @@
 import prisma from "../../prisma.js";
 
 export const getSettings = async (storeId) => {
-  let settings = await prisma.pOSSettings.findFirst({
-    where: { storeId },
-    include: {
-      updatedByEmployee: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
+  // Use a transaction so both queries share the same connection.
+  // This prevents Neon's connection pooler from dropping the connection
+  // between the findFirst and the create, which caused "- -" (no response) in logs.
+  const settings = await prisma.$transaction(async (tx) => {
+    let existing = await tx.pOSSettings.findFirst({
+      where: { storeId },
+      include: {
+        updatedByEmployee: {
+          select: { id: true, name: true, username: true },
         },
       },
-    },
-  });
-  if (!settings) {
-    settings = await prisma.pOSSettings.create({
-      data: {
-        storeId,
-        enableQuickSale: true,
-        enableSplitPayment: true,
-        enableParkSale: true,
-        enableCustomerSearch: true,
-        enableBarcodeScanner: true,
-        enableLoyaltyPoints: true,
-        taxRate: 0,
-      },
     });
-  }
+
+    if (!existing) {
+      existing = await tx.pOSSettings.create({
+        data: {
+          storeId,
+          enableQuickSale: true,
+          enableSplitPayment: true,
+          enableParkSale: true,
+          enableCustomerSearch: true,
+          enableBarcodeScanner: true,
+          enableLoyaltyPoints: true,
+          taxRate: 0,
+        },
+        include: {
+          updatedByEmployee: {
+            select: { id: true, name: true, username: true },
+          },
+        },
+      });
+    }
+
+    return existing;
+  });
+
   return settings;
 };
 
