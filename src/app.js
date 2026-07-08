@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 import prisma from "./prisma.js";
 import router from "./routes/index.js";
 import { startScheduler, stopScheduler } from "./scripts/scheduler.js";
-import { initializeSettings, syncAllProductStocks } from "./scripts/initSettings.js";
+import { syncAllProductStocks } from "./scripts/initSettings.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -97,8 +97,8 @@ app.listen(PORT, async () => {
   // Start birthday rewards automation
   startScheduler();
 
-  // Initialize dynamic system settings & sync product stock levels
-  initializeSettings().then(() => syncAllProductStocks());
+  // Sync variant product stock levels after startup (runs after 10s delay)
+  syncAllProductStocks();
 });
 
 export default app;
