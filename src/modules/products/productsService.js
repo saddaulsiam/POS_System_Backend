@@ -2,6 +2,7 @@ import prisma from "../../prisma.js";
 import bwipjs from "bwip-js";
 import ExcelJS from "exceljs";
 import { Parser } from "json2csv";
+import Papa from "papaparse";
 import cloudinary from "../../utils/cloudinary.js";
 import { deleteImage } from "../../utils/upload.js";
 
@@ -249,21 +250,42 @@ export async function deleteProductImageService(id, storeId) {
 export async function exportProductsCSVService(storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const products = await prisma.product.findMany({
-    where: { storeId },
+    where: { storeId, isDeleted: false },
     include: { category: true, supplier: true },
-    orderBy: { id: "asc" },
+    orderBy: { name: "asc" },
   });
-  const fields = ["id", "name", "sku", "barcode", "price", "category.name", "supplier.name", "isActive"];
+  const fields = [
+    "name",
+    "sku",
+    "barcode",
+    "description",
+    "purchasePrice",
+    "sellingPrice",
+    "stockQuantity",
+    "lowStockThreshold",
+    "taxRate",
+    "unit",
+    "isWeighted",
+    "category",
+    "supplier",
+    "isActive",
+  ];
   const parser = new Parser({ fields });
   const csv = parser.parse(
     products.map((p) => ({
-      id: p.id,
       name: p.name,
       sku: p.sku,
-      barcode: p.barcode,
-      price: p.price,
-      "category.name": p.category?.name || "",
-      "supplier.name": p.supplier?.name || "",
+      barcode: p.barcode || "",
+      description: p.description || "",
+      purchasePrice: p.purchasePrice,
+      sellingPrice: p.sellingPrice,
+      stockQuantity: p.stockQuantity,
+      lowStockThreshold: p.lowStockThreshold,
+      taxRate: p.taxRate,
+      unit: p.unit || "pcs",
+      isWeighted: p.isWeighted,
+      category: p.category?.name || "",
+      supplier: p.supplier?.name || "",
       isActive: p.isActive,
     }))
   );
@@ -275,30 +297,116 @@ export async function exportProductsCSVService(storeId) {
 // Import products from CSV (store isolated)
 export async function importProductsCSVService(buffer, storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
-  const csv = buffer.toString();
-  const rows = csv
-    .split("\n")
-    .map((r) => r.trim())
-    .filter(Boolean);
-  const headers = rows[0].split(",");
-  for (let i = 1; i < rows.length; i++) {
-    const values = rows[i].split(",");
-    const product = {};
-    headers.forEach((h, idx) => (product[h] = values[idx]));
-    // Basic upsert scoped to storeId
-    await prisma.product.upsert({
-      where: { sku_storeId: { sku: product.sku, storeId } },
-      update: { name: product.name, price: parseFloat(product.price), barcode: product.barcode },
-      create: {
-        name: product.name,
-        sku: product.sku,
-        price: parseFloat(product.price),
-        barcode: product.barcode,
-        isActive: true,
-        storeId,
-      },
-    });
+  const csvString = buffer.toString("utf8");
+  const parsed = Papa.parse(csvString, {
+    header: true,
+    skipEmptyLines: true,
+  });
+
+  if (parsed.errors && parsed.errors.length > 0) {
+    throw new Error(`CSV Parsing error: ${parsed.errors[0].message}`);
   }
+
+  const rows = parsed.data;
+  for (const row of rows) {
+    const name = row.name?.trim();
+    const sku = row.sku?.trim();
+    if (!name || !sku) continue;
+
+    const barcode = row.barcode?.trim() || null;
+    const description = row.description?.trim() || null;
+    const purchasePrice = parseFloat(row.purchasePrice) || 0;
+    const sellingPrice = parseFloat(row.sellingPrice) || 0;
+    const stockQuantity = parseFloat(row.stockQuantity) || 0;
+    const lowStockThreshold = parseInt(row.lowStockThreshold) || 10;
+    const taxRate = parseFloat(row.taxRate) || 0;
+    const unit = row.unit?.trim() || "pcs";
+    const isWeighted = row.isWeighted === "true" || row.isWeighted === true;
+    const isActive = row.isActive === undefined || row.isActive === "true" || row.isActive === true;
+
+    // Handle Category
+    let categoryId = null;
+    if (row.category?.trim()) {
+      const categoryName = row.category.trim();
+      const cat = await prisma.category.upsert({
+        where: { storeId_name: { storeId, name: categoryName } },
+        update: {},
+        create: { name: categoryName, storeId },
+      });
+      categoryId = cat.id;
+    } else {
+      const cat = await prisma.category.upsert({
+        where: { storeId_name: { storeId, name: "General" } },
+        update: {},
+        create: { name: "General", storeId },
+      });
+      categoryId = cat.id;
+    }
+
+    // Handle Supplier
+    let supplierId = null;
+    if (row.supplier?.trim()) {
+      const supplierName = row.supplier.trim();
+      let sup = await prisma.supplier.findFirst({
+        where: { name: supplierName, storeId },
+      });
+      if (!sup) {
+        sup = await prisma.supplier.create({
+          data: { name: supplierName, storeId },
+        });
+      }
+      supplierId = sup.id;
+    }
+
+    // Check if sku exists in database for this store
+    const existing = await prisma.product.findUnique({
+      where: { storeId_sku: { storeId, sku } },
+    });
+
+    if (existing) {
+      // Update
+      await prisma.product.update({
+        where: { id: existing.id },
+        data: {
+          name,
+          barcode,
+          description,
+          purchasePrice,
+          sellingPrice,
+          stockQuantity,
+          lowStockThreshold,
+          taxRate,
+          unit,
+          isWeighted,
+          isActive,
+          categoryId,
+          supplierId,
+        },
+      });
+    } else {
+      // Create
+      await prisma.product.create({
+        data: {
+          storeId,
+          name,
+          sku,
+          barcode,
+          description,
+          purchasePrice,
+          sellingPrice,
+          stockQuantity,
+          lowStockThreshold,
+          taxRate,
+          unit,
+          isWeighted,
+          isActive,
+          categoryId,
+          supplierId,
+        },
+      });
+    }
+  }
+
   return { success: true };
 }
 
@@ -308,32 +416,44 @@ export async function importProductsCSVService(buffer, storeId) {
 export async function exportProductsExcelService(storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const products = await prisma.product.findMany({
-    where: { storeId },
+    where: { storeId, isDeleted: false },
     include: { category: true, supplier: true },
     orderBy: { name: "asc" },
   });
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Products");
   sheet.columns = [
-    { header: "ID", key: "id" },
-    { header: "Name", key: "name" },
-    { header: "SKU", key: "sku" },
-    { header: "Barcode", key: "barcode" },
-    { header: "Price", key: "price" },
-    { header: "Category", key: "category" },
-    { header: "Supplier", key: "supplier" },
-    { header: "Active", key: "isActive" },
+    { header: "Name", key: "name", width: 30 },
+    { header: "SKU", key: "sku", width: 15 },
+    { header: "Barcode", key: "barcode", width: 15 },
+    { header: "Description", key: "description", width: 30 },
+    { header: "Purchase Price", key: "purchasePrice", width: 15 },
+    { header: "Selling Price", key: "sellingPrice", width: 15 },
+    { header: "Stock Quantity", key: "stockQuantity", width: 15 },
+    { header: "Low Stock Threshold", key: "lowStockThreshold", width: 18 },
+    { header: "Tax Rate", key: "taxRate", width: 10 },
+    { header: "Unit", key: "unit", width: 10 },
+    { header: "Is Weighted", key: "isWeighted", width: 12 },
+    { header: "Category", key: "category", width: 20 },
+    { header: "Supplier", key: "supplier", width: 20 },
+    { header: "Active", key: "isActive", width: 10 },
   ];
   products.forEach((p) => {
     sheet.addRow({
-      id: p.id,
       name: p.name,
       sku: p.sku,
-      barcode: p.barcode,
-      price: p.price,
+      barcode: p.barcode || "",
+      description: p.description || "",
+      purchasePrice: p.purchasePrice,
+      sellingPrice: p.sellingPrice,
+      stockQuantity: p.stockQuantity,
+      lowStockThreshold: p.lowStockThreshold,
+      taxRate: p.taxRate,
+      unit: p.unit || "pcs",
+      isWeighted: p.isWeighted ? "true" : "false",
       category: p.category?.name || "",
       supplier: p.supplier?.name || "",
-      isActive: p.isActive,
+      isActive: p.isActive ? "true" : "false",
     });
   });
   const buffer = await workbook.xlsx.writeBuffer();
@@ -347,16 +467,135 @@ export async function importProductsExcelService(buffer, storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
-  const sheet = workbook.getWorksheet("Products");
+  const sheet = workbook.getWorksheet("Products") || workbook.worksheets[0];
+  if (!sheet) throw new Error("Excel worksheet not found");
+
+  const rows = [];
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return; // skip header
-    const [id, name, sku, barcode, price, category, supplier, isActive] = row.values.slice(1);
-    prisma.product.upsert({
-      where: { sku_storeId: { sku, storeId } },
-      update: { name, price: parseFloat(price), barcode },
-      create: { name, sku, price: parseFloat(price), barcode, isActive: isActive === "true", storeId },
+    const values = Array.isArray(row.values) ? row.values.slice(1) : [];
+    if (values.length < 2) return;
+    rows.push({
+      name: values[0]?.toString() || "",
+      sku: values[1]?.toString() || "",
+      barcode: values[2]?.toString() || "",
+      description: values[3]?.toString() || "",
+      purchasePrice: parseFloat(values[4]) || 0,
+      sellingPrice: parseFloat(values[5]) || 0,
+      stockQuantity: parseFloat(values[6]) || 0,
+      lowStockThreshold: parseInt(values[7]) || 10,
+      taxRate: parseFloat(values[8]) || 0,
+      unit: values[9]?.toString() || "pcs",
+      isWeighted: values[10]?.toString() === "true",
+      category: values[11]?.toString() || "",
+      supplier: values[12]?.toString() || "",
+      isActive: values[13]?.toString() !== "false",
     });
   });
+
+  for (const row of rows) {
+    const {
+      name,
+      sku,
+      barcode,
+      description,
+      purchasePrice,
+      sellingPrice,
+      stockQuantity,
+      lowStockThreshold,
+      taxRate,
+      unit,
+      isWeighted,
+      category,
+      supplier,
+      isActive,
+    } = row;
+
+    if (!name || !sku) continue;
+
+    // Handle Category
+    let categoryId = null;
+    if (category?.trim()) {
+      const categoryName = category.trim();
+      const cat = await prisma.category.upsert({
+        where: { storeId_name: { storeId, name: categoryName } },
+        update: {},
+        create: { name: categoryName, storeId },
+      });
+      categoryId = cat.id;
+    } else {
+      const cat = await prisma.category.upsert({
+        where: { storeId_name: { storeId, name: "General" } },
+        update: {},
+        create: { name: "General", storeId },
+      });
+      categoryId = cat.id;
+    }
+
+    // Handle Supplier
+    let supplierId = null;
+    if (supplier?.trim()) {
+      const supplierName = supplier.trim();
+      let sup = await prisma.supplier.findFirst({
+        where: { name: supplierName, storeId },
+      });
+      if (!sup) {
+        sup = await prisma.supplier.create({
+          data: { name: supplierName, storeId },
+        });
+      }
+      supplierId = sup.id;
+    }
+
+    // Check if sku exists in database for this store
+    const existing = await prisma.product.findUnique({
+      where: { storeId_sku: { storeId, sku } },
+    });
+
+    if (existing) {
+      // Update
+      await prisma.product.update({
+        where: { id: existing.id },
+        data: {
+          name,
+          barcode: barcode || null,
+          description: description || null,
+          purchasePrice,
+          sellingPrice,
+          stockQuantity,
+          lowStockThreshold,
+          taxRate,
+          unit,
+          isWeighted,
+          isActive,
+          categoryId,
+          supplierId,
+        },
+      });
+    } else {
+      // Create
+      await prisma.product.create({
+        data: {
+          storeId,
+          name,
+          sku,
+          barcode: barcode || null,
+          description: description || null,
+          purchasePrice,
+          sellingPrice,
+          stockQuantity,
+          lowStockThreshold,
+          taxRate,
+          unit,
+          isWeighted,
+          isActive,
+          categoryId,
+          supplierId,
+        },
+      });
+    }
+  }
+
   return { success: true };
 }
 
@@ -391,4 +630,82 @@ export async function regenerateProductBarcodeService(id, storeId) {
   const newBarcode = Math.random().toString(36).substring(2, 12).toUpperCase();
   await prisma.product.update({ where: { id: parseInt(id) }, data: { barcode: newBarcode } });
   return { success: true, barcode: newBarcode };
+}
+
+// Download templates
+export async function downloadCSVTemplateService() {
+  const fields = [
+    "name",
+    "sku",
+    "barcode",
+    "description",
+    "purchasePrice",
+    "sellingPrice",
+    "stockQuantity",
+    "lowStockThreshold",
+    "taxRate",
+    "unit",
+    "isWeighted",
+    "category",
+    "supplier",
+    "isActive",
+  ];
+  const sampleData = [
+    {
+      name: "Sample Product",
+      sku: "PROD-SAMPLE-001",
+      barcode: "123456789012",
+      description: "This is a sample product description",
+      purchasePrice: 10.0,
+      sellingPrice: 15.0,
+      stockQuantity: 100,
+      lowStockThreshold: 10,
+      taxRate: 5.0,
+      unit: "pcs",
+      isWeighted: false,
+      category: "General",
+      supplier: "Default Supplier",
+      isActive: true,
+    },
+  ];
+  const parser = new Parser({ fields });
+  return parser.parse(sampleData);
+}
+
+export async function downloadExcelTemplateService() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Products");
+  sheet.columns = [
+    { header: "Name", key: "name", width: 30 },
+    { header: "SKU", key: "sku", width: 15 },
+    { header: "Barcode", key: "barcode", width: 15 },
+    { header: "Description", key: "description", width: 30 },
+    { header: "Purchase Price", key: "purchasePrice", width: 15 },
+    { header: "Selling Price", key: "sellingPrice", width: 15 },
+    { header: "Stock Quantity", key: "stockQuantity", width: 15 },
+    { header: "Low Stock Threshold", key: "lowStockThreshold", width: 18 },
+    { header: "Tax Rate", key: "taxRate", width: 10 },
+    { header: "Unit", key: "unit", width: 10 },
+    { header: "Is Weighted", key: "isWeighted", width: 12 },
+    { header: "Category", key: "category", width: 20 },
+    { header: "Supplier", key: "supplier", width: 20 },
+    { header: "Active", key: "isActive", width: 10 },
+  ];
+  sheet.addRow({
+    name: "Sample Product",
+    sku: "PROD-SAMPLE-001",
+    barcode: "123456789012",
+    description: "This is a sample product description",
+    purchasePrice: 10.0,
+    sellingPrice: 15.0,
+    stockQuantity: 100,
+    lowStockThreshold: 10,
+    taxRate: 5.0,
+    unit: "pcs",
+    isWeighted: "false",
+    category: "General",
+    supplier: "Default Supplier",
+    isActive: "true",
+  });
+  return await workbook.xlsx.writeBuffer();
 }

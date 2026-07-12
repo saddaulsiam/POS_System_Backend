@@ -16,6 +16,8 @@ import {
   regenerateProductBarcode,
   updateProduct,
   uploadProductImage,
+  downloadCSVTemplate,
+  downloadExcelTemplate,
 } from "./productsController.js";
 import productsValidator from "./productsValidator.js";
 
@@ -38,11 +40,25 @@ router.post(
   importProductsCSV,
 );
 
+// Import products template
+router.get(
+  "/import/template",
+  [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")],
+  downloadCSVTemplate,
+);
+
 // Import products from Excel
 router.post(
   "/import/excel",
   [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), csvUpload.single("file")],
   importProductsExcel,
+);
+
+// Import products Excel template
+router.get(
+  "/import/excel/template",
+  [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER")],
+  downloadExcelTemplate,
 );
 
 // ── Dynamic :id routes ────────────────────────────────────────────────────

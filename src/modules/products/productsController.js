@@ -15,6 +15,8 @@ import {
   regenerateProductBarcodeService,
   updateProductService,
   uploadProductImageService,
+  downloadCSVTemplateService,
+  downloadExcelTemplateService,
 } from "./productsService.js";
 
 // Modularized product listing
@@ -158,8 +160,8 @@ async function importProductsCSV(req, res) {
     }
     if (!req.file) return sendError(res, 400, "No file uploaded");
     const storeId = req.user.storeId;
-    await importProductsCSVService(req.file.buffer, storeId);
-    sendSuccess(res, { success: true });
+    const result = await importProductsCSVService(req.file.buffer, storeId);
+    sendSuccess(res, result);
   } catch (error) {
     console.error("Import error:", error);
     sendError(res, 500, error.message || "Failed to import products");
@@ -189,11 +191,36 @@ async function importProductsExcel(req, res) {
     }
     if (!req.file) return sendError(res, 400, "No file uploaded");
     const storeId = req.user.storeId;
-    await importProductsExcelService(req.file.buffer, storeId);
-    sendSuccess(res, { success: true });
+    const result = await importProductsExcelService(req.file.buffer, storeId);
+    sendSuccess(res, result);
   } catch (error) {
     console.error("Excel import error:", error);
     sendError(res, 500, error.message || "Failed to import Excel file");
+  }
+}
+
+// Download templates
+async function downloadCSVTemplate(req, res) {
+  try {
+    const csv = await downloadCSVTemplateService();
+    res.header("Content-Type", "text/csv");
+    res.attachment("products_import_template.csv");
+    res.send(csv);
+  } catch (error) {
+    console.error("CSV Template error:", error);
+    sendError(res, 500, error.message || "Failed to download CSV template");
+  }
+}
+
+async function downloadExcelTemplate(req, res) {
+  try {
+    const buffer = await downloadExcelTemplateService();
+    res.header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.attachment("products_import_template.xlsx");
+    res.send(buffer);
+  } catch (error) {
+    console.error("Excel Template error:", error);
+    sendError(res, 500, error.message || "Failed to download Excel template");
   }
 }
 
@@ -250,4 +277,6 @@ export {
   regenerateProductBarcode,
   updateProduct,
   uploadProductImage,
+  downloadCSVTemplate,
+  downloadExcelTemplate,
 };

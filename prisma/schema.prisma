@@ -257,8 +257,8 @@ model Product {
 
   // Fields
   name              String
-  sku               String    @unique
-  barcode           String?   @unique
+  sku               String
+  barcode           String?
   description       String?
   purchasePrice     Float
   sellingPrice      Float
@@ -288,6 +288,8 @@ model Product {
   stockMovements    StockMovement[]
   notifications     Notification[]
 
+  @@unique([storeId, sku])
+  @@unique([storeId, barcode])
   @@index([storeId, isActive, isDeleted])
   @@index([storeId, categoryId])
   @@index([sku])
@@ -302,8 +304,8 @@ model ProductVariant {
 
   // Fields
   name          String
-  sku           String   @unique
-  barcode       String?  @unique
+  sku           String
+  barcode       String?
   purchasePrice Float
   sellingPrice  Float
   stockQuantity Float    @default(0)
@@ -316,6 +318,8 @@ model ProductVariant {
   saleItems      SaleItem[]
   stockMovements StockMovement[]
 
+  @@unique([productId, sku])
+  @@unique([productId, barcode])
   @@index([productId])
   @@index([sku])
   @@index([barcode])
