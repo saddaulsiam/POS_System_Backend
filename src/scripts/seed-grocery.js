@@ -11,7 +11,7 @@ import { hashPassword } from "../utils/helpers.js";
 
 async function upsertCategory(name, storeId) {
   return prisma.category.upsert({
-    where: { name },
+    where: { storeId_name: { storeId, name } },
     update: {},
     create: { name, storeId },
   });
@@ -275,24 +275,16 @@ async function main() {
   }
 
   // 5) Sample customers
-  // Create customer without loyaltyPoints and storeId
+  // Create customer with storeId and loyalty info directly
   const johnDoe = await prisma.customer.upsert({
-    where: { phoneNumber: "555-1001" },
+    where: { storeId_phoneNumber: { storeId: store.id, phoneNumber: "555-1001" } },
     update: {},
     create: {
+      storeId: store.id,
       name: "John Doe",
       phoneNumber: "555-1001",
       email: "john.doe@example.com",
       address: "45 Market St",
-    },
-  });
-  // Create CustomerStore record for loyalty and store assignment
-  await prisma.customerStore.upsert({
-    where: { customerId_storeId: { customerId: johnDoe.id, storeId: store.id } },
-    update: {},
-    create: {
-      customerId: johnDoe.id,
-      storeId: store.id,
       loyaltyPoints: 120,
       loyaltyTier: "BRONZE",
     },

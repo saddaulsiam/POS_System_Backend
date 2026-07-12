@@ -485,40 +485,37 @@ export const customerAnalyticsReport = async (query, storeId) => {
   const days = parseInt(query.days) || 30;
   const startDate = moment().subtract(days, "days").toDate();
 
-  const customerStoreStats = await prisma.customerStore.findMany({
-    where: { storeId, customer: { isActive: true } },
-    include: {
-      customer: {
+  const customers = await prisma.customer.findMany({
+    where: { storeId, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      loyaltyTier: true,
+      loyaltyPoints: true,
+      sales: {
+        where: {
+          storeId,
+          createdAt: { gte: startDate },
+          paymentStatus: "COMPLETED",
+        },
         select: {
-          id: true,
-          name: true,
-          sales: {
-            where: {
-              storeId,
-              createdAt: { gte: startDate },
-              paymentStatus: "COMPLETED",
-            },
-            select: {
-              finalAmount: true,
-              createdAt: true,
-            },
-          },
+          finalAmount: true,
+          createdAt: true,
         },
       },
     },
   });
 
-  const analytics = customerStoreStats
-    .map((cs) => {
-      const customer = cs.customer;
+  const analytics = customers
+    .map((customer) => {
       const totalSpent = customer.sales.reduce((sum, sale) => sum + sale.finalAmount, 0);
       const purchaseCount = customer.sales.length;
       const averageOrderValue = purchaseCount > 0 ? totalSpent / purchaseCount : 0;
       return {
         customerId: customer.id,
         name: customer.name,
-        loyaltyTier: cs.loyaltyTier,
-        loyaltyPoints: cs.loyaltyPoints,
+        loyaltyTier: customer.loyaltyTier,
+        loyaltyPoints: customer.loyaltyPoints,
         purchaseCount,
         totalSpent: parseFloat(totalSpent.toFixed(2)),
         averageOrderValue: parseFloat(averageOrderValue.toFixed(2)),

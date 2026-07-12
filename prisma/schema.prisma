@@ -27,7 +27,7 @@ model Store {
   categories         Category[]
   suppliers          Supplier[]
   products           Product[]
-  customers          CustomerStore[]
+  customers          Customer[]
   employees          Employee[]
   sales              Sale[]
   parkedSales        ParkedSale[]
@@ -414,49 +414,40 @@ model PaymentSplit {
 model Customer {
   id Int @id @default(autoincrement())
 
-  name        String
-  phoneNumber String?   @unique
-  email       String?   @unique
-  dateOfBirth DateTime?
-  address     String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  // FKs
+  storeId Int
+
+  // Fields
+  name          String
+  phoneNumber   String?
+  email         String?
+  dateOfBirth   DateTime?
+  address       String?
+  isActive      Boolean   @default(true)
+  loyaltyPoints Int       @default(0)
+  loyaltyTier   String    @default("BRONZE")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   // Relations
-  customerStores     CustomerStore[]
+  store              Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
   loyaltyRewards     LoyaltyReward[]
   parkedSales        ParkedSale[]
   pointsTransactions PointsTransaction[]
   sales              Sale[]
-}
 
-model CustomerStore {
-  id Int @id @default(autoincrement())
-
-  // FKs
-  customerId    Int
-  storeId       Int
-  loyaltyPoints Int    @default(0)
-  loyaltyTier   String @default("BRONZE")
-
-  // Relations
-  customer           Customer            @relation(fields: [customerId], references: [id])
-  store              Store               @relation(fields: [storeId], references: [id])
-  pointsTransactions PointsTransaction[]
-  loyaltyRewards     LoyaltyReward[]
-
-  @@unique([customerId, storeId])
+  // Phone unique per store, not globally
+  @@unique([storeId, phoneNumber])
   @@index([storeId])
-  @@index([customerId])
+  @@index([phoneNumber])
 }
 
 model PointsTransaction {
   id Int @id @default(autoincrement())
 
   // FKs
-  customerStoreId Int
-  saleId          Int?
+  customerId Int
+  saleId     Int?
 
   // Fields
   type        String
@@ -465,12 +456,9 @@ model PointsTransaction {
   createdAt   DateTime @default(now())
 
   // Relations
-  customerStore CustomerStore @relation(fields: [customerStoreId], references: [id], onDelete: Cascade)
-  sale          Sale?         @relation(fields: [saleId], references: [id])
-  customer      Customer?     @relation(fields: [customerId], references: [id])
-  customerId    Int?
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  sale     Sale?    @relation(fields: [saleId], references: [id])
 
-  @@index([customerStoreId])
   @@index([customerId])
   @@index([saleId])
 }
@@ -479,7 +467,7 @@ model LoyaltyReward {
   id Int @id @default(autoincrement())
 
   // FKs
-  customerStoreId Int
+  customerId Int
 
   // Fields
   rewardType  String
@@ -492,9 +480,9 @@ model LoyaltyReward {
   createdAt   DateTime  @default(now())
 
   // Relations
-  customerStore CustomerStore @relation(fields: [customerStoreId], references: [id], onDelete: Cascade)
-  customer      Customer?     @relation(fields: [customerId], references: [id])
-  customerId    Int?
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
 }
 
 model LoyaltyTierConfig {

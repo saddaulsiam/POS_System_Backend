@@ -9,7 +9,7 @@ import { hashPassword } from "../utils/helpers.js";
 
 async function upsertCategory(name, storeId) {
   return prisma.category.upsert({
-    where: { name },
+    where: { storeId_name: { storeId, name } },
     update: {},
     create: { name, storeId },
   });

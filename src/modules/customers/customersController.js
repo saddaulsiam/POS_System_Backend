@@ -1,6 +1,5 @@
 import { validationResult } from "express-validator";
-import { sendError } from "../../utils/response.js";
-import { sendSuccess } from "../../utils/response.js";
+import { sendError, sendSuccess } from "../../utils/response.js";
 import {
   addLoyaltyPointsService,
   aggregateTotalSpent,
@@ -21,33 +20,28 @@ import {
 async function getCustomers(req, res) {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return sendError(res, 400, errors.array());
-    }
-    const page = parseInt(req.query.page) || 1;
+    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+
+    const page  = parseInt(req.query.page)  || 1;
     const limit = parseInt(req.query.limit) || 20;
     const search = req.query.search;
     const skip = (page - 1) * limit;
+    const storeId = req.user.storeId;
+
     const where = { isActive: true };
     if (search) {
       where.OR = [
-        { name: { contains: search } },
+        { name:        { contains: search } },
         { phoneNumber: { contains: search } },
-        { email: { contains: search } },
+        { email:       { contains: search } },
       ];
     }
-    let countWhere = { ...where };
-    if (search) {
-      countWhere = {
-        ...countWhere,
-        OR: [{ name: { contains: search } }, { phoneNumber: { contains: search } }, { email: { contains: search } }],
-      };
-    }
-    const storeId = req.user.storeId;
+
     const [customers, total] = await Promise.all([
       fetchCustomers(where, skip, limit, storeId),
-      countCustomers(countWhere, storeId),
+      countCustomers(where, storeId),
     ]);
+
     sendSuccess(res, {
       data: customers,
       pagination: {
@@ -70,9 +64,7 @@ async function getCustomerByPhone(req, res) {
     const { phone } = req.params;
     const storeId = req.user.storeId;
     const customer = await findCustomerByPhone(phone, storeId);
-    if (!customer) {
-      return sendError(res, 404, "Customer not found");
-    }
+    if (!customer) return sendError(res, 404, "Customer not found");
     sendSuccess(res, customer);
   } catch (error) {
     console.error("Get customer by phone error:", error);
@@ -96,13 +88,10 @@ async function searchCustomersController(req, res) {
 // Get customer by ID
 async function getCustomerById(req, res) {
   try {
-    const { id } = req.params;
-    const customerId = parseInt(id);
+    const customerId = parseInt(req.params.id);
     const storeId = req.user.storeId;
     const customer = await findCustomerById(customerId, storeId);
-    if (!customer) {
-      return sendError(res, 404, "Customer not found");
-    }
+    if (!customer) return sendError(res, 404, "Customer not found");
     const totalSpent = await aggregateTotalSpent(customerId, storeId);
     sendSuccess(res, {
       ...customer,
@@ -114,35 +103,27 @@ async function getCustomerById(req, res) {
   }
 }
 
-// Create new customer
+// Create new customer (per-store — no global check needed)
 async function createCustomer(req, res) {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return sendError(res, 400, errors.array());
-    }
-    const { name, phoneNumber, email, dateOfBirth, address, storeIds } = req.body;
-    // storeIds should be an array of store IDs to assign this customer to
-    if (!storeIds || !Array.isArray(storeIds) || storeIds.length === 0) {
-      return sendError(res, 400, "storeIds array is required");
-    }
-    // Check for existing customer in any of the stores
-    for (const storeId of storeIds) {
-      if (phoneNumber || email) {
-        const existing = await findExistingCustomer(phoneNumber, email, storeId);
-        if (existing) {
-          return sendError(res, 400, `Customer with this phone number or email already exists in store ${storeId}`);
-        }
+    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+
+    const { name, phoneNumber, email, dateOfBirth, address } = req.body;
+    const storeId = req.user.storeId;
+
+    // Check if phone/email already exists in THIS store
+    if (phoneNumber || email) {
+      const existing = await findExistingCustomer(phoneNumber, email, storeId);
+      if (existing) {
+        return sendError(res, 400, "A customer with this phone number or email already exists in this store");
       }
     }
-    const customer = await createCustomerService({
-      name: name.trim(),
-      phoneNumber,
-      email,
-      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
-      address,
-      storeIds,
-    });
+
+    const customer = await createCustomerService(
+      { name: name.trim(), phoneNumber, email, dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined, address },
+      storeId
+    );
     sendSuccess(res, customer, 201);
   } catch (error) {
     console.error("Create customer error:", error);
@@ -154,29 +135,27 @@ async function createCustomer(req, res) {
 async function updateCustomer(req, res) {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return sendError(res, 400, errors.array());
-    }
-    const { id } = req.params;
-    const customerId = parseInt(id);
+    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+
+    const customerId = parseInt(req.params.id);
     const storeId = req.user.storeId;
+
     const existingCustomer = await findCustomerById(customerId, storeId);
-    if (!existingCustomer) {
-      return sendError(res, 404, "Customer not found");
-    }
+    if (!existingCustomer) return sendError(res, 404, "Customer not found");
+
     if (req.body.phoneNumber || req.body.email) {
       const conflicts = await findCustomerConflict(customerId, req.body.phoneNumber, req.body.email, storeId);
-      if (conflicts) {
-        return sendError(res, 400, "Another customer with this phone number or email already exists");
-      }
+      if (conflicts) return sendError(res, 400, "Another customer with this phone number or email already exists");
     }
+
     const updateData = { ...req.body };
-    if (updateData.name) {
-      updateData.name = updateData.name.trim();
-    }
-    if (updateData.dateOfBirth) {
-      updateData.dateOfBirth = new Date(updateData.dateOfBirth);
-    }
+    if (updateData.name)        updateData.name = updateData.name.trim();
+    if (updateData.dateOfBirth) updateData.dateOfBirth = new Date(updateData.dateOfBirth);
+    // Don't allow storeId / loyalty fields to be set via this endpoint
+    delete updateData.storeId;
+    delete updateData.loyaltyPoints;
+    delete updateData.loyaltyTier;
+
     const customer = await updateCustomerService(customerId, updateData, storeId);
     sendSuccess(res, customer);
   } catch (error) {
@@ -188,13 +167,10 @@ async function updateCustomer(req, res) {
 // Deactivate customer (soft delete)
 async function deactivateCustomer(req, res) {
   try {
-    const { id } = req.params;
-    const customerId = parseInt(id);
+    const customerId = parseInt(req.params.id);
     const storeId = req.user.storeId;
     const customer = await findCustomerById(customerId, storeId);
-    if (!customer) {
-      return sendError(res, 404, "Customer not found");
-    }
+    if (!customer) return sendError(res, 404, "Customer not found");
     await deactivateCustomerService(customerId, storeId);
     sendSuccess(res, { message: "Customer deactivated successfully" });
   } catch (error) {
@@ -207,25 +183,19 @@ async function deactivateCustomer(req, res) {
 async function addLoyaltyPoints(req, res) {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return sendError(res, 400, errors.array());
-    }
-    const { id } = req.params;
-    const { points } = req.body;
-    const customerId = parseInt(id);
-    const storeId = req.user.storeId;
+    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+
+    const customerId = parseInt(req.params.id);
+    const { points }  = req.body;
+    const storeId     = req.user.storeId;
+
     const customer = await findCustomerById(customerId, storeId);
-    if (!customer) {
-      return sendError(res, 404, "Customer not found");
-    }
-    const updatedCustomer = await addLoyaltyPointsService(customerId, points, storeId);
+    if (!customer) return sendError(res, 404, "Customer not found");
+
+    const updated = await addLoyaltyPointsService(customerId, points, storeId);
     sendSuccess(res, {
       message: `Added ${points} loyalty points`,
-      customer: {
-        id: updatedCustomer.id,
-        name: updatedCustomer.name,
-        loyaltyPoints: updatedCustomer.loyaltyPoints,
-      },
+      customer: { id: updated.id, name: updated.name, loyaltyPoints: updated.loyaltyPoints },
     });
   } catch (error) {
     console.error("Add loyalty points error:", error);
@@ -237,33 +207,28 @@ async function addLoyaltyPoints(req, res) {
 async function redeemLoyaltyPoints(req, res) {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return sendError(res, 400, errors.array());
-    }
-    const { id } = req.params;
-    const { points } = req.body;
-    const customerId = parseInt(id);
-    const storeId = req.user.storeId;
+    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+
+    const customerId = parseInt(req.params.id);
+    const { points }  = req.body;
+    const storeId     = req.user.storeId;
+
     const customer = await findCustomerById(customerId, storeId);
-    if (!customer) {
-      return sendError(res, 404, "Customer not found");
-    }
+    if (!customer) return sendError(res, 404, "Customer not found");
+
     if (customer.loyaltyPoints < points) {
       return sendError(res, 400, "Insufficient loyalty points", {
         availablePoints: customer.loyaltyPoints,
         requestedPoints: points,
       });
     }
-    const updatedCustomer = await redeemLoyaltyPointsService(customerId, points, storeId);
+
+    const updated = await redeemLoyaltyPointsService(customerId, points, storeId);
     const discountAmount = points * 0.01;
     sendSuccess(res, {
       message: `Redeemed ${points} loyalty points`,
       discountAmount,
-      customer: {
-        id: updatedCustomer.id,
-        name: updatedCustomer.name,
-        loyaltyPoints: updatedCustomer.loyaltyPoints,
-      },
+      customer: { id: updated.id, name: updated.name, loyaltyPoints: updated.loyaltyPoints },
     });
   } catch (error) {
     console.error("Redeem loyalty points error:", error);

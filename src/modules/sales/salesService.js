@@ -256,17 +256,17 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
           // ── Loyalty points calculation (uses pre-fetched config) ────────────
           let pointsEarned = 0;
           let qualifiedTier = null;
-          let customerStore = null;
+          let customerForLoyalty = null;
           if (customerId) {
-            customerStore = await tx.customerStore.findUnique({
-              where: { customerId_storeId: { customerId, storeId } },
+            customerForLoyalty = await tx.customer.findUnique({
+              where: { id: customerId },
               select: { id: true, loyaltyTier: true, loyaltyPoints: true },
             });
-            if (customerStore) {
+            if (customerForLoyalty) {
               const pointsPerUnit = posSettings?.loyaltyPointsPerUnit || 10;
-              const tc = tierConfig.find((t) => t.tier === customerStore.loyaltyTier);
+              const tc = tierConfig.find((t) => t.tier === customerForLoyalty.loyaltyTier);
               const defaultMultipliers = { BRONZE: 1.0, SILVER: 1.25, GOLD: 1.5, PLATINUM: 2.0 };
-              const multiplier = tc?.pointsMultiplier || defaultMultipliers[customerStore.loyaltyTier] || 1.0;
+              const multiplier = tc?.pointsMultiplier || defaultMultipliers[customerForLoyalty.loyaltyTier] || 1.0;
               const basePoints  = Math.floor(finalAmount / pointsPerUnit);
               pointsEarned = basePoints + Math.floor(basePoints * (multiplier - 1));
             }
@@ -308,14 +308,13 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
             },
           });
           // ── Update customer points & tier ────────────────────────────────────
-          if (customerId && pointsEarned > 0 && customerStore) {
-            await tx.customerStore.update({
-              where: { id: customerStore.id },
+          if (customerId && pointsEarned > 0 && customerForLoyalty) {
+            await tx.customer.update({
+              where: { id: customerId },
               data: { loyaltyPoints: { increment: pointsEarned } },
             });
             await tx.pointsTransaction.create({
               data: {
-                customerStoreId: customerStore.id,
                 customerId,
                 saleId: sale.id,
                 type: "EARNED",
@@ -330,17 +329,16 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
             const lifetimePoints = earnedSum._sum.points || 0;
             const TIER_ORDER = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
             const LOYALTY_TIERS = { BRONZE: { min: 0 }, SILVER: { min: 500 }, GOLD: { min: 1500 }, PLATINUM: { min: 3000 } };
-            const customerTier    = customerStore.loyaltyTier || "BRONZE";
-            const currentTierIdx  = TIER_ORDER.indexOf(customerTier);
+            const customerTier   = customerForLoyalty.loyaltyTier || "BRONZE";
+            const currentTierIdx = TIER_ORDER.indexOf(customerTier);
             qualifiedTier = lifetimePoints >= LOYALTY_TIERS.PLATINUM.min ? "PLATINUM"
               : lifetimePoints >= LOYALTY_TIERS.GOLD.min    ? "GOLD"
               : lifetimePoints >= LOYALTY_TIERS.SILVER.min  ? "SILVER" : "BRONZE";
             if (TIER_ORDER.indexOf(qualifiedTier) > currentTierIdx) {
               await Promise.all([
-                tx.customerStore.update({ where: { id: customerStore.id }, data: { loyaltyTier: qualifiedTier } }),
+                tx.customer.update({ where: { id: customerId }, data: { loyaltyTier: qualifiedTier } }),
                 tx.pointsTransaction.create({
                   data: {
-                    customerStoreId: customerStore.id,
                     customerId,
                     type: "ADJUSTED",
                     points: 0,
@@ -482,25 +480,19 @@ export const processReturn = async (id, body, user, storeId) => {
     const finalRefundAmount = Math.max(0, refundAmount - restockingFee);
     if (originalSale.pointsEarned && originalSale.pointsEarned > 0 && originalSale.customerId) {
       const pointsToDeduct = Math.floor(originalSale.pointsEarned * (refundAmount / originalSale.finalAmount));
-      const customerStore = await tx.customerStore.findUnique({
-        where: { customerId_storeId: { customerId: originalSale.customerId, storeId } },
+      await tx.pointsTransaction.create({
+        data: {
+          customerId: originalSale.customerId,
+          type: "ADJUSTED",
+          points: -pointsToDeduct,
+          description: `Points deducted for return of sale ${originalSale.receiptId}`,
+          saleId: originalSale.id,
+        },
       });
-      if (customerStore) {
-        await tx.pointsTransaction.create({
-          data: {
-            customerStoreId: customerStore.id,
-            customerId: originalSale.customerId,
-            type: "ADJUSTED",
-            points: -pointsToDeduct,
-            description: `Points deducted for return of sale ${originalSale.receiptId}`,
-            saleId: originalSale.id,
-          },
-        });
-        await tx.customerStore.update({
-          where: { id: customerStore.id },
-          data: { loyaltyPoints: { decrement: pointsToDeduct } },
-        });
-      }
+      await tx.customer.update({
+        where: { id: originalSale.customerId },
+        data: { loyaltyPoints: { decrement: pointsToDeduct } },
+      });
     }
     let refundPaymentMethod = refundMethod;
     if (refundMethod === "ORIGINAL_PAYMENT") {
@@ -761,73 +753,49 @@ export const voidSale = async (id, body, user) => {
     const pointsRedeemed = Math.round(sale.loyaltyDiscount * redemptionRate);
 
     if (sale.customerId && sale.pointsEarned > 0) {
-      const customerStore = await tx.customerStore.findUnique({
-        where: { customerId_storeId: { customerId: sale.customerId, storeId } },
+      await tx.customer.update({
+        where: { id: sale.customerId },
+        data: { loyaltyPoints: { decrement: sale.pointsEarned } },
       });
-      if (customerStore) {
-        await tx.customerStore.update({
-          where: { id: customerStore.id },
-          data: { loyaltyPoints: { decrement: sale.pointsEarned } },
-        });
-        await tx.pointsTransaction.create({
-          data: {
-            customerStoreId: customerStore.id,
-            customerId: sale.customerId,
-            type: "DEDUCTION",
-            points: sale.pointsEarned,
-            description: `Reversed from voided sale #${sale.receiptId}`,
-            saleId: sale.id,
-          },
-        });
-
-        // Calculate lifetime points and tier
-        const earnedPointsSum = await tx.pointsTransaction.aggregate({
-          where: { customerId: sale.customerId, points: { gt: 0 } },
-          _sum: { points: true },
-        });
-        const lifetimePoints = earnedPointsSum._sum.points || 0;
-        const TIER_ORDER = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
-        const LOYALTY_TIERS = {
-          BRONZE: { min: 0 },
-          SILVER: { min: 500 },
-          GOLD: { min: 1500 },
-          PLATINUM: { min: 3000 },
-        };
-        const customerTier = customerStore.loyaltyTier || "BRONZE";
-        const newTier = (() => {
-          if (lifetimePoints >= LOYALTY_TIERS.PLATINUM.min) return "PLATINUM";
-          if (lifetimePoints >= LOYALTY_TIERS.GOLD.min) return "GOLD";
-          if (lifetimePoints >= LOYALTY_TIERS.SILVER.min) return "SILVER";
-          return "BRONZE";
-        })();
-        if (newTier !== customerTier) {
-          await tx.customerStore.update({
-            where: { id: customerStore.id },
-            data: { loyaltyTier: newTier },
-          });
-        }
+      await tx.pointsTransaction.create({
+        data: {
+          customerId: sale.customerId,
+          type: "DEDUCTION",
+          points: sale.pointsEarned,
+          description: `Reversed from voided sale #${sale.receiptId}`,
+          saleId: sale.id,
+        },
+      });
+      const earnedPointsSum = await tx.pointsTransaction.aggregate({
+        where: { customerId: sale.customerId, points: { gt: 0 } },
+        _sum: { points: true },
+      });
+      const lifetimePoints = earnedPointsSum._sum.points || 0;
+      const TIER_ORDER = ["BRONZE", "SILVER", "GOLD", "PLATINUM"];
+      const LOYALTY_TIERS = { BRONZE: { min: 0 }, SILVER: { min: 500 }, GOLD: { min: 1500 }, PLATINUM: { min: 3000 } };
+      const currentCustomer = await tx.customer.findUnique({ where: { id: sale.customerId }, select: { loyaltyTier: true } });
+      const customerTier = currentCustomer?.loyaltyTier || "BRONZE";
+      const newTier = lifetimePoints >= LOYALTY_TIERS.PLATINUM.min ? "PLATINUM"
+        : lifetimePoints >= LOYALTY_TIERS.GOLD.min ? "GOLD"
+        : lifetimePoints >= LOYALTY_TIERS.SILVER.min ? "SILVER" : "BRONZE";
+      if (newTier !== customerTier) {
+        await tx.customer.update({ where: { id: sale.customerId }, data: { loyaltyTier: newTier } });
       }
     }
     if (sale.customerId && pointsRedeemed > 0) {
-      const customerStore = await tx.customerStore.findUnique({
-        where: { customerId_storeId: { customerId: sale.customerId, storeId } },
+      await tx.customer.update({
+        where: { id: sale.customerId },
+        data: { loyaltyPoints: { increment: pointsRedeemed } },
       });
-      if (customerStore) {
-        await tx.customerStore.update({
-          where: { id: customerStore.id },
-          data: { loyaltyPoints: { increment: pointsRedeemed } },
-        });
-        await tx.pointsTransaction.create({
-          data: {
-            customerStoreId: customerStore.id,
-            customerId: sale.customerId,
-            type: "EARNED",
-            points: pointsRedeemed,
-            description: `Refunded from voided sale #${sale.receiptId}`,
-            saleId: sale.id,
-          },
-        });
-      }
+      await tx.pointsTransaction.create({
+        data: {
+          customerId: sale.customerId,
+          type: "EARNED",
+          points: pointsRedeemed,
+          description: `Refunded from voided sale #${sale.receiptId}`,
+          saleId: sale.id,
+        },
+      });
     }
     await tx.auditLog.create({
       data: {

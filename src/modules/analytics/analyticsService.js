@@ -283,17 +283,17 @@ export async function getCustomerStats(query, storeId) {
     endDate.setHours(23, 59, 59, 999);
   }
   const totalCustomers = await prisma.customer.count({
-    where: { isActive: true, customerStores: { some: { storeId } } },
+    where: { isActive: true, storeId },
   });
   const newCustomers = await prisma.customer.count({
     where: {
       createdAt: { gte: startDate, lte: endDate },
-      customerStores: { some: { storeId } },
+      storeId,
     },
   });
-  const tierDistribution = await prisma.customerStore.groupBy({
+  const tierDistribution = await prisma.customer.groupBy({
     by: ["loyaltyTier"],
-    where: { storeId, customer: { isActive: true } },
+    where: { storeId, isActive: true },
     _count: { loyaltyTier: true },
   });
   const topCustomers = await prisma.sale.groupBy({
@@ -311,17 +311,16 @@ export async function getCustomerStats(query, storeId) {
   });
   const topCustomersWithDetails = await Promise.all(
     topCustomers.map(async (customer) => {
-      const customerStore = await prisma.customerStore.findFirst({
-        where: { customerId: customer.customerId, storeId },
-        include: { customer: true },
+      const cust = await prisma.customer.findFirst({
+        where: { id: customer.customerId, storeId },
       });
-      const details = customerStore
+      const details = cust
         ? {
-          id: customerStore.customer.id,
-          name: customerStore.customer.name,
-          phoneNumber: customerStore.customer.phoneNumber,
-          loyaltyTier: customerStore.loyaltyTier,
-          loyaltyPoints: customerStore.loyaltyPoints,
+          id: cust.id,
+          name: cust.name,
+          phoneNumber: cust.phoneNumber,
+          loyaltyTier: cust.loyaltyTier,
+          loyaltyPoints: cust.loyaltyPoints,
         }
         : {
           id: customer.customerId,
