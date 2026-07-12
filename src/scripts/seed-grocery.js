@@ -19,7 +19,7 @@ async function upsertCategory(name, storeId) {
 
 async function upsertSupplier(data, storeId) {
   return prisma.supplier.upsert({
-    where: { email: data.email },
+    where: { storeId_email: { storeId, email: data.email } },
     update: {},
     create: { ...data, storeId },
   });

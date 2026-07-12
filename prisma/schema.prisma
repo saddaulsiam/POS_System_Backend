@@ -236,7 +236,7 @@ model Supplier {
   name        String
   contactName String?
   phone       String?
-  email       String?  @unique
+  email       String?
   address     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -245,6 +245,8 @@ model Supplier {
   store         Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
   products      Product[]
   PurchaseOrder PurchaseOrder[]
+
+  @@unique([storeId, email])
 }
 
 model Product {
@@ -643,7 +645,7 @@ model POSSettings {
   storeName    String  @default("POS System")
   storeAddress String  @default("Chatmohar, Pabna, Dhaka, Bangladesh")
   storePhone   String  @default("+8801712345678")
-  storeEmail   String? @unique
+  storeEmail   String?
   taxId        String?
   taxRate      Float   @default(0)
 
