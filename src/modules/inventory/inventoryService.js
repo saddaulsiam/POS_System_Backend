@@ -77,21 +77,37 @@ export async function createStockAdjustmentService(data, userId, storeId) {
 
 export async function getInventorySummaryService(storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
-  const [totalProducts, totalValue, lowStockCount] = await Promise.all([
-    prisma.product.count({ where: { isActive: true, storeId } }),
-    prisma.product.aggregate({ where: { isActive: true, storeId }, _sum: { stockQuantity: true } }),
-    prisma.product.count({ where: { isActive: true, storeId, stockQuantity: { lte: 10 } } }),
-  ]);
   const products = await prisma.product.findMany({
     where: { isActive: true, storeId },
-    select: { stockQuantity: true, purchasePrice: true },
+    include: {
+      variants: {
+        where: { isActive: true },
+      },
+    },
   });
-  const totalInventoryValue = products.reduce((sum, product) => sum + product.stockQuantity * product.purchasePrice, 0);
+
+  let totalProducts = products.length;
+  let totalItems = 0;
+  let totalInventoryValue = 0;
+  let lowStockProducts = 0;
+
+  products.forEach((product) => {
+    let stock = product.stockQuantity;
+    if (product.hasVariants && product.variants && product.variants.length > 0) {
+      stock = product.variants.reduce((sum, v) => sum + v.stockQuantity, 0);
+    }
+    totalItems += stock;
+    totalInventoryValue += stock * product.purchasePrice;
+    if (stock <= 10) {
+      lowStockProducts++;
+    }
+  });
+
   return {
     totalProducts,
-    totalItems: totalValue._sum.stockQuantity || 0,
+    totalItems,
     totalInventoryValue,
-    lowStockProducts: lowStockCount || 0,
+    lowStockProducts,
   };
 }
 

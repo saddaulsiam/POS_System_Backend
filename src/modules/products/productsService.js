@@ -24,11 +24,35 @@ export async function getProductsService({ page, limit, search, categoryId, isAc
   if (categoryId) where.categoryId = categoryId;
   if (isActive !== undefined) where.isActive = isActive;
   const [products, total] = await Promise.all([
-    prisma.product.findMany({ where, skip, take: limit, orderBy: { createdAt: "desc" } }),
+    prisma.product.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        category: true,
+        supplier: true,
+        variants: {
+          where: { isActive: true },
+        },
+      },
+    }),
     prisma.product.count({ where }),
   ]);
+
+  const processedProducts = products.map((product) => {
+    if (product.hasVariants && product.variants && product.variants.length > 0) {
+      const totalVariantStock = product.variants.reduce((sum, v) => sum + v.stockQuantity, 0);
+      return {
+        ...product,
+        stockQuantity: totalVariantStock,
+      };
+    }
+    return product;
+  });
+
   return {
-    data: products,
+    data: processedProducts,
     pagination: {
       page,
       limit,
@@ -123,13 +147,23 @@ export async function deleteProductService(id, storeId) {
 
 // Get product by ID
 
-// Get product by ID (store isolated)
 export async function getProductByIdService(id, storeId) {
   if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
-  return await prisma.product.findFirst({
+  const product = await prisma.product.findFirst({
     where: { id: parseInt(id), storeId },
-    include: { category: true, supplier: true },
+    include: {
+      category: true,
+      supplier: true,
+      variants: {
+        where: { isActive: true },
+      },
+    },
   });
+  if (product && product.hasVariants && product.variants && product.variants.length > 0) {
+    const totalVariantStock = product.variants.reduce((sum, v) => sum + v.stockQuantity, 0);
+    product.stockQuantity = totalVariantStock;
+  }
+  return product;
 }
 
 // Upload product image

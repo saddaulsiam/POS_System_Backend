@@ -176,16 +176,27 @@ export const inventoryReport = async (storeId) => {
     orderBy: { stockQuantity: "asc" },
   });
 
-  const totalValue = products.reduce((sum, product) => sum + product.stockQuantity * product.purchasePrice, 0);
-  const lowStockItems = products.filter((product) => product.stockQuantity <= product.lowStockThreshold);
-  const outOfStockItems = products.filter((product) => product.stockQuantity <= 0);
+  const processedProducts = products.map((product) => {
+    if (product.hasVariants && product.variants && product.variants.length > 0) {
+      const totalVariantStock = product.variants.reduce((sum, v) => sum + v.stockQuantity, 0);
+      return {
+        ...product,
+        stockQuantity: totalVariantStock,
+      };
+    }
+    return product;
+  });
+
+  const totalValue = processedProducts.reduce((sum, product) => sum + product.stockQuantity * product.purchasePrice, 0);
+  const lowStockItems = processedProducts.filter((product) => product.stockQuantity <= product.lowStockThreshold);
+  const outOfStockItems = processedProducts.filter((product) => product.stockQuantity <= 0);
 
   return {
-    totalProducts: products.length,
+    totalProducts: processedProducts.length,
     totalInventoryValue: totalValue,
     lowStockCount: lowStockItems.length,
     outOfStockCount: outOfStockItems.length,
-    products,
+    products: processedProducts,
     lowStockItems,
     outOfStockItems,
   };
