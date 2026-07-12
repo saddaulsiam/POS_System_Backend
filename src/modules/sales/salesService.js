@@ -178,6 +178,7 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
       stockUpdates.push({
         type: "variant",
         id: variant.id,
+        productId: item.productId,
         storeId,
         quantity: item.quantity,
       });
