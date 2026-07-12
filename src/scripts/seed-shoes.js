@@ -70,7 +70,7 @@ async function upsertProduct(product, storeId, supplierId, categoryId) {
   Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
 
   return prisma.product.upsert({
-    where: { sku: product.sku },
+    where: { storeId_sku: { storeId, sku: product.sku } },
     update: {},
     create: data,
   });
@@ -80,7 +80,7 @@ async function upsertVariant(productId, variant) {
   const data = { productId, ...variant, isActive: true };
   Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
   return prisma.productVariant.upsert({
-    where: { sku: variant.sku },
+    where: { productId_sku: { productId, sku: variant.sku } },
     update: {},
     create: data,
   });
