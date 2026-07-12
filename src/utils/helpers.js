@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
 import jwt from "jsonwebtoken";
 import prisma from "../prisma.js";
 
@@ -68,12 +69,16 @@ export const verifyRefreshToken = (token) => {
   }
 };
 
+/**
+ * Generate a collision-resistant receipt ID.
+ * Format: R-{base36 timestamp}-{8 random hex chars}
+ * e.g.  R-LKH3F2A-4F9E1A2B
+ * Collision probability: ~1 in 4 billion per millisecond.
+ */
 export const generateReceiptId = () => {
-  const timestamp = Date.now().toString();
-  const random = Math.floor(Math.random() * 1000)
-    .toString()
-    .padStart(3, "0");
-  return `R${timestamp.slice(-6)}${random}`;
+  const ts  = Date.now().toString(36).toUpperCase();      // base-36 timestamp
+  const rnd = randomBytes(4).toString("hex").toUpperCase(); // 8 random hex chars
+  return `R-${ts}-${rnd}`;
 };
 
 export const calculateTax = (amount, taxRate = 0) => {
@@ -88,9 +93,7 @@ export const formatCurrency = (amount) => {
 };
 
 export const generatePONumber = () => {
-  const timestamp = Date.now().toString();
-  const random = Math.floor(Math.random() * 100)
-    .toString()
-    .padStart(2, "0");
-  return `PO${timestamp.slice(-6)}${random}`;
+  const ts  = Date.now().toString(36).toUpperCase();
+  const rnd = randomBytes(2).toString("hex").toUpperCase();
+  return `PO-${ts}-${rnd}`;
 };

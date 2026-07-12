@@ -61,9 +61,22 @@ app.options("*", cors());
 // API routes
 app.use("/api", router);
 
-// Health check
-app.get("/health", (req, res) => {
-  res.json({ status: "OK", timestamp: new Date().toISOString() });
+// ── Keep-alive endpoint (no DB, responds in <1ms) ────────────────────────────
+// Point an uptime monitor (e.g. cron-job.org) to GET /ping every 14 minutes
+// to prevent Render free-tier from sleeping (which causes the 85s cold start).
+//
+// Setup (free): https://cron-job.org → New Job → URL: https://<your-render-url>/ping
+// → Every 14 minutes. That's it.
+app.get("/ping", (req, res) => res.send("pong"));
+
+// Health check (with DB connectivity verification)
+app.get("/health", async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "OK", db: "connected", timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: "degraded", db: "unreachable", timestamp: new Date().toISOString() });
+  }
 });
 
 // Error handling middleware
@@ -96,9 +109,30 @@ prisma.$connect()
   .then(() => console.log("✅ Database connected."))
   .catch((err) => console.error("❌ DB pre-connect failed:", err.message));
 
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} [${process.env.NODE_ENV || "development"}]`);
   startScheduler();
+
+  // ── Self-ping keep-alive (Render free-tier workaround) ───────────────────
+  // Render spins down free services after 15 min of inactivity → 85s cold start.
+  // This pings our own /ping endpoint every 14 minutes to stay awake.
+  // Only runs in production so it doesn't pollute local dev logs.
+  if (process.env.NODE_ENV === "production" && process.env.RENDER_EXTERNAL_URL) {
+    const PING_URL = `${process.env.RENDER_EXTERNAL_URL}/ping`;
+    const INTERVAL_MS = 14 * 60 * 1000; // 14 minutes
+
+    setInterval(async () => {
+      try {
+        await fetch(PING_URL);
+        console.log(`🏓 Self-ping OK → ${PING_URL}`);
+      } catch (err) {
+        console.warn(`⚠️  Self-ping failed: ${err.message}`);
+      }
+    }, INTERVAL_MS);
+
+    console.log(`🏓 Keep-alive self-ping active (every 14 min) → ${PING_URL}`);
+  }
 });
 
 export default app;

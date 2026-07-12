@@ -195,6 +195,10 @@ model AuditLog {
   // Relations
   store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   employee Employee? @relation(fields: [employeeId], references: [id])
+
+  @@index([storeId, createdAt])
+  @@index([employeeId])
+  @@index([action])
 }
 
 // ==================================================
@@ -208,7 +212,7 @@ model Category {
   storeId Int
 
   // Fields
-  name      String   @unique
+  name      String
   icon      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -216,6 +220,10 @@ model Category {
   // Relations
   store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   products Product[]
+
+  // Name is unique per store, not globally
+  @@unique([storeId, name])
+  @@index([storeId])
 }
 
 model Supplier {
@@ -439,6 +447,8 @@ model CustomerStore {
   loyaltyRewards     LoyaltyReward[]
 
   @@unique([customerId, storeId])
+  @@index([storeId])
+  @@index([customerId])
 }
 
 model PointsTransaction {
@@ -459,6 +469,10 @@ model PointsTransaction {
   sale          Sale?         @relation(fields: [saleId], references: [id])
   customer      Customer?     @relation(fields: [customerId], references: [id])
   customerId    Int?
+
+  @@index([customerStoreId])
+  @@index([customerId])
+  @@index([saleId])
 }
 
 model LoyaltyReward {
@@ -584,6 +598,10 @@ model StockMovement {
   product        Product         @relation(fields: [productId], references: [id])
   productVariant ProductVariant? @relation(fields: [productVariantId], references: [id])
   store          Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([storeId, createdAt])
+  @@index([movementType])
 }
 
 model StockAlert {

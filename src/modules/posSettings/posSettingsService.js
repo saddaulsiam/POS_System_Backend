@@ -1,44 +1,60 @@
 import prisma from "../../prisma.js";
 
 export const getSettings = async (storeId) => {
-  // Use a transaction so both queries share the same connection.
-  // This prevents Neon's connection pooler from dropping the connection
-  // between the findFirst and the create, which caused "- -" (no response) in logs.
-  const settings = await prisma.$transaction(async (tx) => {
-    let existing = await tx.pOSSettings.findFirst({
-      where: { storeId },
-      include: {
-        updatedByEmployee: {
-          select: { id: true, name: true, username: true },
-        },
-      },
-    });
-
-    if (!existing) {
-      existing = await tx.pOSSettings.create({
-        data: {
-          storeId,
-          enableQuickSale: true,
-          enableSplitPayment: true,
-          enableParkSale: true,
-          enableCustomerSearch: true,
-          enableBarcodeScanner: true,
-          enableLoyaltyPoints: true,
-          taxRate: 0,
-        },
-        include: {
-          updatedByEmployee: {
-            select: { id: true, name: true, username: true },
+  // Retry up to 3 times on transient DB connection errors (e.g. Neon cold-start)
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const settings = await prisma.$transaction(async (tx) => {
+        let existing = await tx.pOSSettings.findFirst({
+          where: { storeId },
+          include: {
+            updatedByEmployee: {
+              select: { id: true, name: true, username: true },
+            },
           },
-        },
+        });
+
+        if (!existing) {
+          existing = await tx.pOSSettings.create({
+            data: {
+              storeId,
+              enableQuickSale: true,
+              enableSplitPayment: true,
+              enableParkSale: true,
+              enableCustomerSearch: true,
+              enableBarcodeScanner: true,
+              enableLoyaltyPoints: true,
+              taxRate: 0,
+            },
+            include: {
+              updatedByEmployee: {
+                select: { id: true, name: true, username: true },
+              },
+            },
+          });
+        }
+
+        return existing;
       });
+
+      return settings;
+    } catch (err) {
+      const isTransient =
+        err?.message?.includes("Connection") ||
+        err?.message?.includes("closed") ||
+        err?.code === "P1001" ||
+        err?.code === "P1002";
+
+      if (isTransient && attempt < 3) {
+        console.warn(`[getSettings] transient DB error (attempt ${attempt}), retrying in 500ms...`);
+        await new Promise((r) => setTimeout(r, 500));
+        continue;
+      }
+      throw err;
     }
-
-    return existing;
-  });
-
-  return settings;
+  }
 };
+
 
 export const updateSettings = async (body, userId, storeId) => {
   const updateData = {};
