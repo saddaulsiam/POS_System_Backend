@@ -640,6 +640,7 @@ model POSSettings {
   enableCustomerSearch    Boolean @default(true)
   enableBarcodeScanner    Boolean @default(true)
   enableLoyaltyPoints     Boolean @default(true)
+  enableItemDiscount      Boolean @default(true)
   loyaltyPointsPerUnit    Float   @default(10)
   pointsRedemptionRate    Float   @default(100)
 

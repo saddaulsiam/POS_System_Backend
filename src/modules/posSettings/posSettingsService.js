@@ -24,6 +24,7 @@ export const getSettings = async (storeId) => {
               enableCustomerSearch: true,
               enableBarcodeScanner: true,
               enableLoyaltyPoints: true,
+              enableItemDiscount: true,
               taxRate: 0,
             },
             include: {
@@ -65,6 +66,7 @@ export const updateSettings = async (body, userId, storeId) => {
     "enableCustomerSearch",
     "enableBarcodeScanner",
     "enableLoyaltyPoints",
+    "enableItemDiscount",
     "loyaltyPointsPerUnit",
     "pointsRedemptionRate",
     "storeName",
@@ -128,6 +130,7 @@ export const updateSettings = async (body, userId, storeId) => {
         enableCustomerSearch: updateData.enableCustomerSearch ?? true,
         enableBarcodeScanner: updateData.enableBarcodeScanner ?? true,
         enableLoyaltyPoints: updateData.enableLoyaltyPoints ?? true,
+        enableItemDiscount: updateData.enableItemDiscount ?? true,
         taxRate: updateData.taxRate ?? 0,
       },
       include: {

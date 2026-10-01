@@ -160,7 +160,12 @@ export const createSale = async (body, user, ip, userAgent, storeId) => {
       );
     }
     const price = item.price || (variant ? variant.sellingPrice : product.sellingPrice);
-    const discount = item.discount || 0;
+    const rawDiscount = item.discount || 0;
+    // Protect cost price: ensure item discount never drops item subtotal below total purchase price
+    const purchasePrice = variant?.purchasePrice ?? product.purchasePrice ?? 0;
+    const minSubtotal = Math.max(0, purchasePrice * item.quantity);
+    const maxDiscount = Math.max(0, price * item.quantity - minSubtotal);
+    const discount = Math.min(rawDiscount, maxDiscount);
     const itemSubtotal = price * item.quantity - discount;
     const itemTax = calculateTax(itemSubtotal, product.taxRate);
     subtotal += itemSubtotal;

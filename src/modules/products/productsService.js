@@ -109,7 +109,21 @@ export async function createProductService(data, userId, storeId) {
     updatedAt: _updatedAt,
     ...createData
   } = data;
-  createData.storeId = storeId;
+  // Validate discount limit against purchasePrice
+  if (createData.discountType && createData.discountType !== "NONE" && Number(createData.discountValue) > 0) {
+    const buyPrice = Number(createData.purchasePrice) || 0;
+    const sellPrice = Number(createData.sellingPrice) || 0;
+    const maxDiscount = Math.max(0, sellPrice - buyPrice);
+    if (createData.discountType === "FIXED" && Number(createData.discountValue) > maxDiscount) {
+      throw new Error(`Discount cannot exceed ${maxDiscount} so selling price stays above purchase price (${buyPrice})`);
+    }
+    if (createData.discountType === "PERCENTAGE") {
+      const maxPercent = sellPrice > 0 ? ((sellPrice - buyPrice) / sellPrice) * 100 : 0;
+      if (Number(createData.discountValue) > maxPercent) {
+        throw new Error(`Discount percentage cannot exceed ${maxPercent.toFixed(1)}% to keep selling price above purchase price (${buyPrice})`);
+      }
+    }
+  }
 
   // Create product
   const product = await prisma.product.create({
@@ -161,6 +175,25 @@ export async function updateProductService(id, data, storeId) {
     updatedAt: _updatedAt,
     ...updateData
   } = data;
+
+  // Validate discount limit against purchasePrice
+  const buyPrice = updateData.purchasePrice !== undefined ? Number(updateData.purchasePrice) : existingProduct.purchasePrice;
+  const sellPrice = updateData.sellingPrice !== undefined ? Number(updateData.sellingPrice) : existingProduct.sellingPrice;
+  const discType = updateData.discountType !== undefined ? updateData.discountType : existingProduct.discountType;
+  const discVal = updateData.discountValue !== undefined ? Number(updateData.discountValue) : existingProduct.discountValue;
+
+  if (discType && discType !== "NONE" && discVal > 0) {
+    const maxDiscount = Math.max(0, sellPrice - buyPrice);
+    if (discType === "FIXED" && discVal > maxDiscount) {
+      throw new Error(`Discount cannot exceed ${maxDiscount} so selling price stays above purchase price (${buyPrice})`);
+    }
+    if (discType === "PERCENTAGE") {
+      const maxPercent = sellPrice > 0 ? ((sellPrice - buyPrice) / sellPrice) * 100 : 0;
+      if (discVal > maxPercent) {
+        throw new Error(`Discount percentage cannot exceed ${maxPercent.toFixed(1)}% to keep selling price above purchase price (${buyPrice})`);
+      }
+    }
+  }
 
   return await prisma.product.update({
     where: { id: productId },
