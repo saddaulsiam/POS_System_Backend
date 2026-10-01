@@ -91,11 +91,29 @@ export async function createProductService(data, userId, storeId) {
     },
   });
   if (existing) throw new Error("SKU or barcode already exists in this store");
-  // Set storeId on product
-  data.storeId = storeId;
+  // Remove non-creatable fields and nested relation objects
+  const {
+    id: _id,
+    storeId: _sid,
+    category: _category,
+    supplier: _supplier,
+    variants: _variants,
+    store: _store,
+    quickSaleItems: _quickSaleItems,
+    saleItems: _saleItems,
+    stockAlerts: _stockAlerts,
+    stockMovements: _stockMovements,
+    notifications: _notifications,
+    PurchaseOrderItem: _PurchaseOrderItem,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    ...createData
+  } = data;
+  createData.storeId = storeId;
+
   // Create product
   const product = await prisma.product.create({
-    data,
+    data: createData,
     include: { category: true, supplier: true },
   });
   // ...audit logic if needed...
@@ -124,9 +142,29 @@ export async function updateProductService(id, data, storeId) {
     });
     if (conflict) throw new Error("SKU or barcode already exists in this store");
   }
+
+  // Remove non-updatable fields and nested relation objects
+  const {
+    id: _id,
+    storeId: _storeId,
+    category: _category,
+    supplier: _supplier,
+    variants: _variants,
+    store: _store,
+    quickSaleItems: _quickSaleItems,
+    saleItems: _saleItems,
+    stockAlerts: _stockAlerts,
+    stockMovements: _stockMovements,
+    notifications: _notifications,
+    PurchaseOrderItem: _PurchaseOrderItem,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    ...updateData
+  } = data;
+
   return await prisma.product.update({
     where: { id: productId },
-    data,
+    data: updateData,
     include: { category: true, supplier: true },
   });
 }
