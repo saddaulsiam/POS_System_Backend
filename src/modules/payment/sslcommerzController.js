@@ -27,6 +27,7 @@ export async function initiatePayment(req, res) {
     });
 
     if (!result.success) {
+      console.error("[Payment] Initiation failed:", result.error);
       return sendError(res, 400, result.error);
     }
 
@@ -55,7 +56,8 @@ export async function handleSuccess(req, res) {
     const result = await sslcommerzService.handlePaymentSuccess(paymentData);
 
     // Determine redirect URL based on platform
-    const frontendUrl = platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
+    const frontendBase = platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
+    const frontendUrl = platform === "electron" ? frontendBase : `${frontendBase}/subscription`;
 
     if (!result.success) {
       // Redirect to frontend failure page
@@ -66,8 +68,9 @@ export async function handleSuccess(req, res) {
     return res.redirect(`${frontendUrl}?status=success&transaction=${paymentData.tran_id}`);
   } catch (error) {
     console.error("Payment success callback error:", error);
-    const frontendUrl =
+    const frontendBase =
       req.query.platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
+    const frontendUrl = req.query.platform === "electron" ? frontendBase : `${frontendBase}/subscription`;
     return res.redirect(`${frontendUrl}?status=error&message=Payment%20processing%20failed`);
   }
 }
@@ -81,13 +84,15 @@ export async function handleFailure(req, res) {
     const platform = req.query.platform || "web";
     await sslcommerzService.handlePaymentFailure(tran_id, error);
 
-    const frontendUrl = platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
+    const frontendBase = platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
+    const frontendUrl = platform === "electron" ? frontendBase : `${frontendBase}/subscription`;
 
     return res.redirect(`${frontendUrl}?status=failed&message=${encodeURIComponent(error || "Payment failed")}`);
   } catch (error) {
     console.error("Payment failure callback error:", error);
-    const frontendUrl =
+    const frontendBase =
       req.query.platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
+    const frontendUrl = req.query.platform === "electron" ? frontendBase : `${frontendBase}/subscription`;
     return res.redirect(`${frontendUrl}?status=error&message=Payment%20processing%20failed`);
   }
 }
@@ -101,13 +106,15 @@ export async function handleCancel(req, res) {
     const platform = req.query.platform || "web";
     await sslcommerzService.handlePaymentCancellation(tran_id);
 
-    const frontendUrl = platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
+    const frontendBase = platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
+    const frontendUrl = platform === "electron" ? frontendBase : `${frontendBase}/subscription`;
 
     return res.redirect(`${frontendUrl}?status=cancelled&message=Payment%20was%20cancelled`);
   } catch (error) {
     console.error("Payment cancel callback error:", error);
-    const frontendUrl =
+    const frontendBase =
       req.query.platform === "electron" ? process.env.FRONTEND_URL_ELECTRON : process.env.FRONTEND_URL_WEB;
+    const frontendUrl = req.query.platform === "electron" ? frontendBase : `${frontendBase}/subscription`;
     return res.redirect(`${frontendUrl}?status=error&message=Payment%20processing%20failed`);
   }
 }

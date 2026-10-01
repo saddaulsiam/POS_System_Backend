@@ -556,9 +556,20 @@ export async function getSystemSettingsService() {
 }
 
 export async function updateSystemSettingsService(data) {
-  return await prisma.systemSettings.update({
+  return await prisma.systemSettings.upsert({
     where: { id: 1 },
-    data: {
+    create: {
+      id: 1,
+      defaultTrialDays: parseInt(data.defaultTrialDays) || 10,
+      monthlyPrice: parseFloat(data.monthlyPrice) || 79.0,
+      yearlyPrice: parseFloat(data.yearlyPrice) || 59.0,
+      supportEmail: data.supportEmail || 'support@pos-platform.com',
+      smtpHost: data.smtpHost || null,
+      smtpPort: data.smtpPort ? parseInt(data.smtpPort) : null,
+      smtpUser: data.smtpUser || null,
+      smtpPass: data.smtpPass || null,
+    },
+    update: {
       defaultTrialDays: parseInt(data.defaultTrialDays),
       monthlyPrice: parseFloat(data.monthlyPrice),
       yearlyPrice: parseFloat(data.yearlyPrice),
