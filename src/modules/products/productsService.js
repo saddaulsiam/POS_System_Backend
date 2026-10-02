@@ -33,6 +33,7 @@ export async function getProductsService({ page, limit, search, categoryId, isAc
       include: {
         category: true,
         supplier: true,
+        brand: true,
         variants: {
           where: { isActive: true },
         },
@@ -97,6 +98,7 @@ export async function createProductService(data, userId, storeId) {
     storeId: _sid,
     category: _category,
     supplier: _supplier,
+    brand: _brand,
     variants: _variants,
     store: _store,
     quickSaleItems: _quickSaleItems,
@@ -127,8 +129,11 @@ export async function createProductService(data, userId, storeId) {
 
   // Create product
   const product = await prisma.product.create({
-    data: createData,
-    include: { category: true, supplier: true },
+    data: {
+      ...createData,
+      storeId,
+    },
+    include: { category: true, supplier: true, brand: true },
   });
   // ...audit logic if needed...
   return product;
@@ -163,6 +168,7 @@ export async function updateProductService(id, data, storeId) {
     storeId: _storeId,
     category: _category,
     supplier: _supplier,
+    brand: _brand,
     variants: _variants,
     store: _store,
     quickSaleItems: _quickSaleItems,
@@ -198,7 +204,7 @@ export async function updateProductService(id, data, storeId) {
   return await prisma.product.update({
     where: { id: productId },
     data: updateData,
-    include: { category: true, supplier: true },
+    include: { category: true, supplier: true, brand: true },
   });
 }
 

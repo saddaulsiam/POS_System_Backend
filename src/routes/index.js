@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { AdminRoutes } from "../modules/admin/route.js";
-import { AnalyticsRoutes } from "../modules/analytics/route.js";
 import { AuditLogsRoutes } from "../modules/auditLogs/route.js";
 import { AuthRoutes } from "../modules/auth/route.js";
+import BrandRoutes from "../modules/brands/route.js";
+import ExpenseRoutes from "../modules/expenses/route.js";
 import { CashDrawerRoutes } from "../modules/cashDrawer/route.js";
 import { CategoryRoutes } from "../modules/categories/route.js";
 import { CustomerRoutes } from "../modules/customers/route.js";
@@ -19,7 +20,6 @@ import { ProfileRoutes } from "../modules/profile/route.js";
 import PromoRoutes from "../modules/promo/route.js";
 import { QuickSaleItemsRoutes } from "../modules/quickSaleItems/route.js";
 import { ReceiptsRoutes } from "../modules/receipts/route.js";
-import { ReportRoutes } from "../modules/reports/route.js";
 import { SalarySheetsRoutes } from "../modules/salarySheets/route.js";
 import { SalesRoutes } from "../modules/sales/route.js";
 import { SubscriptionRoutes } from "../modules/subscription/route.js";
@@ -65,6 +65,14 @@ const moduleRoutes = [
     route: CategoryRoutes,
   },
   {
+    path: "/brands",
+    route: BrandRoutes,
+  },
+  {
+    path: "/expenses",
+    route: ExpenseRoutes,
+  },
+  {
     path: "/customers",
     route: CustomerRoutes,
   },
@@ -76,18 +84,12 @@ const moduleRoutes = [
     path: "/inventory",
     route: InventoryRoutes,
   },
-  {
-    path: "/reports",
-    route: ReportRoutes,
-  },
+
   {
     path: "/suppliers",
     route: SuppliersRoutes,
   },
-  {
-    path: "/analytics",
-    route: AnalyticsRoutes,
-  },
+
   {
     path: "/employees",
     route: EmployeeRoutes,

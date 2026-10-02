@@ -25,6 +25,7 @@ model Store {
   owner              Employee            @relation("StoreOwner", fields: [ownerId], references: [id])
   subscription       Subscription?
   categories         Category[]
+  brands             Brand[]
   suppliers          Supplier[]
   products           Product[]
   customers          Customer[]
@@ -42,6 +43,8 @@ model Store {
   notifications      Notification[]
   auditLogs          AuditLog[]
   payments           Payment[]
+  expenseCategories  ExpenseCategory[]
+  expenses           Expense[]
 }
 
 // ==================================================
@@ -150,6 +153,7 @@ model Employee {
   sales        Sale[]
   salarySheets SalarySheet[]
   storesOwned  Store[]       @relation("StoreOwner")
+  expenses     Expense[]
 
   @@index([storeId])
   @@index([username])
@@ -205,6 +209,27 @@ model AuditLog {
 // =                   3. PRODUCTS                  =
 // ==================================================
 
+model Brand {
+  id Int @id @default(autoincrement())
+
+  // FKs
+  storeId Int
+
+  // Fields
+  name      String
+  icon      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  // Name is unique per store, not globally
+  @@unique([storeId, name])
+  @@index([storeId])
+}
+
 model Category {
   id Int @id @default(autoincrement())
 
@@ -255,6 +280,7 @@ model Product {
   // FKs
   storeId    Int
   categoryId Int
+  brandId    Int?
   supplierId Int?
 
   // Fields
@@ -283,6 +309,7 @@ model Product {
   // Relations
   store             Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
   category          Category            @relation(fields: [categoryId], references: [id])
+  brand             Brand?              @relation(fields: [brandId], references: [id])
   supplier          Supplier?           @relation(fields: [supplierId], references: [id])
   variants          ProductVariant[]
   PurchaseOrderItem PurchaseOrderItem[]
@@ -830,4 +857,54 @@ model PromoCode {
   isActive       Boolean   @default(true)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+}
+
+// ==================================================
+// =               EXPENSES SYSTEM                  =
+// ==================================================
+
+model ExpenseCategory {
+  id Int @id @default(autoincrement())
+
+  // FKs
+  storeId Int
+
+  // Fields
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+}
+
+model Expense {
+  id Int @id @default(autoincrement())
+
+  // FKs
+  storeId    Int
+  categoryId Int
+  recordedBy Int
+
+  // Fields
+  amount      Float
+  date        DateTime @default(now())
+  referenceNo String?
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  store    Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category ExpenseCategory @relation(fields: [categoryId], references: [id])
+  employee Employee        @relation(fields: [recordedBy], references: [id])
+
+  @@index([storeId])
+  @@index([categoryId])
+  @@index([date])
 }
