@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 import prisma from "./prisma.js";
 import router from "./routes/index.js";
 import { startScheduler, stopScheduler } from "./scripts/scheduler.js";
+import { ensureSystemSettings } from "./utils/initDb.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -113,6 +114,8 @@ prisma.$connect()
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} [${process.env.NODE_ENV || "development"}]`);
   startScheduler();
+  // Ensure the SystemSettings singleton row exists in the DB
+  ensureSystemSettings();
 
   // ── Self-ping keep-alive (Render free-tier workaround) ───────────────────
   // Render spins down free services after 15 min of inactivity → 85s cold start.

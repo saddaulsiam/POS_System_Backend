@@ -33,6 +33,7 @@ export async function getProductsService({ page, limit, search, categoryId, isAc
       include: {
         category: true,
         supplier: true,
+        brand: true,
         variants: {
           where: { isActive: true },
         },
@@ -91,12 +92,48 @@ export async function createProductService(data, userId, storeId) {
     },
   });
   if (existing) throw new Error("SKU or barcode already exists in this store");
-  // Set storeId on product
-  data.storeId = storeId;
+  // Remove non-creatable fields and nested relation objects
+  const {
+    id: _id,
+    storeId: _sid,
+    category: _category,
+    supplier: _supplier,
+    brand: _brand,
+    variants: _variants,
+    store: _store,
+    quickSaleItems: _quickSaleItems,
+    saleItems: _saleItems,
+    stockAlerts: _stockAlerts,
+    stockMovements: _stockMovements,
+    notifications: _notifications,
+    PurchaseOrderItem: _PurchaseOrderItem,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    ...createData
+  } = data;
+  // Validate discount limit against purchasePrice
+  if (createData.discountType && createData.discountType !== "NONE" && Number(createData.discountValue) > 0) {
+    const buyPrice = Number(createData.purchasePrice) || 0;
+    const sellPrice = Number(createData.sellingPrice) || 0;
+    const maxDiscount = Math.max(0, sellPrice - buyPrice);
+    if (createData.discountType === "FIXED" && Number(createData.discountValue) > maxDiscount) {
+      throw new Error(`Discount cannot exceed ${maxDiscount} so selling price stays above purchase price (${buyPrice})`);
+    }
+    if (createData.discountType === "PERCENTAGE") {
+      const maxPercent = sellPrice > 0 ? ((sellPrice - buyPrice) / sellPrice) * 100 : 0;
+      if (Number(createData.discountValue) > maxPercent) {
+        throw new Error(`Discount percentage cannot exceed ${maxPercent.toFixed(1)}% to keep selling price above purchase price (${buyPrice})`);
+      }
+    }
+  }
+
   // Create product
   const product = await prisma.product.create({
-    data,
-    include: { category: true, supplier: true },
+    data: {
+      ...createData,
+      storeId,
+    },
+    include: { category: true, supplier: true, brand: true },
   });
   // ...audit logic if needed...
   return product;
@@ -124,10 +161,50 @@ export async function updateProductService(id, data, storeId) {
     });
     if (conflict) throw new Error("SKU or barcode already exists in this store");
   }
+
+  // Remove non-updatable fields and nested relation objects
+  const {
+    id: _id,
+    storeId: _storeId,
+    category: _category,
+    supplier: _supplier,
+    brand: _brand,
+    variants: _variants,
+    store: _store,
+    quickSaleItems: _quickSaleItems,
+    saleItems: _saleItems,
+    stockAlerts: _stockAlerts,
+    stockMovements: _stockMovements,
+    notifications: _notifications,
+    PurchaseOrderItem: _PurchaseOrderItem,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    ...updateData
+  } = data;
+
+  // Validate discount limit against purchasePrice
+  const buyPrice = updateData.purchasePrice !== undefined ? Number(updateData.purchasePrice) : existingProduct.purchasePrice;
+  const sellPrice = updateData.sellingPrice !== undefined ? Number(updateData.sellingPrice) : existingProduct.sellingPrice;
+  const discType = updateData.discountType !== undefined ? updateData.discountType : existingProduct.discountType;
+  const discVal = updateData.discountValue !== undefined ? Number(updateData.discountValue) : existingProduct.discountValue;
+
+  if (discType && discType !== "NONE" && discVal > 0) {
+    const maxDiscount = Math.max(0, sellPrice - buyPrice);
+    if (discType === "FIXED" && discVal > maxDiscount) {
+      throw new Error(`Discount cannot exceed ${maxDiscount} so selling price stays above purchase price (${buyPrice})`);
+    }
+    if (discType === "PERCENTAGE") {
+      const maxPercent = sellPrice > 0 ? ((sellPrice - buyPrice) / sellPrice) * 100 : 0;
+      if (discVal > maxPercent) {
+        throw new Error(`Discount percentage cannot exceed ${maxPercent.toFixed(1)}% to keep selling price above purchase price (${buyPrice})`);
+      }
+    }
+  }
+
   return await prisma.product.update({
     where: { id: productId },
-    data,
-    include: { category: true, supplier: true },
+    data: updateData,
+    include: { category: true, supplier: true, brand: true },
   });
 }
 

@@ -42,13 +42,17 @@ export async function initiatePayment(paymentData) {
       throw new Error("Invalid payment amount. Amount must be greater than zero");
     }
 
-    const systemSettings = await prisma.systemSettings.findUnique({
+    const systemSettings = await prisma.systemSettings.upsert({
       where: { id: 1 },
+      create: {
+        id: 1,
+        defaultTrialDays: 10,
+        monthlyPrice: 79.0,
+        yearlyPrice: 59.0,
+        supportEmail: "support@pos-platform.com",
+      },
+      update: {}, // Don't overwrite existing settings
     });
-
-    if (!systemSettings) {
-      throw new Error("System configurations not loaded. Please contact administrator.");
-    }
 
     let baseAmount = 0;
     if (plan === "MONTHLY") {
@@ -144,6 +148,7 @@ export async function initiatePayment(paymentData) {
     // Initialize SSL Commerz
     const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
     const apiResponse = await sslcz.init(data);
+    console.log("[SSLCommerz] API Response:", JSON.stringify(apiResponse));
 
     if (apiResponse?.GatewayPageURL) {
       return {
