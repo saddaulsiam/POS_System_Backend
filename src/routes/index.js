@@ -3,6 +3,7 @@ import { AdminRoutes } from "../modules/admin/route.js";
 import { AnalyticsRoutes } from "../modules/analytics/route.js";
 import { AuditLogsRoutes } from "../modules/auditLogs/route.js";
 import { AuthRoutes } from "../modules/auth/route.js";
+import BrandRoutes from "../modules/brands/route.js";
 import { CashDrawerRoutes } from "../modules/cashDrawer/route.js";
 import { CategoryRoutes } from "../modules/categories/route.js";
 import { CustomerRoutes } from "../modules/customers/route.js";
@@ -63,6 +64,10 @@ const moduleRoutes = [
   {
     path: "/categories",
     route: CategoryRoutes,
+  },
+  {
+    path: "/brands",
+    route: BrandRoutes,
   },
   {
     path: "/customers",

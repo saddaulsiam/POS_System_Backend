@@ -25,6 +25,7 @@ model Store {
   owner              Employee            @relation("StoreOwner", fields: [ownerId], references: [id])
   subscription       Subscription?
   categories         Category[]
+  brands             Brand[]
   suppliers          Supplier[]
   products           Product[]
   customers          Customer[]
@@ -205,6 +206,27 @@ model AuditLog {
 // =                   3. PRODUCTS                  =
 // ==================================================
 
+model Brand {
+  id Int @id @default(autoincrement())
+
+  // FKs
+  storeId Int
+
+  // Fields
+  name      String
+  icon      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  // Name is unique per store, not globally
+  @@unique([storeId, name])
+  @@index([storeId])
+}
+
 model Category {
   id Int @id @default(autoincrement())
 
@@ -255,6 +277,7 @@ model Product {
   // FKs
   storeId    Int
   categoryId Int
+  brandId    Int?
   supplierId Int?
 
   // Fields
@@ -283,6 +306,7 @@ model Product {
   // Relations
   store             Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
   category          Category            @relation(fields: [categoryId], references: [id])
+  brand             Brand?              @relation(fields: [brandId], references: [id])
   supplier          Supplier?           @relation(fields: [supplierId], references: [id])
   variants          ProductVariant[]
   PurchaseOrderItem PurchaseOrderItem[]
