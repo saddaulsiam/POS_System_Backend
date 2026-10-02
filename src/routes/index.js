@@ -24,6 +24,8 @@ import { SalarySheetsRoutes } from "../modules/salarySheets/route.js";
 import { SalesRoutes } from "../modules/sales/route.js";
 import { SubscriptionRoutes } from "../modules/subscription/route.js";
 import { SuppliersRoutes } from "../modules/suppliers/route.js";
+import { ReportRoutes } from "../modules/reports/route.js";
+import { AnalyticsRoutes } from "../modules/analytics/route.js";
 
 const router = Router();
 
@@ -129,6 +131,14 @@ const moduleRoutes = [
   {
     path: "/cash-drawer",
     route: CashDrawerRoutes,
+  },
+  {
+    path: "/reports",
+    route: ReportRoutes,
+  },
+  {
+    path: "/analytics",
+    route: AnalyticsRoutes,
   },
 ];
 
