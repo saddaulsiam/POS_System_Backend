@@ -148,6 +148,24 @@ export const salesRangeReport = async (query, storeId) => {
     _count: { id: true },
   });
 
+  const salesByPaymentMethod = await prisma.sale.groupBy({
+    by: ["paymentMethod"],
+    where: {
+      storeId,
+      createdAt: {
+        gte: startDate,
+        lte: endDate,
+      },
+      paymentStatus: "COMPLETED",
+    },
+    _sum: {
+      finalAmount: true,
+    },
+    _count: {
+      id: true,
+    },
+  });
+
   return {
     startDate: moment(startDate).format("YYYY-MM-DD"),
     endDate: moment(endDate).format("YYYY-MM-DD"),
@@ -158,6 +176,7 @@ export const salesRangeReport = async (query, storeId) => {
       totalTransactions: summary._count.id || 0,
     },
     sales: salesData,
+    salesByPaymentMethod,
   };
 };
 
@@ -549,5 +568,111 @@ export const customerAnalyticsReport = async (query, storeId) => {
         (analytics.reduce((sum, c) => sum + c.totalSpent, 0) / analytics.length).toFixed(2)
       ),
     },
+  };
+};
+
+export const profitAnalysisReport = async (query, storeId) => {
+  if (!storeId) throw new Error("storeId is required for multi-tenant isolation");
+  const startDate = moment(query.startDate).startOf("day").toDate();
+  const endDate = moment(query.endDate).endOf("day").toDate();
+
+  const sales = await prisma.sale.findMany({
+    where: {
+      storeId,
+      createdAt: { gte: startDate, lte: endDate },
+      paymentStatus: "COMPLETED"
+    },
+    include: {
+      saleItems: {
+        include: {
+          product: { select: { id: true, name: true, sku: true, purchasePrice: true } },
+          productVariant: { select: { id: true, purchasePrice: true } }
+        }
+      }
+    }
+  });
+
+  const refunds = await prisma.sale.findMany({
+    where: {
+      storeId,
+      createdAt: { gte: startDate, lte: endDate },
+      paymentStatus: "REFUNDED"
+    }
+  });
+
+  const expenses = await prisma.expense.findMany({
+    where: {
+      storeId,
+      date: { gte: startDate, lte: endDate }
+    }
+  });
+
+  let totalCOGS = 0;
+  let grossRevenue = 0;
+  let totalDiscounts = 0;
+  let totalVAT = 0;
+  let paymentFees = 0;
+  
+  const productMap = {};
+
+  sales.forEach(sale => {
+    grossRevenue += sale.subtotal || 0;
+    totalDiscounts += sale.discountAmount || 0;
+    totalVAT += sale.taxAmount || 0;
+
+    // Approximate payment fee
+    if (sale.paymentMethod && sale.paymentMethod.toUpperCase() !== 'CASH') {
+      paymentFees += (sale.finalAmount || 0) * 0.025; // 2.5% fee
+    }
+
+    sale.saleItems.forEach(item => {
+      const costPrice = item.productVariant?.purchasePrice || item.product?.purchasePrice || 0;
+      const cogs = costPrice * item.quantity;
+      const revenue = item.subtotal;
+      
+      totalCOGS += cogs;
+
+      const pId = item.productId;
+      if (!productMap[pId]) {
+        productMap[pId] = {
+          id: pId,
+          name: item.product.name,
+          sku: item.product.sku,
+          unitsSold: 0,
+          revenue: 0,
+          cogs: 0,
+          grossProfit: 0
+        };
+      }
+      productMap[pId].unitsSold += item.quantity;
+      productMap[pId].revenue += revenue;
+      productMap[pId].cogs += cogs;
+      productMap[pId].grossProfit += (revenue - cogs);
+    });
+  });
+
+  const totalRefunds = refunds.reduce((sum, r) => sum + (r.finalAmount || 0), 0);
+  const operatingExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const netRevenue = grossRevenue - totalDiscounts - totalRefunds;
+  const grossProfit = netRevenue - totalCOGS;
+  const netProfit = grossProfit - paymentFees - operatingExpenses;
+
+  const productBreakdown = Object.values(productMap).sort((a, b) => b.grossProfit - a.grossProfit);
+
+  return {
+    period: { startDate: moment(startDate).format("YYYY-MM-DD"), endDate: moment(endDate).format("YYYY-MM-DD") },
+    summary: {
+      grossRevenue: parseFloat(grossRevenue.toFixed(2)),
+      netRevenue: parseFloat(netRevenue.toFixed(2)),
+      cogs: parseFloat(totalCOGS.toFixed(2)),
+      grossProfit: parseFloat(grossProfit.toFixed(2)),
+      totalDiscounts: parseFloat(totalDiscounts.toFixed(2)),
+      totalVAT: parseFloat(totalVAT.toFixed(2)),
+      paymentFees: parseFloat(paymentFees.toFixed(2)),
+      totalRefunds: parseFloat(totalRefunds.toFixed(2)),
+      operatingExpenses: parseFloat(operatingExpenses.toFixed(2)),
+      netProfit: parseFloat(netProfit.toFixed(2))
+    },
+    productBreakdown
   };
 };

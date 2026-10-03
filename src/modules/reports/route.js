@@ -66,4 +66,10 @@ router.get(
   reportsController.getCustomerAnalytics
 );
 
+router.get(
+  "/profit-loss",
+  [authenticateToken, authorizeRoles("OWNER", "ADMIN", "MANAGER"), ...salesRangeValidator],
+  reportsController.getProfitAnalysis
+);
+
 export const ReportRoutes = router;

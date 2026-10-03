@@ -103,3 +103,15 @@ export const getCustomerAnalytics = async (req, res) => {
     sendError(res, 500, "Failed to generate customer analytics", error);
   }
 };
+
+export const getProfitAnalysis = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return sendError(res, 400, errors.array());
+    const storeId = req.user.storeId;
+    const result = await reportsService.profitAnalysisReport(req.query, storeId);
+    sendSuccess(res, result);
+  } catch (error) {
+    sendError(res, 500, "Failed to generate profit analysis", error);
+  }
+};
