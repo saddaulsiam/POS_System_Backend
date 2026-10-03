@@ -198,15 +198,29 @@ export const inventoryReport = async (storeId) => {
   const processedProducts = products.map((product) => {
     if (product.hasVariants && product.variants && product.variants.length > 0) {
       const totalVariantStock = product.variants.reduce((sum, v) => sum + v.stockQuantity, 0);
+      const totalVariantValue = product.variants.reduce((sum, v) => sum + (v.stockQuantity * v.purchasePrice), 0);
+      
+      let avgPurchasePrice = product.purchasePrice;
+      if (totalVariantStock > 0) {
+        avgPurchasePrice = totalVariantValue / totalVariantStock;
+      } else if (product.variants.length > 0) {
+        avgPurchasePrice = product.variants.reduce((sum, v) => sum + v.purchasePrice, 0) / product.variants.length;
+      }
+
       return {
         ...product,
         stockQuantity: totalVariantStock,
+        purchasePrice: avgPurchasePrice,
+        totalInventoryValue: totalVariantValue // specific to this item
       };
     }
-    return product;
+    return {
+      ...product,
+      totalInventoryValue: product.stockQuantity * product.purchasePrice
+    };
   });
 
-  const totalValue = processedProducts.reduce((sum, product) => sum + product.stockQuantity * product.purchasePrice, 0);
+  const totalValue = processedProducts.reduce((sum, product) => sum + (product.totalInventoryValue || 0), 0);
   const lowStockItems = processedProducts.filter((product) => product.stockQuantity <= product.lowStockThreshold);
   const outOfStockItems = processedProducts.filter((product) => product.stockQuantity <= 0);
 
@@ -292,12 +306,29 @@ export const productPerformanceReport = async (query, storeId) => {
   const productIds = productPerformance.map((perf) => perf.productId);
   const products = await prisma.product.findMany({
     where: { id: { in: productIds }, storeId },
-    include: { category: { select: { name: true } } },
+    include: { 
+      category: { select: { name: true } },
+      variants: { select: { purchasePrice: true } }
+    },
   });
 
   const performanceWithDetails = productPerformance.map((perf) => {
     const product = products.find((prod) => prod.id === perf.productId);
-    const profit = (perf._sum.subtotal || 0) - (product ? product.purchasePrice * (perf._sum.quantity || 0) : 0);
+    
+    let avgCost = 0;
+    if (product) {
+      if (product.hasVariants && product.variants && product.variants.length > 0) {
+        avgCost = product.variants.reduce((sum, v) => sum + v.purchasePrice, 0) / product.variants.length;
+      } else {
+        avgCost = product.purchasePrice;
+      }
+    }
+    
+    const profit = (perf._sum.subtotal || 0) - (avgCost * (perf._sum.quantity || 0));
+    
+    // Clean up variants from response if you want
+    if (product) delete product.variants;
+
     return {
       product,
       totalQuantitySold: perf._sum.quantity || 0,
