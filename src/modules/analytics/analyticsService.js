@@ -134,7 +134,7 @@ export async function getSalesTrend(query, storeId) {
         key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
         break;
       default:
-        key = date.toISOString().split("T")[0];
+        key = date.toLocaleDateString("en-CA");
     }
     if (!grouped[key]) {
       grouped[key] = { period: key, sales: 0, revenue: 0, count: 0 };

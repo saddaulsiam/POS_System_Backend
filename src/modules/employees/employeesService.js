@@ -240,7 +240,7 @@ export async function getEmployeePerformanceService(id, startDate, endDate) {
     }),
   ]);
   const dailySales = dailyStats.map((day) => ({
-    date: day.createdAt.toISOString().split("T")[0],
+    date: day.createdAt.toLocaleDateString("en-CA"),
     totalSales: day._sum.finalAmount || 0,
     transactions: day._count,
   }));
