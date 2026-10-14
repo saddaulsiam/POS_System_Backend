@@ -31,6 +31,7 @@ app.use(
       "http://localhost:3000",
       "http://localhost:4173",
       "https://smartpossystem.vercel.app",
+      "https://pos.vibelock.bd",
       "file://",
     ],
     credentials: true,
@@ -106,10 +107,10 @@ process.on("SIGINT", async () => {
 
 // Pre-warm the DB connection BEFORE the server accepts any traffic.
 // Without this, the very first user request pays the full Neon cold-start penalty.
-prisma.$connect()
+prisma
+  .$connect()
   .then(() => console.log("✅ Database connected."))
   .catch((err) => console.error("❌ DB pre-connect failed:", err.message));
-
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} [${process.env.NODE_ENV || "development"}]`);
